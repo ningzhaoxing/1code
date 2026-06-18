@@ -9,7 +9,7 @@
 - **实时记录按钮**：聊天顶部新增“实时记录”，可直接打开当前漏洞挖掘会话的 `漏洞挖掘记录.md`。
 - **自动打开右侧预览**：Agent 写入漏洞挖掘记录文件后，右侧 Markdown 预览器会自动打开并刷新。
 - **每个会话独立产物目录**：当 chat 没有真实独立 worktree 时，会创建带 chat/subChat 短 ID 的产物目录，避免多个对话文件冲突。
-- **外置漏洞挖掘 skill**：漏洞挖掘记录规则放在 `skills/security-mining-record/SKILL.md`，运行时建议安装到 Claude 用户级 skill 目录。
+- **外置漏洞挖掘 skill**：仓库只保留一份 skill 安装源，运行时以用户级 Claude skill 目录中的安装结果为准。
 - **Markdown 报告导出**：点击“导出报告”后，生成 `漏洞挖掘报告.md`，并在右侧 Markdown 预览器打开；右上角下载按钮可下载。
 - **报告基于完整链路生成**：最终报告不是简单下载实时记录，而是汇总当前 subChat 的消息链路、工具调用摘要、实时记录内容和产物路径。
 
@@ -54,7 +54,7 @@
 - Claude prompt/skill 注入：`src/renderer/features/agents/lib/ipc-chat-transport.ts`
 - 聊天顶部按钮与右侧预览联动：`src/renderer/features/agents/main/active-chat.tsx`
 - Markdown 下载按钮：`src/renderer/features/file-viewer/components/markdown-viewer.tsx`
-- 外置 skill：`skills/security-mining-record/SKILL.md`
+- 外置 skill 安装源：`skills/security-mining-record/SKILL.md`
 - 产品需求说明：`docs/security-mining-live-document-requirements.md`
 - UI 原型：`docs/prototypes/security-mining-record-preview.html`
 
@@ -96,13 +96,13 @@ bun run dev
 
 ## Skill 安装
 
-源码内置的 skill 文件在：
+仓库中的 skill 文件只是安装源/模板，不是 1Code 运行时自动加载的位置：
 
 ```text
 skills/security-mining-record/SKILL.md
 ```
 
-运行 Claude Code 路径时，建议同步到用户级 Claude skill 目录：
+运行 Claude Code 路径时，实际加载位置是用户级 Claude skill 目录，需要把上面的安装源复制过去：
 
 ```bash
 mkdir -p "$HOME/.claude/skills/security-mining-record"
@@ -114,6 +114,8 @@ Windows 下对应目录通常是：
 ```text
 %USERPROFILE%\.claude\skills\security-mining-record\SKILL.md
 ```
+
+注意：`skills/security-mining-record/SKILL.md` 不会因为存在于源码仓库里就自动生效。1Code 当前 Claude 路径通过 `~/.claude/skills` 和项目 `.claude/skills` 加载 skill；本 PoC 的产品代码只注入 `@[skill:security-mining-record]` 和本次记录文件路径，不在源码中硬编码 skill 内容。
 
 ## 验证命令
 
