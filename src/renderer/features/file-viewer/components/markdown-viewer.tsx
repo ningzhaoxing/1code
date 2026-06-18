@@ -3,7 +3,7 @@ import Editor from "@monaco-editor/react"
 import { useTheme } from "next-themes"
 import { useAtom } from "jotai"
 import { useAtomValue } from "jotai"
-import { Loader2, AlertCircle, Check, X } from "lucide-react"
+import { Loader2, AlertCircle, Check, X, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   IconCloseSidebarRight,
@@ -239,6 +239,20 @@ function Header({
     }
   }, [filePath, preferredEditor, openInAppMutation])
 
+  const handleDownload = useCallback(() => {
+    if (!content) return
+
+    const blob = new Blob([content], { type: "text/markdown;charset=utf-8" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }, [content, fileName])
+
   return (
     <div className="@container flex items-center justify-between px-2 h-10 border-b border-border/50 bg-background flex-shrink-0">
       {/* Left side: Close + mode switcher + file info */}
@@ -359,6 +373,26 @@ function Header({
             </TooltipTrigger>
             <TooltipContent side="bottom" showArrow={false}>
               Copy file content
+            </TooltipContent>
+          </Tooltip>
+        )}
+
+        {/* Download button */}
+        {content && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleDownload}
+                className="h-6 w-6 p-0 hover:bg-foreground/10 text-muted-foreground hover:text-foreground"
+                aria-label="Download markdown"
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" showArrow={false}>
+              Download Markdown
             </TooltipContent>
           </Tooltip>
         )}

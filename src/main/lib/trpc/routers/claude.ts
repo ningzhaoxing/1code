@@ -798,6 +798,7 @@ export const claudeRouter = router({
         subChatId: z.string(),
         chatId: z.string(),
         prompt: z.string(),
+        modelPrompt: z.string().optional(),
         cwd: z.string(),
         projectPath: z.string().optional(), // Original project path for MCP config lookup
         mode: z.enum(["plan", "agent"]).default("agent"),
@@ -931,6 +932,10 @@ export const claudeRouter = router({
                 .run()
             }
 
+            const promptForModel = input.modelPrompt?.trim()
+              ? input.modelPrompt
+              : input.prompt
+
             // Check if last message is already this user message (avoid duplicate)
             const lastMsg = existingMessages[existingMessages.length - 1]
             const lastMsgText = lastMsg?.parts?.find(
@@ -1048,7 +1053,7 @@ export const claudeRouter = router({
 
             // Parse mentions from prompt (agents, skills, files, folders)
             const { cleanedPrompt, agentMentions, skillMentions } =
-              parseMentions(input.prompt)
+              parseMentions(promptForModel)
 
             // Build agents option for SDK (proper registration via options.agents)
             const agentsOption = await buildAgentsOption(

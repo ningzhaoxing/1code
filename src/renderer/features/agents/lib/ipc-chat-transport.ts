@@ -131,6 +131,24 @@ type IPCChatTransportConfig = {
   model?: string
 }
 
+const SECURITY_MINING_PROMPT_PATTERN =
+  /(漏洞挖掘|漏洞扫描|渗透测试|安全测试|靶机|抓包|扫描器|dnslog|burp|nmap|sql\s*注入|xss|ssrf|rce|弱口令|越权|vulnerability|pentest|bug bounty|security testing|finding|evidence)/i
+
+function shouldUseSecurityMiningRecord(prompt: string): boolean {
+  return SECURITY_MINING_PROMPT_PATTERN.test(prompt)
+}
+
+function buildSecurityMiningModelPrompt(prompt: string, recordPath: string): string {
+  return `${prompt}
+
+@[skill:security-mining-record]
+
+本次漏洞挖掘实时记录文件路径为：
+${recordPath}
+
+请使用 security-mining-record skill，并在执行过程中持续维护该 Markdown 文件。`
+}
+
 // Image attachment type matching the tRPC schema
 type ImageAttachment = {
   base64Data: string
@@ -191,6 +209,22 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
         .allSubChats.find((subChat) => subChat.id === this.config.subChatId)
         ?.mode || this.config.mode
 
+    let modelPrompt: string | undefined
+    if (currentMode === "agent" && shouldUseSecurityMiningRecord(prompt)) {
+      try {
+        const record = await trpcClient.securityMiningRecord.ensure.mutate({
+          chatId: this.config.chatId,
+          subChatId: this.config.subChatId,
+        })
+        modelPrompt = buildSecurityMiningModelPrompt(prompt, record.filePath)
+      } catch (error) {
+        console.error("[security-mining-record] Failed to prepare record:", error)
+        toast.error("Failed to prepare vulnerability record", {
+          description: error instanceof Error ? error.message : "Unknown error",
+        })
+      }
+    }
+
     // Stream debug logging
     const subId = this.config.subChatId.slice(-8)
     let chunkCount = 0
@@ -204,6 +238,7 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
             subChatId: this.config.subChatId,
             chatId: this.config.chatId,
             prompt,
+            ...(modelPrompt && { modelPrompt }),
             cwd: this.config.cwd,
             projectPath: this.config.projectPath, // Original project path for MCP config lookup
             mode: currentMode,

@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm"
 import { app } from "electron"
 import { spawn, type ChildProcess } from "node:child_process"
 import { createHash } from "node:crypto"
-import { existsSync } from "node:fs"
+import { existsSync, mkdirSync } from "node:fs"
 import { readdir, readFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { basename, dirname, join, sep } from "node:path"
@@ -138,6 +138,7 @@ const AUTH_HINTS = [
 ]
 const DEFAULT_CODEX_MODEL = "gpt-5.3-codex/high"
 const CODEX_MCP_TOOLS_FETCH_TIMEOUT_MS = 40_000
+const DEFAULT_CODEX_HOME = join(homedir(), ".1code", "codex")
 const CODEX_USAGE_POLL_ATTEMPTS = 3
 const CODEX_USAGE_POLL_INTERVAL_MS = 200
 
@@ -259,6 +260,33 @@ function resolveBundledCodexCliPath(): string {
   )
 }
 
+function ensureCodexHome(codexHome: string): string {
+  mkdirSync(codexHome, { recursive: true })
+  return codexHome
+}
+
+function buildBaseCodexEnv(): Record<string, string> {
+  // Prefer shell-derived values (notably PATH) so stdio MCP dependencies
+  // like pipx/npx resolve the same way as in MCP tool probing.
+  const env: Record<string, string> = {}
+
+  for (const [key, value] of Object.entries(process.env)) {
+    if (typeof value === "string") {
+      env[key] = value
+    }
+  }
+
+  const shellEnv = getClaudeShellEnvironment()
+  for (const [key, value] of Object.entries(shellEnv)) {
+    if (typeof value === "string") {
+      env[key] = value
+    }
+  }
+
+  env.CODEX_HOME = ensureCodexHome(env.CODEX_HOME?.trim() || DEFAULT_CODEX_HOME)
+  return env
+}
+
 function stripAnsi(input: string): string {
   return input.replace(ANSI_OSC_REGEX, "").replace(ANSI_ESCAPE_REGEX, "")
 }
@@ -367,7 +395,7 @@ async function runCodexCli(
     const child = spawn(codexCliPath, args, {
       stdio: ["ignore", "pipe", "pipe"],
       cwd: cwd && cwd.length > 0 ? cwd : undefined,
-      env: process.env,
+      env: buildBaseCodexEnv(),
       windowsHide: true,
     })
 
@@ -444,18 +472,7 @@ function toTimestampMs(value: unknown): number | undefined {
 }
 
 function resolveSessionsRoot(): string {
-  // Match provider env precedence: shell-derived env overrides process.env.
-  const shellCodexHome = getClaudeShellEnvironment().CODEX_HOME?.trim()
-  if (shellCodexHome) {
-    return join(shellCodexHome, "sessions")
-  }
-
-  const processCodexHome = process.env.CODEX_HOME?.trim()
-  if (processCodexHome) {
-    return join(processCodexHome, "sessions")
-  }
-
-  return join(homedir(), ".codex", "sessions")
+  return join(buildBaseCodexEnv().CODEX_HOME, "sessions")
 }
 
 async function findSessionFileById(sessionId: string): Promise<string | null> {
@@ -1118,22 +1135,7 @@ function getAuthFingerprint(authConfig?: { apiKey: string }): string | null {
 }
 
 function buildCodexProviderEnv(authConfig?: { apiKey: string }): Record<string, string> {
-  // Prefer shell-derived values (notably PATH) so stdio MCP dependencies
-  // like pipx/npx resolve the same way as in MCP tool probing.
-  const env: Record<string, string> = {}
-
-  for (const [key, value] of Object.entries(process.env)) {
-    if (typeof value === "string") {
-      env[key] = value
-    }
-  }
-
-  const shellEnv = getClaudeShellEnvironment()
-  for (const [key, value] of Object.entries(shellEnv)) {
-    if (typeof value === "string") {
-      env[key] = value
-    }
-  }
+  const env = buildBaseCodexEnv()
 
   const apiKey = authConfig?.apiKey?.trim()
   if (!apiKey) {
@@ -1346,7 +1348,7 @@ export const codexRouter = router({
 
     const child = spawn(codexCliPath, ["login"], {
       stdio: ["ignore", "pipe", "pipe"],
-      env: process.env,
+      env: buildBaseCodexEnv(),
       windowsHide: true,
     })
 

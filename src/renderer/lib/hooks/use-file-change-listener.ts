@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
+import { trpcClient } from "../trpc"
 
 /**
  * Hook that listens for file changes from Claude Write/Edit tools
@@ -22,8 +23,12 @@ export function useFileChangeListener(
     if (!worktreePath) return
 
     const cleanup = window.desktopApi?.onFileChanged((data) => {
+      const normalizedFilePath = data.filePath.startsWith("/")
+        ? data.filePath
+        : `${worktreePath.replace(/\/+$/, "")}/${data.filePath.replace(/^\/+/, "")}`
+
       // Check if the changed file is within our worktree
-      if (data.filePath.startsWith(worktreePath)) {
+      if (normalizedFilePath.startsWith(worktreePath)) {
         // Invalidate git status queries to trigger refetch
         queryClient.invalidateQueries({
           queryKey: [["changes", "getStatus"]],
@@ -35,7 +40,13 @@ export function useFileChangeListener(
         queryClient.invalidateQueries({
           queryKey: [["chats", "getParsedDiff"]],
         })
-        onChangeRef.current?.(data)
+        queryClient.invalidateQueries({
+          queryKey: [["files", "search"]],
+        })
+        void trpcClient.files.clearCache.mutate({ projectPath: worktreePath }).catch(() => {
+          // Best-effort cache clear; React Query invalidation above still refreshes consumers.
+        })
+        onChangeRef.current?.({ ...data, filePath: normalizedFilePath })
       }
     })
 

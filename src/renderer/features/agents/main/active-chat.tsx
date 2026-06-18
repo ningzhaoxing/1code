@@ -39,6 +39,8 @@ import { atom, useAtom, useAtomValue, useSetAtom } from "jotai"
 import {
   ArrowDown,
   ChevronDown,
+  FileDown,
+  FileText,
   GitFork,
   ListTree,
   TerminalSquare
@@ -380,6 +382,26 @@ const agents = [
   { id: "cursor", name: "Cursor CLI", disabled: true },
   { id: "codex", name: "OpenAI Codex", disabled: true },
 ]
+
+const SECURITY_MINING_RECORD_FILENAME = "漏洞挖掘记录.md"
+
+function joinViewerPath(basePath: string, fileName: string): string {
+  return `${basePath.replace(/\/+$/, "")}/${fileName.replace(/^\/+/, "")}`
+}
+
+function normalizeViewerPath(filePath: string, basePath?: string | null): string {
+  if (filePath.startsWith("/")) return filePath
+  return basePath ? joinViewerPath(basePath, filePath) : filePath
+}
+
+function getViewerFileName(filePath: string): string {
+  return filePath.split("/").filter(Boolean).pop() || filePath
+}
+
+function isSecurityMiningRecordPath(filePath: string): boolean {
+  const fileName = getViewerFileName(filePath)
+  return fileName === SECURITY_MINING_RECORD_FILENAME
+}
 
 // Helper function to get agent icon
 const getAgentIcon = (agentId: string, className?: string) => {
@@ -5562,6 +5584,138 @@ export function ChatView({
   // Merge PR mutation
   const trpcUtils = trpc.useUtils()
 
+  const securityRecordQueryInput = useMemo(
+    () =>
+      activeSubChatId
+        ? {
+            chatId,
+            subChatId: activeSubChatId,
+          }
+        : null,
+    [chatId, activeSubChatId],
+  )
+
+  const { data: securityRecordLocation } =
+    trpc.securityMiningRecord.location.useQuery(
+      securityRecordQueryInput ?? { chatId, subChatId: "" },
+      {
+        enabled:
+          chatSourceMode === "local" &&
+          !!agentChat &&
+          !!securityRecordQueryInput,
+        retry: false,
+      },
+    )
+  const [securityArtifactLocationOverride, setSecurityArtifactLocationOverride] =
+    useState<{
+      filePath: string
+      reportPath: string
+      projectPath: string
+    } | null>(null)
+  const securityArtifactLocation =
+    securityRecordLocation ?? securityArtifactLocationOverride
+
+  useEffect(() => {
+    setSecurityArtifactLocationOverride(null)
+  }, [chatId, activeSubChatId])
+
+  const ensureSecurityRecordMutation =
+    trpc.securityMiningRecord.ensure.useMutation({
+      onSuccess: async (record, variables) => {
+        setSecurityArtifactLocationOverride({
+          filePath: record.filePath,
+          reportPath: record.reportPath,
+          projectPath: record.projectPath,
+        })
+        await trpcClient.files.clearCache.mutate({ projectPath: record.projectPath }).catch(() => {
+          // React Query invalidation below still refreshes consumers if cache clearing fails.
+        })
+        await Promise.all([
+          trpcUtils.securityMiningRecord.location.invalidate(variables),
+          trpcUtils.files.search.invalidate(),
+        ])
+      },
+    })
+
+  const generateSecurityReportMutation =
+    trpc.securityMiningRecord.generateReport.useMutation({
+      onSuccess: async (report, variables) => {
+        setSecurityArtifactLocationOverride({
+          filePath: report.filePath,
+          reportPath: report.reportPath,
+          projectPath: report.projectPath,
+        })
+        await trpcClient.files.clearCache.mutate({ projectPath: report.projectPath }).catch(() => {
+          // React Query invalidation below still refreshes consumers if cache clearing fails.
+        })
+        await Promise.all([
+          trpcUtils.securityMiningRecord.location.invalidate(variables),
+          trpcUtils.files.search.invalidate(),
+        ])
+      },
+    })
+
+  const handleOpenSecurityMiningRecord = useCallback(async () => {
+    if (!activeSubChatId) {
+      toast.error("No active chat tab", { position: "top-center" })
+      return
+    }
+
+    try {
+      const record = await ensureSecurityRecordMutation.mutateAsync({
+        chatId,
+        subChatId: activeSubChatId,
+      })
+      setFileViewerPath(record.filePath)
+      toast.success(
+        record.created ? "Vulnerability record created" : "Vulnerability record opened",
+        {
+          description: record.relativePath,
+          position: "top-center",
+        },
+      )
+    } catch (error) {
+      toast.error("Failed to open vulnerability record", {
+        description: error instanceof Error ? error.message : "Unknown error",
+        position: "top-center",
+      })
+    }
+  }, [
+    activeSubChatId,
+    chatId,
+    ensureSecurityRecordMutation,
+    setFileViewerPath,
+  ])
+
+  const handleGenerateSecurityMiningReport = useCallback(async () => {
+    if (!activeSubChatId) {
+      toast.error("No active chat tab", { position: "top-center" })
+      return
+    }
+
+    try {
+      const report = await generateSecurityReportMutation.mutateAsync({
+        chatId,
+        subChatId: activeSubChatId,
+      })
+      setFileViewerPath(report.reportPath)
+      toast.success("Markdown report generated", {
+        description: report.reportRelativePath,
+        position: "top-center",
+      })
+    } catch (error) {
+      toast.error("Failed to generate Markdown report", {
+        description: error instanceof Error ? error.message : "Unknown error",
+        position: "top-center",
+      })
+    }
+  }, [
+    activeSubChatId,
+    chatId,
+    generateSecurityReportMutation,
+    setFileViewerPath,
+  ])
+
   // Direct PR creation mutation (push branch and open GitHub)
   const createPrMutation = trpc.changes.createPR.useMutation({
     onSuccess: () => {
@@ -5984,8 +6138,48 @@ export function ChatView({
     }
   }, [])
 
+  const securityRecordAutoOpenedPathRef = useRef<string | null>(null)
+
+  const handleAgentFileChange = useCallback(
+    (data: { filePath: string; type: string; subChatId: string }) => {
+      scheduleDiffRefresh()
+
+      const normalizedFilePath = normalizeViewerPath(data.filePath, worktreePath)
+      const knownRecordPath = securityArtifactLocation?.filePath
+      const isSecurityRecord =
+        normalizedFilePath === knownRecordPath ||
+        isSecurityMiningRecordPath(normalizedFilePath)
+
+      if (!isSecurityRecord) return
+      if (activeSubChatId && data.subChatId !== activeSubChatId) return
+
+      setFileViewerPath(normalizedFilePath)
+      if (securityRecordAutoOpenedPathRef.current !== normalizedFilePath) {
+        securityRecordAutoOpenedPathRef.current = normalizedFilePath
+        toast.success("Vulnerability record updated", {
+          description: getViewerFileName(normalizedFilePath),
+          position: "top-center",
+        })
+      }
+
+      if (securityRecordQueryInput) {
+        trpcUtils.securityMiningRecord.location.invalidate(securityRecordQueryInput)
+      }
+      trpcUtils.files.search.invalidate()
+    },
+    [
+      activeSubChatId,
+      scheduleDiffRefresh,
+      securityArtifactLocation?.filePath,
+      securityRecordQueryInput,
+      setFileViewerPath,
+      trpcUtils,
+      worktreePath,
+    ],
+  )
+
   // Listen for file changes from Claude Write/Edit tools and refresh diff
-  useFileChangeListener(worktreePath, { onChange: scheduleDiffRefresh })
+  useFileChangeListener(worktreePath, { onChange: handleAgentFileChange })
 
   // Subscribe to GitWatcher for real-time file system monitoring (chokidar on main process)
   useGitWatcher(worktreePath, { onChange: scheduleDiffRefresh, debounceMs: 200 })
@@ -7426,9 +7620,27 @@ Make sure to preserve all functionality from both branches when resolving confli
   const shouldHideChatHeader =
     hideHeader ||
     (subChatsSidebarMode === "sidebar" &&
-    isPreviewSidebarOpen &&
-    isDiffSidebarOpen &&
-    !isMobileFullscreen)
+      isPreviewSidebarOpen &&
+      isDiffSidebarOpen &&
+      !isMobileFullscreen)
+
+  const fileViewerProjectPath = useMemo(() => {
+    if (!fileViewerPath) return worktreePath
+    if (!fileViewerPath.startsWith("/")) return worktreePath
+    if (
+      securityArtifactLocation &&
+      (fileViewerPath === securityArtifactLocation.filePath ||
+        fileViewerPath === securityArtifactLocation.reportPath)
+    ) {
+      return securityArtifactLocation.projectPath
+    }
+    if (worktreePath && fileViewerPath.startsWith(worktreePath)) return worktreePath
+    return worktreePath || securityArtifactLocation?.projectPath || null
+  }, [
+    fileViewerPath,
+    securityArtifactLocation,
+    worktreePath,
+  ])
 
   // No early return - let the UI render with loading state handled by activeChat check below
 
@@ -7513,6 +7725,54 @@ Make sure to preserve all functionality from both branches when resolving confli
                         isTerminalOpen={isTerminalSidebarOpen}
                         chatId={chatId}
                       />
+                      {chatSourceMode === "local" && activeSubChatId && (
+                        <>
+                          <Tooltip delayDuration={500}>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleOpenSecurityMiningRecord}
+                                disabled={ensureSecurityRecordMutation.isPending}
+                                className="h-6 px-2 gap-1.5 text-xs font-medium ml-2 hover:bg-foreground/10 transition-colors rounded-md"
+                                aria-label="Open vulnerability record"
+                              >
+                                {ensureSecurityRecordMutation.isPending ? (
+                                  <IconSpinner className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <FileText className="h-3.5 w-3.5" />
+                                )}
+                                <span>实时记录</span>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">
+                              Open vulnerability record
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip delayDuration={500}>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleGenerateSecurityMiningReport}
+                                disabled={generateSecurityReportMutation.isPending}
+                                className="h-6 px-2 gap-1.5 text-xs font-medium hover:bg-foreground/10 transition-colors rounded-md"
+                                aria-label="Generate Markdown report"
+                              >
+                                {generateSecurityReportMutation.isPending ? (
+                                  <IconSpinner className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <FileDown className="h-3.5 w-3.5" />
+                                )}
+                                <span>导出报告</span>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">
+                              Generate Markdown report
+                            </TooltipContent>
+                          </Tooltip>
+                        </>
+                      )}
                       {/* Open Locally button - desktop only, sandbox mode */}
                       {showOpenLocally && (
                         <Tooltip delayDuration={500}>
@@ -8062,7 +8322,7 @@ Make sure to preserve all functionality from both branches when resolving confli
         )}
 
         {/* File Viewer - opens when a file is clicked */}
-        {!isMobileFullscreen && fileViewerPath && worktreePath && fileViewerDisplayMode === "side-peek" && (
+        {!isMobileFullscreen && fileViewerPath && fileViewerProjectPath && fileViewerDisplayMode === "side-peek" && (
           <ResizableSidebar
             isOpen={!!fileViewerPath}
             onClose={() => setFileViewerPath(null)}
@@ -8079,31 +8339,31 @@ Make sure to preserve all functionality from both branches when resolving confli
           >
             <FileViewerSidebar
               filePath={fileViewerPath}
-              projectPath={worktreePath}
+              projectPath={fileViewerProjectPath}
               onClose={() => setFileViewerPath(null)}
             />
           </ResizableSidebar>
         )}
-        {fileViewerPath && worktreePath && fileViewerDisplayMode === "center-peek" && (
+        {fileViewerPath && fileViewerProjectPath && fileViewerDisplayMode === "center-peek" && (
           <DiffCenterPeekDialog
             isOpen={!!fileViewerPath}
             onClose={() => setFileViewerPath(null)}
           >
             <FileViewerSidebar
               filePath={fileViewerPath}
-              projectPath={worktreePath}
+              projectPath={fileViewerProjectPath}
               onClose={() => setFileViewerPath(null)}
             />
           </DiffCenterPeekDialog>
         )}
-        {fileViewerPath && worktreePath && fileViewerDisplayMode === "full-page" && (
+        {fileViewerPath && fileViewerProjectPath && fileViewerDisplayMode === "full-page" && (
           <DiffFullPageView
             isOpen={!!fileViewerPath}
             onClose={() => setFileViewerPath(null)}
           >
             <FileViewerSidebar
               filePath={fileViewerPath}
-              projectPath={worktreePath}
+              projectPath={fileViewerProjectPath}
               onClose={() => setFileViewerPath(null)}
             />
           </DiffFullPageView>

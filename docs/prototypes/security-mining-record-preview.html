@@ -1,0 +1,1181 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>1Code 二开原型 · 漏洞挖掘实时文档</title>
+    <style>
+      :root {
+        --bg: #ffffff;
+        --panel: #fafafa;
+        --panel-2: #f5f5f5;
+        --line: #e5e5e5;
+        --line-soft: #eeeeee;
+        --text: #202124;
+        --text-2: #4b4b4f;
+        --muted: #8d8d95;
+        --muted-2: #b9b9bf;
+        --blue: #0034ff;
+        --blue-2: #edf2ff;
+        --blue-line: #cad6ff;
+        --green: #12b76a;
+        --red: #ef4444;
+        --amber: #d97706;
+        --radius: 10px;
+        --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif;
+        --mono: "SFMono-Regular", ui-monospace, Menlo, Monaco, Consolas, monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+      }
+
+      body {
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font);
+        font-size: 14px;
+        letter-spacing: 0;
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .screen {
+        display: grid;
+        grid-template-columns: 318px minmax(620px, 1fr) 690px;
+        width: 100vw;
+        height: 100vh;
+        min-width: 1280px;
+        background: var(--bg);
+      }
+
+      body.doc-hidden .screen {
+        grid-template-columns: 318px minmax(620px, 1fr) 0;
+      }
+
+      .sidebar {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 0;
+        border-right: 1px solid var(--line);
+        background: var(--panel);
+      }
+
+      .traffic {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        height: 48px;
+        padding: 0 20px;
+      }
+
+      .traffic span {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+      }
+
+      .traffic span:nth-child(1) { background: #ff5f57; }
+      .traffic span:nth-child(2) { background: #ffbd2e; }
+      .traffic span:nth-child(3) { background: #28c840; }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 20px 16px;
+        font-size: 21px;
+        font-weight: 700;
+      }
+
+      .brand-icon {
+        width: 22px;
+        height: 22px;
+        color: #111;
+      }
+
+      .sidebar-search {
+        margin: 0 12px 12px;
+        height: 40px;
+        border: 1px solid #dedede;
+        border-radius: 10px;
+        background: #f0f0f1;
+        color: var(--muted-2);
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        font-size: 20px;
+      }
+
+      .new-workspace {
+        height: 40px;
+        margin: 0 12px 32px;
+        border: 1px solid #dcdcdc;
+        border-radius: 10px;
+        background: #fff;
+        color: #161616;
+        font-size: 20px;
+        font-weight: 650;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+      }
+
+      .workspaces-title {
+        padding: 0 18px 8px;
+        color: #777;
+        font-size: 18px;
+        font-weight: 650;
+      }
+
+      .workspace-item {
+        margin: 0 8px;
+        min-height: 68px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: #e9e9ea;
+      }
+
+      .workspace-name {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        font-size: 20px;
+        font-weight: 650;
+      }
+
+      .workspace-name span:first-child {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .workspace-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--blue);
+        margin-left: auto;
+      }
+
+      .workspace-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 4px;
+        color: #a0a0a7;
+        font-size: 16px;
+        font-weight: 520;
+      }
+
+      .workspace-meta .grow {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .green { color: var(--green); }
+      .red { color: var(--red); }
+
+      .sidebar-bottom {
+        margin-top: auto;
+        padding: 0 12px 12px;
+      }
+
+      .bottom-icons {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        height: 42px;
+        padding: 0 8px;
+        color: #6e6e73;
+      }
+
+      .feedback {
+        width: 100%;
+        height: 40px;
+        border: 1px solid #dfdfdf;
+        border-radius: 10px;
+        background: #fff;
+        color: #171717;
+        font-size: 20px;
+        font-weight: 650;
+      }
+
+      .main {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 0;
+        background: #fff;
+      }
+
+      .main-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 58px;
+        padding: 0 18px;
+      }
+
+      .tool-icons {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        color: #171717;
+      }
+
+      .icon-button {
+        display: inline-grid;
+        place-items: center;
+        width: 28px;
+        height: 28px;
+        border: 0;
+        border-radius: 7px;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+      }
+
+      .icon-button:hover {
+        background: #f1f1f1;
+      }
+
+      .chat-scroll {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+        padding: 10px 22px 24px;
+      }
+
+      .chat-inner {
+        max-width: 930px;
+        margin: 0 auto;
+      }
+
+      .chat-title {
+        margin: 4px 0 0;
+        font-size: 28px;
+        line-height: 34px;
+        font-weight: 800;
+      }
+
+      .chat-project {
+        margin-top: 2px;
+        color: #c2c2c7;
+        font-size: 18px;
+        font-weight: 600;
+      }
+
+      .request-box {
+        display: flex;
+        align-items: center;
+        min-height: 54px;
+        margin: 12px 0 28px;
+        padding: 0 18px;
+        border: 1px solid #dedede;
+        border-radius: 14px;
+        color: #1f1f22;
+        background: #fff;
+        font-size: 21px;
+        line-height: 1.35;
+      }
+
+      .steps-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 52px;
+        color: #9b9ba2;
+        font-size: 18px;
+        font-weight: 650;
+        border-bottom: 1px solid #eeeeee;
+      }
+
+      .steps-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .section-label {
+        margin: 22px 0 14px;
+        color: #b1b1b8;
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: 1.6px;
+      }
+
+      .response {
+        color: #3d3d42;
+        font-size: 20px;
+        line-height: 1.58;
+      }
+
+      .response p {
+        margin: 0 0 10px;
+      }
+
+      .response ol {
+        margin: 6px 0 12px;
+        padding-left: 28px;
+      }
+
+      .response li {
+        margin: 4px 0;
+      }
+
+      .inline-code {
+        display: inline-block;
+        padding: 1px 8px;
+        border-radius: 6px;
+        background: #eeeeef;
+        font-family: var(--mono);
+        font-size: 18px;
+      }
+
+      .record-notice {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin: 14px 0 16px;
+        padding: 10px 12px;
+        border: 1px solid var(--blue-line);
+        border-radius: 10px;
+        background: var(--blue-2);
+        color: #18306e;
+        font-size: 16px;
+        line-height: 1.45;
+      }
+
+      .record-notice strong {
+        color: #0f2362;
+      }
+
+      .small-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        min-width: 0;
+        height: 32px;
+        padding: 0 11px;
+        border: 1px solid #dcdcdc;
+        border-radius: 8px;
+        background: #fff;
+        color: #2b2b2e;
+        cursor: pointer;
+        font-size: 15px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .small-btn:hover {
+        background: #f5f5f5;
+      }
+
+      .small-btn.primary {
+        border-color: var(--blue);
+        color: #fff;
+        background: var(--blue);
+      }
+
+      .small-btn.primary:hover {
+        background: #002fe8;
+      }
+
+      .message-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 32px;
+        margin-top: 10px;
+        color: #8b8b92;
+      }
+
+      .message-actions-left {
+        display: flex;
+        gap: 16px;
+      }
+
+      .edited-card {
+        margin-top: 8px;
+        border: 1px solid #dedede;
+        border-radius: 10px;
+        overflow: hidden;
+        color: #515158;
+        background: #fff;
+        font-size: 18px;
+      }
+
+      .edited-head {
+        display: flex;
+        align-items: center;
+        height: 40px;
+        padding: 0 14px;
+        border-bottom: 1px solid #e7e7e7;
+      }
+
+      .edited-head .grow {
+        flex: 1;
+      }
+
+      .edited-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        height: 36px;
+        padding: 0 14px;
+        color: #1f1f22;
+        font-weight: 650;
+        cursor: pointer;
+      }
+
+      .edited-row:hover {
+        background: #f8f8f8;
+      }
+
+      .md-icon {
+        display: inline-grid;
+        place-items: center;
+        width: 18px;
+        height: 18px;
+        border-radius: 3px;
+        background: #4f7cff;
+        color: white;
+        font-size: 9px;
+        font-weight: 800;
+      }
+
+      .input-wrap {
+        padding: 0 12px 10px;
+      }
+
+      .input-card {
+        max-width: 950px;
+        margin: 0 auto;
+        border: 1px solid #dedede;
+        border-radius: 14px;
+        overflow: hidden;
+        background: #fff;
+        box-shadow: 0 -10px 28px rgba(255, 255, 255, 0.9);
+      }
+
+      .review-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        height: 44px;
+        padding: 0 10px;
+        border-bottom: 1px solid #e8e8e8;
+        color: #6f6f76;
+        font-size: 17px;
+      }
+
+      .review-row .grow {
+        flex: 1;
+      }
+
+      .prompt-area {
+        min-height: 74px;
+        padding: 14px 18px;
+        color: #bbbbc0;
+        font-size: 20px;
+      }
+
+      .prompt-bottom {
+        display: flex;
+        align-items: center;
+        height: 38px;
+        padding: 0 18px 12px;
+        color: #777;
+        font-size: 18px;
+      }
+
+      .prompt-bottom .grow {
+        flex: 1;
+      }
+
+      .model-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-right: 22px;
+      }
+
+      .send-circle {
+        display: inline-grid;
+        place-items: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: #8f8f8f;
+        color: #fff;
+      }
+
+      .doc-pane {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 0;
+        border-left: 1px solid var(--line);
+        background: #fff;
+        overflow: hidden;
+        transition: opacity 160ms ease, transform 160ms ease;
+      }
+
+      body.doc-hidden .doc-pane {
+        opacity: 0;
+        transform: translateX(22px);
+        pointer-events: none;
+      }
+
+      .doc-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 58px;
+        padding: 0 18px;
+        border-bottom: 1px solid #eeeeee;
+        color: #222;
+      }
+
+      .doc-left,
+      .doc-right {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        min-width: 0;
+      }
+
+      .doc-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        font-size: 20px;
+        font-weight: 800;
+      }
+
+      .doc-title span:last-child {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .open-in {
+        color: #777;
+        font-size: 18px;
+        font-weight: 600;
+      }
+
+      .live-strip {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 42px;
+        padding: 0 18px;
+        border-bottom: 1px solid #eeeeee;
+        background: #fbfbfb;
+        color: #777;
+        font-size: 14px;
+      }
+
+      .live-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .pulse {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--green);
+        box-shadow: 0 0 0 4px rgba(18, 183, 106, 0.12);
+      }
+
+      .doc-scroll {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+        padding: 32px 34px 80px;
+      }
+
+      .doc-content {
+        max-width: 650px;
+      }
+
+      .doc-content h1 {
+        margin: 0 0 18px;
+        font-size: 32px;
+        line-height: 1.2;
+        font-weight: 850;
+      }
+
+      .doc-content h2 {
+        margin: 32px 0 14px;
+        padding-top: 10px;
+        border-top: 1px solid #eeeeee;
+        font-size: 28px;
+        line-height: 1.25;
+        font-weight: 850;
+      }
+
+      .doc-content h3 {
+        margin: 18px 0 10px;
+        font-size: 20px;
+        line-height: 1.3;
+        font-weight: 800;
+      }
+
+      .doc-content p {
+        margin: 12px 0;
+        color: #4a4a4f;
+        font-size: 20px;
+        line-height: 1.58;
+      }
+
+      .doc-content blockquote {
+        margin: 16px 0 26px;
+        padding: 0 0 0 18px;
+        border-left: 4px solid #d7d7d9;
+        color: #646469;
+        font-size: 20px;
+        font-style: italic;
+        font-weight: 650;
+      }
+
+      .doc-content table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin: 18px 0 24px;
+        overflow: hidden;
+        border: 1px solid #e0e0e0;
+        border-radius: 10px;
+        font-size: 18px;
+      }
+
+      .doc-content th,
+      .doc-content td {
+        padding: 13px 16px;
+        border-right: 1px solid #e5e5e5;
+        border-bottom: 1px solid #e5e5e5;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .doc-content th {
+        background: #f6f6f7;
+        color: #1f1f22;
+        font-weight: 800;
+      }
+
+      .doc-content tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .doc-content td:last-child,
+      .doc-content th:last-child {
+        border-right: 0;
+      }
+
+      .finding {
+        margin-top: 16px;
+        padding: 16px 18px;
+        border: 1px solid #e4e4e7;
+        border-radius: 12px;
+        background: #fff;
+        transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+      }
+
+      .finding.active {
+        border-color: var(--blue);
+        background: #f8faff;
+        box-shadow: 0 0 0 4px rgba(0, 52, 255, 0.08);
+      }
+
+      .finding-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        height: 26px;
+        padding: 0 9px;
+        border-radius: 999px;
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .badge.high {
+        color: #b42318;
+        background: #fef3f2;
+      }
+
+      .badge.medium {
+        color: #b54708;
+        background: #fffaeb;
+      }
+
+      .evidence-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .evidence-box {
+        min-height: 94px;
+        padding: 11px 12px;
+        border: 1px solid #e3e3e6;
+        border-radius: 10px;
+        background: #fbfbfb;
+        color: #4f4f55;
+        font-size: 16px;
+        line-height: 1.45;
+      }
+
+      .evidence-box strong {
+        display: block;
+        margin-bottom: 8px;
+        color: #27272a;
+      }
+
+      .doc-code {
+        font-family: var(--mono);
+        font-size: 15px;
+      }
+
+      .toast {
+        position: fixed;
+        right: 22px;
+        bottom: 22px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 300px;
+        padding: 12px 14px;
+        border: 1px solid #e1e1e1;
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.14);
+        color: #222;
+        opacity: 0;
+        transform: translateY(8px);
+        pointer-events: none;
+        transition: opacity 160ms ease, transform 160ms ease;
+        z-index: 30;
+      }
+
+      .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .icon {
+        width: 20px;
+        height: 20px;
+        flex: 0 0 auto;
+        stroke: currentColor;
+      }
+
+      .icon-lg {
+        width: 24px;
+        height: 24px;
+      }
+
+      @media (max-width: 1480px) {
+        .screen {
+          grid-template-columns: 318px minmax(560px, 1fr) 580px;
+        }
+
+        .doc-scroll {
+          padding-left: 28px;
+          padding-right: 28px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="screen">
+      <aside class="sidebar">
+        <div class="traffic"><span></span><span></span><span></span></div>
+        <div class="brand">
+          <span class="brand-icon" data-icon="logo"></span>
+          <span>1Code</span>
+        </div>
+        <div class="sidebar-search">Search workspaces...</div>
+        <button class="new-workspace" type="button">New Workspace</button>
+
+        <div class="workspaces-title">Workspaces</div>
+        <div class="workspace-item">
+          <div class="workspace-name">
+            <span>漏洞挖掘</span>
+            <span class="workspace-dot"></span>
+          </div>
+          <div class="workspace-meta">
+            <span class="grow">security_preview</span>
+            <span class="green">+176</span>
+            <span class="red">-0</span>
+            <span>8m</span>
+          </div>
+        </div>
+
+        <div class="sidebar-bottom">
+          <div class="bottom-icons">
+            <span data-icon="settings"></span>
+            <span data-icon="help"></span>
+            <span data-icon="columns"></span>
+          </div>
+          <button class="feedback" type="button">Feedback</button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <div class="main-toolbar">
+          <button class="icon-button" id="leftToggle" type="button" aria-label="toggle sidebar">
+            <span data-icon="sidebar"></span>
+          </button>
+          <div class="tool-icons">
+            <button class="icon-button" type="button" aria-label="new sub chat"><span data-icon="plus"></span></button>
+            <button class="icon-button" type="button" aria-label="history"><span data-icon="clock"></span></button>
+            <button class="icon-button" type="button" aria-label="terminal"><span data-icon="terminal"></span></button>
+            <button class="icon-button" type="button" aria-label="files"><span data-icon="panel"></span></button>
+            <button class="small-btn primary" id="openRecordTop" type="button">
+              <span data-icon="markdown"></span>
+              实时记录
+            </button>
+          </div>
+        </div>
+
+        <div class="chat-scroll">
+          <div class="chat-inner">
+            <h1 class="chat-title">漏洞挖掘</h1>
+            <div class="chat-project">security_preview</div>
+
+            <div class="request-box">
+              对 vpn.example-corp.test 做 A 型流程漏洞挖掘，关键过程实时写入 markdown 文档
+            </div>
+
+            <div class="steps-row">
+              <div class="steps-left"><span data-icon="steps"></span><span>18 steps</span></div>
+              <span data-icon="chevrons"></span>
+            </div>
+
+            <div class="section-label">RESPONSE</div>
+            <div class="response">
+              <p>
+                已启动 A 型漏洞挖掘流程，文档自动保存到
+                <span class="inline-code">漏洞挖掘-a3f91c2d-b8e42a10/漏洞挖掘记录.md</span>。内容包括：
+              </p>
+              <ol>
+                <li><strong>Target 与 Scope</strong> — 目标、授权范围、禁止动作</li>
+                <li><strong>关键时间线</strong> — agent 的探测、判断、审批与纠偏节点</li>
+                <li><strong>Findings</strong> — 候选漏洞、证据摘要、风险判断、复核状态</li>
+                <li><strong>Evidence</strong> — 截图、DNSLog、扫描摘要、命令输出的脱敏引用</li>
+                <li><strong>Report Notes</strong> — 最终 Markdown 报告需要继承的结论和证据</li>
+              </ol>
+
+              <div class="record-notice">
+                <div>
+                  <strong>实时文档已自动打开。</strong>
+                  文件仍在项目目录中，可从右侧资源栏文件树打开，也可点顶部“实时记录”直接打开。
+                </div>
+                <button class="small-btn primary" id="openRecordNotice" type="button">
+                  <span data-icon="panel"></span>
+                  打开实时预览
+                </button>
+              </div>
+
+              <p>
+                注意：文档只沉淀 agent 自然产出的关键过程和证据，不强制结构化 JSON，不影响漏洞挖掘效率。
+              </p>
+            </div>
+
+            <div class="message-actions">
+              <div class="message-actions-left">
+                <span data-icon="copy"></span>
+                <span data-icon="volume"></span>
+              </div>
+              <div>4.8k&nbsp;&nbsp;···</div>
+            </div>
+
+            <div class="edited-card">
+              <div class="edited-head">
+                <span>Edited 1 file</span>
+                <span class="green">&nbsp;+176</span>
+                <span class="red">&nbsp;-0</span>
+                <span class="grow"></span>
+                <span data-icon="chevrons"></span>
+              </div>
+              <div class="edited-row" id="openFromEdited">
+                <span class="md-icon">M↓</span>
+                <span>漏洞挖掘-a3f91c2d-b8e42a10/漏洞挖掘记录.md</span>
+                <span class="grow"></span>
+                <span class="green">+176</span>
+                <span class="red">-0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="input-wrap">
+          <div class="input-card">
+            <div class="review-row">
+              <span data-icon="chevron-right"></span>
+              <span>1 file</span>
+              <span class="green">+176</span>
+              <span class="red">-0</span>
+              <span class="grow"></span>
+              <button class="small-btn" type="button">Review</button>
+            </div>
+            <div class="prompt-area">Plan, @ for context, / for commands</div>
+            <div class="prompt-bottom">
+              <span class="model-pill"><span data-icon="infinity"></span>Agent</span>
+              <span class="model-pill"><span data-icon="spark"></span>Opus 4.6</span>
+              <span class="grow"></span>
+              <span data-icon="spinner"></span>
+              <span style="width: 18px"></span>
+              <span data-icon="paperclip"></span>
+              <span style="width: 12px"></span>
+              <span class="send-circle" data-icon="arrow-up"></span>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <aside class="doc-pane">
+        <div class="doc-toolbar">
+          <div class="doc-left">
+            <button class="icon-button" id="closeDoc" type="button" aria-label="close document"><span data-icon="double-right"></span></button>
+            <button class="icon-button" type="button" aria-label="file source"><span data-icon="file-panel"></span></button>
+            <div class="doc-title">
+              <span class="md-icon">M↓</span>
+              <span>漏洞挖掘记录.md</span>
+            </div>
+          </div>
+          <div class="doc-right">
+            <span class="open-in">Open in</span>
+            <span data-icon="cube"></span>
+            <span data-icon="markdown-small"></span>
+            <span data-icon="copy"></span>
+          </div>
+        </div>
+
+        <div class="live-strip">
+          <div class="live-left">
+            <span class="pulse"></span>
+            <span>自动弹出 · 正在监听 Claude Write/Edit 对该 Markdown 的更新</span>
+          </div>
+          <button class="small-btn" id="simulateUpdate" type="button">模拟新增发现</button>
+        </div>
+
+        <div class="doc-scroll" id="docScroll">
+          <article class="doc-content">
+            <h1>漏洞挖掘实时记录</h1>
+            <blockquote>“记录时间：2026-06-17；该文件由 A 型流程 skill 引导 agent 持续维护。”</blockquote>
+
+            <h2>一、Target 与范围</h2>
+            <p>
+              目标为 <strong>vpn.example-corp.test</strong>。本轮只允许只读探测、认证绕过验证、CVE 指纹确认和脱敏证据整理。
+              真实设备控制、破坏性扫描、账号爆破必须先进入人工审批。
+            </p>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>字段</th>
+                  <th>内容</th>
+                  <th>状态</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>入口</td>
+                  <td>https://vpn.example-corp.test</td>
+                  <td>已确认</td>
+                </tr>
+                <tr>
+                  <td>范围</td>
+                  <td>只读探测、认证绕过、指纹确认、证据归档</td>
+                  <td>执行中</td>
+                </tr>
+                <tr>
+                  <td>审批</td>
+                  <td>device_control / 高风险扫描</td>
+                  <td>需要人工放行</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h2>二、关键时间线</h2>
+            <p>
+              20:31 用户发起 A 型流程。20:32 agent 创建 <strong>漏洞挖掘-a3f91c2d-b8e42a10/漏洞挖掘记录.md</strong> 并自动打开右侧预览。
+              20:34 完成入口指纹识别。20:36 写入 Finding-001。20:40 等待设备控制审批。
+            </p>
+
+            <h2>三、Findings</h2>
+            <section class="finding" id="finding-001">
+              <div class="finding-top">
+                <h3>Finding-001：认证前状态接口暴露</h3>
+                <span class="badge medium">Medium</span>
+              </div>
+              <p>
+                认证前状态接口返回版本号、节点角色和部分运行状态。该信息可用于后续指纹匹配与攻击面收敛。
+              </p>
+              <div class="evidence-grid">
+                <div class="evidence-box">
+                  <strong>证据摘要</strong>
+                  <span class="doc-code">GET /api/status</span> 返回版本号、节点角色与 uptime 字段。
+                </div>
+                <div class="evidence-box">
+                  <strong>证据文件</strong>
+                  evidence/status-redacted.png<br />evidence/header-summary.txt
+                </div>
+              </div>
+            </section>
+
+            <section class="finding" id="finding-002">
+              <div class="finding-top">
+                <h3>Finding-002：疑似 SSRF 外部解析</h3>
+                <span class="badge high">High</span>
+              </div>
+              <p>
+                DNSLog 收到一次脱敏回连记录，时间窗口与受控验证请求一致。当前结论为候选发现，需要补充请求链路截图。
+              </p>
+              <div class="evidence-grid">
+                <div class="evidence-box">
+                  <strong>证据摘要</strong>
+                  <span class="doc-code">dnslog.wait</span> 捕获来自目标出口的解析请求，payload 已脱敏。
+                </div>
+                <div class="evidence-box">
+                  <strong>证据文件</strong>
+                  evidence/dnslog-redacted.png<br />evidence/request-timeline.md
+                </div>
+              </div>
+            </section>
+
+            <h2>四、报告备注</h2>
+            <p>
+              最终 Markdown 报告将结合完整聊天链路、工具调用和该实时记录生成。报告生成后可在右侧预览并下载。
+            </p>
+          </article>
+        </div>
+      </aside>
+    </div>
+
+    <div class="toast" id="toast">
+      <span data-icon="check"></span>
+      <span id="toastText">已打开实时文档</span>
+    </div>
+
+    <script>
+      const icons = {
+        "arrow-up": '<path d="M12 19V5"/><path d="m5 12 7-7 7 7"/>',
+        check: '<path d="M20 6 9 17l-5-5"/>',
+        chevron-right: '<path d="m9 18 6-6-6-6"/>',
+        chevrons: '<path d="m7 15 3-3-3-3"/><path d="m14 15 3-3-3-3"/>',
+        clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+        columns: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/>',
+        copy: '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+        cube: '<path d="m21 16-9 5-9-5V8l9-5 9 5Z"/><path d="M3.3 7.5 12 12l8.7-4.5"/><path d="M12 22V12"/>',
+        "double-right": '<path d="m13 17 5-5-5-5"/><path d="m6 17 5-5-5-5"/>',
+        "file-panel": '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 3v18"/>',
+        help: '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 1 1 5.8 1c0 2-3 2-3 4"/><path d="M12 17h.01"/>',
+        infinity: '<path d="M18.2 8.7c-2.1 0-3.2 1.7-4.7 3.3-1.5 1.6-2.6 3.3-4.7 3.3a3.3 3.3 0 1 1 0-6.6c2.1 0 3.2 1.7 4.7 3.3 1.5 1.6 2.6 3.3 4.7 3.3a3.3 3.3 0 1 0 0-6.6Z"/>',
+        logo: '<path d="M4 7h9v13H4z"/><path d="M13 4h7v13h-7z"/><path d="M7 10h3"/><path d="M16 7h1"/>',
+        markdown: '<path d="M21 5v14H3V5h18Z"/><path d="M7 15V9l2.5 3L12 9v6"/><path d="M17 9v6"/><path d="m15 13 2 2 2-2"/>',
+        "markdown-small": '<path d="M21 5v14H3V5h18Z"/><path d="M7 15V9l2.5 3L12 9v6"/><path d="M17 9v6"/>',
+        panel: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/>',
+        paperclip: '<path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 1 1-2.83-2.83l8.49-8.48"/>',
+        plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+        settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.5a2 2 0 0 1-1 1.73l-.15.08a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.73v-.5a2 2 0 0 1 1-1.72l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z"/><circle cx="12" cy="12" r="3"/>',
+        sidebar: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/>',
+        spark: '<path d="M12 2v5"/><path d="M12 17v5"/><path d="m4.9 4.9 3.5 3.5"/><path d="m15.6 15.6 3.5 3.5"/><path d="M2 12h5"/><path d="M17 12h5"/><path d="m4.9 19.1 3.5-3.5"/><path d="m15.6 8.4 3.5-3.5"/>',
+        spinner: '<path d="M21 12a9 9 0 1 1-6.2-8.56"/>',
+        steps: '<path d="M4 6h16"/><path d="M4 12h10"/><path d="M4 18h7"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/>',
+        terminal: '<path d="m4 17 6-6-6-6"/><path d="M12 19h8"/>',
+        volume: '<path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/>'
+      };
+
+      document.querySelectorAll("[data-icon]").forEach((node) => {
+        const name = node.getAttribute("data-icon");
+        node.innerHTML = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.panel}</svg>`;
+      });
+
+      const toast = document.getElementById("toast");
+      const toastText = document.getElementById("toastText");
+      const docScroll = document.getElementById("docScroll");
+
+      function showToast(text) {
+        toastText.textContent = text;
+        toast.classList.add("show");
+        clearTimeout(showToast.timer);
+        showToast.timer = setTimeout(() => toast.classList.remove("show"), 2200);
+      }
+
+      function openDoc(reason) {
+        document.body.classList.remove("doc-hidden");
+        showToast(reason || "已打开漏洞挖掘实时文档");
+      }
+
+      function focusFinding(id) {
+        openDoc("已定位到文档中的发现");
+        const node = document.getElementById(id);
+        if (!node) return;
+        setTimeout(() => {
+          node.scrollIntoView({ behavior: "smooth", block: "center" });
+          document.querySelectorAll(".finding.active").forEach((item) => item.classList.remove("active"));
+          node.classList.add("active");
+          setTimeout(() => node.classList.remove("active"), 2200);
+        }, 100);
+      }
+
+      function simulateUpdate() {
+        const container = document.querySelector(".doc-content");
+        const section = document.createElement("section");
+        section.className = "finding";
+        section.id = "finding-003";
+        section.innerHTML = `
+          <div class="finding-top">
+            <h3>Finding-003：审批后补充验证记录</h3>
+            <span class="badge medium">Review</span>
+          </div>
+          <p>Agent 在人工放行后补齐了请求链路截图和时间线，未扩大扫描范围。</p>
+          <div class="evidence-grid">
+            <div class="evidence-box"><strong>证据摘要</strong><span class="doc-code">capture.timeline</span> 与 DNSLog 时间窗口一致。</div>
+            <div class="evidence-box"><strong>证据文件</strong>evidence/timeline-redacted.png<br />evidence/approval-note.md</div>
+          </div>`;
+        container.insertBefore(section, container.querySelector("h2:last-of-type"));
+        focusFinding("finding-003");
+      }
+
+      document.getElementById("openRecordTop").addEventListener("click", () => openDoc("通过顶部按钮打开实时记录"));
+      document.getElementById("openRecordNotice").addEventListener("click", () => openDoc("通过响应区快捷按钮打开实时记录"));
+      document.getElementById("openFromEdited").addEventListener("click", () => focusFinding("finding-001"));
+      document.getElementById("closeDoc").addEventListener("click", () => document.body.classList.add("doc-hidden"));
+      document.getElementById("simulateUpdate").addEventListener("click", simulateUpdate);
+    </script>
+  </body>
+</html>
