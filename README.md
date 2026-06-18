@@ -96,6 +96,8 @@ bun run dev
 
 ## Skill 安装
 
+### 安装本 PoC 的漏洞挖掘 Skill
+
 仓库中的 skill 文件只是安装源/模板，不是 1Code 运行时自动加载的位置：
 
 ```text
@@ -116,6 +118,49 @@ Windows 下对应目录通常是：
 ```
 
 注意：`skills/security-mining-record/SKILL.md` 不会因为存在于源码仓库里就自动生效。1Code 当前 Claude 路径通过 `~/.claude/skills` 和项目 `.claude/skills` 加载 skill；本 PoC 的产品代码只注入 `@[skill:security-mining-record]` 和本次记录文件路径，不在源码中硬编码 skill 内容。因此没有完成用户级安装时，实时记录文件仍可打开，报告也可导出，但 Agent 不会按该 skill 的完整规则持续沉淀过程、证据和发现。
+
+### 安装自己的 Skill
+
+用户自己的 skill 不需要改 1Code 源码，直接安装到用户级 Claude skill 目录即可。推荐目录结构：
+
+```text
+~/.claude/skills/<skill-name>/SKILL.md
+```
+
+`<skill-name>` 建议使用小写英文、数字和连字符，例如 `security-mining-record`、`my-research-skill`。
+
+macOS / Linux：
+
+```bash
+SKILL_NAME="my-research-skill"
+mkdir -p "$HOME/.claude/skills/$SKILL_NAME"
+$EDITOR "$HOME/.claude/skills/$SKILL_NAME/SKILL.md"
+```
+
+Windows PowerShell：
+
+```powershell
+$SkillName = "my-research-skill"
+New-Item -ItemType Directory -Force "$env:USERPROFILE\.claude\skills\$SkillName"
+notepad "$env:USERPROFILE\.claude\skills\$SkillName\SKILL.md"
+```
+
+`SKILL.md` 最小示例：
+
+```markdown
+---
+name: my-research-skill
+description: Guide the agent to collect evidence and maintain a concise research note.
+---
+
+When this skill is invoked:
+
+1. Clarify the target and boundary before taking action.
+2. Record important findings, evidence, and decisions in the requested file.
+3. Keep the note concise and update it whenever new evidence changes the conclusion.
+```
+
+安装完成后，在 1Code 对话中通过 `@[skill:my-research-skill]` 引用；也可以在输入框的 `@` 菜单或 Settings 的 Skills 页面查看是否已被识别。若列表未立即刷新，重新打开 `@` 菜单或重新进入 Skills 页面即可。
 
 ## 验证命令
 
