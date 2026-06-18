@@ -42,12 +42,10 @@ import {
   agentsSettingsDialogOpenAtom,
   anthropicOnboardingCompletedAtom,
   apiKeyOnboardingCompletedAtom,
-  codexApiKeyAtom,
   codexOnboardingCompletedAtom,
   customClaudeConfigAtom,
   extendedThinkingEnabledAtom,
   hiddenModelsAtom,
-  normalizeCodexApiKey,
   normalizeCustomClaudeConfig,
   selectedOllamaModelAtom,
   showOfflineModeFeaturesAtom,
@@ -499,8 +497,6 @@ export const ChatInputArea = memo(function ChatInputArea({
     setSelectedSubChatModelId(selectedModel.id)
   }, [provider, selectedModel?.id, setSelectedSubChatModelId])
 
-  const storedCodexApiKey = useAtomValue(codexApiKeyAtom)
-  const hasAppCodexApiKey = Boolean(normalizeCodexApiKey(storedCodexApiKey))
   const hiddenModels = useAtomValue(hiddenModelsAtom)
 
   // Connection status for providers
@@ -511,12 +507,9 @@ export const ChatInputArea = memo(function ChatInputArea({
     trpc.claudeCode.getIntegration.useQuery()
   const codexUiModels = useMemo(
     () => {
-      let models = hasAppCodexApiKey
-        ? CODEX_MODELS.filter((model) => model.id !== "gpt-5.3-codex")
-        : CODEX_MODELS
-      return models.filter((model) => !hiddenModels.includes(model.id))
+      return CODEX_MODELS.filter((model) => !hiddenModels.includes(model.id))
     },
-    [hasAppCodexApiKey, hiddenModels],
+    [hiddenModels],
   )
   const selectedCodexModel = useMemo(
     () =>

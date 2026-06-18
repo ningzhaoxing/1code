@@ -9,6 +9,373 @@
 - 在 OneCode 里安装 Claude MCP 会写入本机 `~/.claude.json` 的 global/project MCP 配置。
 - MCP 不是简单靠 symlink 自动继承，而是由 1Code 主动读取本机、项目、插件 MCP 配置，合并、过滤、刷新 token 后显式传给 Claude SDK。
 
+## 0. 1Code 与 Claude Code 的交互模块总览
+
+这一节单独说明 1Code 和 Claude Code 之间“怎么交互”。这里的 Claude Code 不是用户 PATH 里的 `claude`，而是 1Code 打包进 App 的 Claude binary；1Code 通过 `@anthropic-ai/claude-agent-sdk` 调用它，并把 SDK 事件转换为前端 UI 流。
+
+### 0.1 交互方法：Claude Agent SDK + bundled Claude binary
+
+1Code 的 Claude 路由不是直接 `spawn claude` 后解析终端文本，而是动态导入 Claude Agent SDK，并缓存 `query` 方法：
+
+代码位置：`src/main/lib/trpc/routers/claude.ts:248`
+
+```ts
+let cachedClaudeQuery:
+  | typeof import("@anthropic-ai/claude-agent-sdk").query
+  | null = null
+const getClaudeQuery = async () => {
+  ...
+  const sdk = await import("@anthropic-ai/claude-agent-sdk")
+  cachedClaudeQuery = sdk.query
+  return cachedClaudeQuery
+}
+```
+
+会话启动前，后端先定位 bundled Claude binary：
+
+代码位置：`src/main/lib/trpc/routers/claude.ts:1447`
+
+```ts
+// Get bundled Claude binary path
+const claudeBinaryPath = getBundledClaudeBinaryPath()
+```
+
+然后把这个 binary 路径放进 SDK options：
+
+代码位置：`src/main/lib/trpc/routers/claude.ts:1981`
+
+```ts
+// Use bundled binary
+pathToClaudeCodeExecutable: claudeBinaryPath,
+```
+
+最后通过 SDK 的 `query` 建立 Claude Code 会话流：
+
+代码位置：`src/main/lib/trpc/routers/claude.ts:2021`
+
+```ts
+// 5. Run Claude SDK
+stream = claudeQuery(queryOptions)
+```
+
+闭环：
+
+```text
+1Code Renderer
+  -> trpcClient.claude.chat.subscribe(...)
+  -> Claude router 组装 queryOptions
+  -> getBundledClaudeBinaryPath()
+  -> pathToClaudeCodeExecutable
+  -> claudeQuery(queryOptions)
+  -> Claude SDK 启动 bundled Claude Code binary
+```
+
+### 0.2 普通聊天：前端订阅 tRPC，后端消费 SDK stream
+
+前端 Claude transport 通过 tRPC subscription 发起聊天请求，传入 `subChatId/chatId/prompt/cwd/projectPath/mode/sessionId/model/customConfig` 等字段：
+
+代码位置：`src/renderer/features/agents/lib/ipc-chat-transport.ts:236`
+
+```ts
+const sub = trpcClient.claude.chat.subscribe(
+  {
+    subChatId: this.config.subChatId,
+    chatId: this.config.chatId,
+    prompt,
+    cwd: this.config.cwd,
+    projectPath: this.config.projectPath,
+    mode: currentMode,
+    sessionId,
+    ...
+  },
+```
+
+后端拿到 SDK stream 后，用 `for await` 逐条读取 Claude SDK 消息：
+
+代码位置：`src/main/lib/trpc/routers/claude.ts:2060`
+
+```ts
+for await (const msg of stream) {
+  if (abortController.signal.aborted) {
+    break
+  }
+  ...
+}
+```
+
+读取到的 SDK 消息不是原样给前端，而是经过 transformer 转成 1Code UI 使用的 `UIMessageChunk`：
+
+代码位置：`src/main/lib/trpc/routers/claude.ts:2321`
+
+```ts
+// Transform and emit + accumulate
+for (const chunk of transform(msg)) {
+```
+
+transformer 的职责包括文本块、工具调用、thinking、usage、嵌套工具等格式转换：
+
+代码位置：`src/main/lib/claude/transform.ts:3`
+
+```ts
+export function createTransformer(options?: { isUsingOllama?: boolean }) {
+```
+
+前端收到 chunk 后写入 `ReadableStream`，再由聊天 UI 消费：
+
+代码位置：`src/renderer/features/agents/lib/ipc-chat-transport.ts:482`
+
+```ts
+controller.enqueue(chunk)
+```
+
+闭环：
+
+```text
+用户发送消息
+  -> ipc-chat-transport 订阅 claude.chat
+  -> Claude router 调 Claude Agent SDK
+  -> for await 读取 Claude SDK message
+  -> createTransformer(msg) 转 UIMessageChunk
+  -> controller.enqueue(chunk)
+  -> 前端聊天消息、工具状态、metadata 更新
+```
+
+### 0.3 Skill 与 MCP 如何进入会话
+
+Skill 进入 Claude 会话有两条链路：
+
+- 配置目录层面：1Code 为 subChat 创建隔离 config 目录，再把本机 `~/.claude/skills` symlink 到隔离目录，详见本文第 3 节。
+- SDK options 层面：非 Ollama 模式下，1Code 设置 `settingSources: ["project", "user"]`，让 Claude Code 加载 project/user 级配置。
+
+代码位置：`src/main/lib/trpc/routers/claude.ts:1776`
+
+```ts
+// Load skills from project and user directories (skip for Ollama - not supported)
+...(!isUsingOllama && {
+  settingSources: ["project" as const, "user" as const],
+}),
+```
+
+MCP 进入会话是另一条链路：1Code 先读取、合并、过滤、刷新 MCP 配置，得到 `mcpServersFiltered`，再显式传给 Claude SDK：
+
+代码位置：`src/main/lib/trpc/routers/claude.ts:1762`
+
+```ts
+// Pass filtered MCP servers (only working/unknown ones, skip failed/needs-auth)
+...(mcpServersFiltered &&
+  Object.keys(mcpServersFiltered).length > 0 && {
+    mcpServers: mcpServersFiltered,
+  }),
+```
+
+所以 Claude 会话里的 Skill/MCP 不是前端临时拼 prompt 完成的，而是进入 Claude Code runtime 的配置加载和 SDK `mcpServers` 参数。
+
+### 0.4 中断、取消与恢复
+
+Claude 会话的取消由后端 `activeSessions` 保存每个 `subChatId` 对应的 `AbortController`：
+
+代码位置：`src/main/lib/trpc/routers/claude.ts:261`
+
+```ts
+// Active sessions for cancellation
+const activeSessions = new Map<string, AbortController>()
+```
+
+前端或系统调用 `cancel` mutation 时，后端会 abort 当前 controller，并清理等待中的审批：
+
+代码位置：`src/main/lib/trpc/routers/claude.ts:2861`
+
+```ts
+const controller = activeSessions.get(input.subChatId)
+if (controller) {
+  controller.abort()
+  activeSessions.delete(input.subChatId)
+  clearPendingApprovals("Session cancelled.", input.subChatId)
+}
+```
+
+SDK stream 消费循环会检查 abort 信号，收到中断后跳出：
+
+代码位置：`src/main/lib/trpc/routers/claude.ts:2060`
+
+```ts
+for await (const msg of stream) {
+  if (abortController.signal.aborted) {
+    break
+  }
+```
+
+恢复依赖 Claude SDK session id。后端从已有消息或输入中拿 `sessionId`：
+
+代码位置：`src/main/lib/trpc/routers/claude.ts:1450`
+
+```ts
+const resumeSessionId =
+  input.sessionId || existingSessionId || undefined
+```
+
+然后把它传入 SDK 的 `resume`/`continue`/`resumeSessionAt`/`forkSession` 选项：
+
+代码位置：`src/main/lib/trpc/routers/claude.ts:1985`
+
+```ts
+...(resumeSessionId && {
+  resume: resumeSessionId,
+  ...(shouldForkResume && forkResumeAtUuid && !isUsingOllama
+    ? {
+        resumeSessionAt: forkResumeAtUuid,
+        forkSession: true,
+      }
+    : resumeAtUuid && !isUsingOllama
+      ? { resumeSessionAt: resumeAtUuid }
+      : { continue: true }),
+}),
+```
+
+后端也会从 SDK message 中记录 `session_id` 和 assistant `uuid`，用于后续恢复、回滚、fork：
+
+代码位置：`src/main/lib/trpc/routers/claude.ts:2280`
+
+```ts
+if (msgAny.session_id) {
+  metadata.sessionId = msgAny.session_id
+  currentSessionId = msgAny.session_id
+}
+
+if (msgAny.type === "assistant" && msgAny.uuid) {
+  lastAssistantUuid = msgAny.uuid
+}
+```
+
+闭环：
+
+```text
+取消：
+  cancel(subChatId)
+  -> activeSessions[subChatId].abort()
+  -> SDK stream loop 看到 abort
+  -> 清理 pending approvals
+
+恢复：
+  前端/DB 保存 sessionId
+  -> 下一次 claude.chat 带 sessionId
+  -> queryOptions.resume / continue / resumeSessionAt / forkSession
+  -> Claude SDK 从对应 Claude session 恢复
+```
+
+### 0.5 审批与权限控制
+
+Claude 的审批能力主要通过 SDK 的 `canUseTool` hook 接入 1Code harness。
+
+普通 agent 模式下，1Code 设置 `bypassPermissions`，并开启跳过权限：
+
+代码位置：`src/main/lib/trpc/routers/claude.ts:1768`
+
+```ts
+permissionMode:
+  input.mode === "plan"
+    ? ("plan" as const)
+    : ("bypassPermissions" as const),
+...(input.mode !== "plan" && {
+  allowDangerouslySkipPermissions: true,
+}),
+```
+
+plan 模式下，`canUseTool` 会阻止非 Markdown 的写入、阻止 `ExitPlanMode` 自动执行、阻止一组 plan mode 禁用工具：
+
+代码位置：`src/main/lib/trpc/routers/claude.ts:1864`
+
+```ts
+if (input.mode === "plan") {
+  if (toolName === "Edit" || toolName === "Write") {
+    ...
+  } else if (toolName == "ExitPlanMode") {
+    return {
+      behavior: "deny",
+      message: `IMPORTANT: DONT IMPLEMENT THE PLAN UNTIL THE EXPLIT COMMAND...`,
+    }
+  } else if (PLAN_MODE_BLOCKED_TOOLS.has(toolName)) {
+    return {
+      behavior: "deny",
+      message: `Tool "${toolName}" blocked in plan mode.`,
+    }
+  }
+}
+```
+
+`AskUserQuestion` 工具会被 1Code 拦截，转成 UI 上的等待用户确认/回答：
+
+代码位置：`src/main/lib/trpc/routers/claude.ts:1889`
+
+```ts
+if (toolName === "AskUserQuestion") {
+  const { toolUseID } = options
+  safeEmit({
+    type: "ask-user-question",
+    toolUseId: toolUseID,
+    questions: (toolInput as any).questions,
+  } as UIMessageChunk)
+```
+
+前端响应后，会调用 `respondToolApproval`，后端 resolve 原先挂起的 Promise：
+
+代码位置：`src/main/lib/trpc/routers/claude.ts:2880`
+
+```ts
+respondToolApproval: publicProcedure
+  ...
+  .mutation(({ input }) => {
+    const pending = pendingToolApprovals.get(input.toolUseId)
+    ...
+    pending.resolve({
+      approved: input.approved,
+      message: input.message,
+      updatedInput: input.updatedInput,
+    })
+```
+
+plan approval 是另一层 UI 流程：前端识别完成的 `ExitPlanMode` tool part，认为存在待审批 plan：
+
+代码位置：`src/renderer/features/agents/main/active-chat.tsx:4355`
+
+```tsx
+// Check if there's an unapproved plan (in plan mode with completed ExitPlanMode)
+const hasUnapprovedPlan = useMemo(() => {
+```
+
+用户批准后，前端切换到 agent mode，并发送 `Implement plan`：
+
+代码位置：`src/renderer/features/agents/main/active-chat.tsx:3166`
+
+```tsx
+// Handle plan approval - sends "Build plan" message and switches to agent mode
+const handleApprovePlan = useCallback(() => {
+  useAgentSubChatStore.getState().updateSubChatMode(subChatId, "agent")
+  ...
+  sendMessageRef.current({
+    role: "user",
+    parts: [{ type: "text", text: "Implement plan" }],
+  })
+```
+
+闭环：
+
+```text
+Claude Code 请求工具执行
+  -> Claude SDK 调用 canUseTool
+  -> 1Code 根据 mode/toolName 决定 allow/deny
+  -> AskUserQuestion 进入 pendingToolApprovals
+  -> 前端 UI 响应 respondToolApproval
+  -> canUseTool 返回 allow/deny 给 Claude SDK
+
+Plan 审批：
+  Claude 产出 ExitPlanMode
+  -> 前端标记 hasUnapprovedPlan
+  -> 用户批准
+  -> 切换 agent mode
+  -> 发送 Implement plan
+```
+
 ## 1. 构建阶段：为什么 1Code 需要下载 Claude binary
 
 `package.json` 定义了 Claude binary 下载脚本：

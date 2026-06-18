@@ -9,6 +9,539 @@
 - OneCode 安装 Codex MCP 时调用 bundled `codex mcp add ...`，写入当前 `CODEX_HOME`。
 - Codex 这边没有 Claude 那套 `~/.claude/skills` symlink、`settingSources`、`Skill tool` 触发链路；产品里的 Skill 管理目前仍是 Claude 路径，Codex 会话只接收 prompt、MCP tools 和 ACP provider tools。
 
+## 0. 1Code 与 Codex 的交互模块总览
+
+这一节单独说明 1Code 和 Codex 之间“怎么交互”。Codex 这条链路和 Claude 明显不同：Claude 是 `@anthropic-ai/claude-agent-sdk + bundled Claude binary`；Codex 是 `@mcpc-tech/acp-ai-provider + @zed-industries/codex-acp + Vercel AI SDK streamText`。bundled Codex CLI 仍然重要，但主要用于登录、状态和 MCP 配置操作，不是普通聊天时直接运行的 chat 进程。
+
+### 0.1 交互方法：ACP provider + codex-acp + AI SDK
+
+Codex router 的 import 已经给出核心交互方式：
+
+代码位置：`src/main/lib/trpc/routers/codex.ts:1`
+
+```ts
+import { createACPProvider, type ACPProvider } from "@mcpc-tech/acp-ai-provider"
+import { streamText } from "ai"
+```
+
+依赖里也明确包含 ACP provider 和 `codex-acp`：
+
+代码位置：`package.json:42`
+
+```json
+"@mcpc-tech/acp-ai-provider": "^0.2.4",
+```
+
+代码位置：`package.json:76`
+
+```json
+"@zed-industries/codex-acp": "0.9.3",
+```
+
+`codex-acp` 的真实二进制路径不是从 PATH 找，而是从 `@zed-industries/codex-acp-*` 平台包里解析：
+
+代码位置：`src/main/lib/trpc/routers/codex.ts:224`
+
+```ts
+function resolveCodexAcpBinaryPath(): string {
+  const packageName = getCodexPackageName()
+  const binaryName = process.platform === "win32" ? "codex-acp.exe" : "codex-acp"
+  const codexPackageRoot = dirname(
+    require.resolve("@zed-industries/codex-acp/package.json"),
+  )
+  const resolvedPath = require.resolve(`${packageName}/bin/${binaryName}`, {
+    paths: [codexPackageRoot],
+  })
+
+  return toUnpackedAsarPath(resolvedPath)
+}
+```
+
+真正创建 Codex chat provider 的位置是 `createACPProvider(...)`：
+
+代码位置：`src/main/lib/trpc/routers/codex.ts:1257`
+
+```ts
+const provider = createACPProvider({
+  command: resolveCodexAcpBinaryPath(),
+  env: buildCodexProviderEnv(params.authConfig),
+  authMethodId: getCodexAuthMethodId(params.authConfig),
+  session: {
+    cwd: params.cwd,
+    mcpServers: params.mcpServers,
+  },
+  ...(existingSessionIdForProvider
+    ? { existingSessionId: existingSessionIdForProvider }
+    : {}),
+  persistSession: true,
+})
+```
+
+闭环：
+
+```text
+1Code Codex 后端
+  -> resolveCodexAcpBinaryPath()
+  -> createACPProvider({ command: codex-acp, session: { cwd, mcpServers } })
+  -> provider.languageModel(...)
+  -> provider.tools
+  -> streamText(...)
+```
+
+### 0.2 普通聊天：前端订阅 codex.chat，后端用 streamText 消费 ACP provider
+
+前端 Codex transport 通过 tRPC subscription 发起 Codex 聊天请求：
+
+代码位置：`src/renderer/features/agents/lib/acp-chat-transport.ts:161`
+
+```ts
+sub = trpcClient.codex.chat.subscribe(
+  {
+    subChatId: this.config.subChatId,
+    chatId: this.config.chatId,
+    runId,
+    prompt,
+    cwd: this.config.cwd,
+    projectPath: this.config.projectPath,
+    model: selectedModel,
+    mode: currentMode,
+    sessionId,
+    ...
+  },
+```
+
+后端收到请求后，先解析/准备 MCP snapshot，然后创建或复用 ACP provider：
+
+代码位置：`src/main/lib/trpc/routers/codex.ts:1713`
+
+```ts
+let mcpSnapshot: CodexMcpSnapshot = {
+  mcpServersForSession: [],
+  groups: [],
+  fingerprint: getCodexMcpFingerprint([]),
+  fetchedAt: Date.now(),
+  toolsResolved: false,
+}
+...
+mcpSnapshot = await resolveCodexMcpSnapshot({
+  lookupPath: mcpLookupPath,
+})
+```
+
+代码位置：`src/main/lib/trpc/routers/codex.ts:1733`
+
+```ts
+const provider = getOrCreateProvider({
+  subChatId: input.subChatId,
+  cwd: input.cwd,
+  mcpServers: mcpSnapshot.mcpServersForSession,
+  mcpFingerprint: mcpSnapshot.fingerprint,
+  existingSessionId:
+    input.forceNewSession
+      ? undefined
+      : input.sessionId ?? getLastSessionId(existingMessages),
+  authConfig: input.authConfig,
+})
+```
+
+真正的流式调用由 AI SDK `streamText` 执行，模型和工具来自 ACP provider：
+
+代码位置：`src/main/lib/trpc/routers/codex.ts:1766`
+
+```ts
+const result = streamText({
+  model: provider.languageModel(selectedModelId),
+  messages: [
+    {
+      role: "user",
+      content: buildModelMessageContent(input.prompt, input.images),
+    },
+  ],
+  tools: provider.tools,
+  abortSignal: abortController.signal,
+})
+```
+
+后端把 AI SDK 的 UI stream 逐块读出并 emit 给前端：
+
+代码位置：`src/main/lib/trpc/routers/codex.ts:1840`
+
+```ts
+const reader = uiStream.getReader()
+let pendingFinishChunk: any | null = null
+while (true) {
+  const { done, value } = await reader.read()
+  if (done) break
+  ...
+  safeEmit(value)
+}
+```
+
+前端收到 chunk 后先处理 `session-init`、`auth-error`、普通 error，再 normalize 后写入 UI stream：
+
+代码位置：`src/renderer/features/agents/lib/acp-chat-transport.ts:185`
+
+```ts
+onData: (chunk: UIMessageChunk) => {
+  if (chunk.type === "session-init") {
+    appStore.set(sessionInfoAtom, {
+      tools: chunk.tools || [],
+      mcpServers: chunk.mcpServers || [],
+      plugins: chunk.plugins || [],
+      skills: chunk.skills || [],
+    })
+  }
+  ...
+  const normalizedChunk = normalizeCodexStreamChunk(chunk) as UIMessageChunk
+  controller.enqueue(normalizedChunk)
+}
+```
+
+闭环：
+
+```text
+用户发送消息
+  -> acp-chat-transport 订阅 codex.chat
+  -> Codex router 解析 MCP snapshot
+  -> getOrCreateProvider(...)
+  -> createACPProvider(command: codex-acp)
+  -> streamText({ model: provider.languageModel(...), tools: provider.tools })
+  -> uiStream.getReader()
+  -> safeEmit(value)
+  -> 前端 normalizeCodexStreamChunk
+  -> controller.enqueue(...)
+```
+
+### 0.3 bundled Codex CLI 在交互链路中的角色
+
+bundled Codex CLI 的路径由 1Code 自己计算：
+
+代码位置：`src/main/lib/trpc/routers/codex.ts:238`
+
+```ts
+function resolveBundledCodexCliPath(): string {
+  const binaryName = process.platform === "win32" ? "codex.exe" : "codex"
+  const resourcesDir = app.isPackaged
+    ? join(process.resourcesPath, "bin")
+    : join(
+        app.getAppPath(),
+        "resources",
+        "bin",
+        `${process.platform}-${process.arch}`,
+      )
+```
+
+CLI 调用统一走 `runCodexCli()`，通过 `spawn(codexCliPath, args, ...)` 执行：
+
+代码位置：`src/main/lib/trpc/routers/codex.ts:383`
+
+```ts
+async function runCodexCli(
+  args: string[],
+  options?: RunCodexCliOptions,
+): Promise<...> {
+  const codexCliPath = resolveBundledCodexCliPath()
+  ...
+  const child = spawn(codexCliPath, args, {
+    stdio: ["ignore", "pipe", "pipe"],
+    cwd: cwd && cwd.length > 0 ? cwd : undefined,
+    env: buildBaseCodexEnv(),
+    windowsHide: true,
+  })
+```
+
+它承担的典型工作包括：
+
+- `codex login status`：判断 Codex 集成状态。
+- `codex login/logout`：登录和登出。
+- `codex mcp list --json`：读取 Codex MCP 配置。
+- `codex mcp add/remove/login/logout`：管理 MCP。
+
+比如 MCP snapshot 就是通过 bundled Codex CLI 执行 `mcp list --json` 得到：
+
+代码位置：`src/main/lib/trpc/routers/codex.ts:827`
+
+```ts
+const result = await runCodexCliChecked(["mcp", "list", "--json"], {
+  cwd: lookupPath === "__global__" ? undefined : lookupPath,
+})
+```
+
+因此，Codex 的两个 binary 职责不同：
+
+```text
+resources/bin/<platform-arch>/codex
+  -> 登录、状态、MCP 配置管理、MCP 配置读取
+
+node_modules/@zed-industries/codex-acp-*/bin/codex-acp
+  -> 普通聊天会话的 ACP provider 进程
+```
+
+### 0.4 MCP 如何进入 Codex 会话
+
+Codex MCP 不是 1Code 直接读取 `~/.codex/config.toml` 后手写解析，而是调用 Codex CLI 的 `mcp list --json`，再转成 ACP session 需要的结构。
+
+代码位置：`src/main/lib/trpc/routers/codex.ts:827`
+
+```ts
+const result = await runCodexCliChecked(["mcp", "list", "--json"], {
+  cwd: lookupPath === "__global__" ? undefined : lookupPath,
+})
+```
+
+解析后的 entry 会转换成 `mcpServersForSession`。stdio MCP 会转为 `{ name, type: "stdio", command, args, env }`：
+
+代码位置：`src/main/lib/trpc/routers/codex.ts:862`
+
+```ts
+let sessionServer: CodexMcpServerForSession | null = null
+if (transportType === "stdio") {
+  const command = entry.transport.command || undefined
+  const args = entry.transport.args || undefined
+  if (includeInSession && command) {
+    const envPairs = objectToPairs(resolvedStdioEnv) || []
+    sessionServer = {
+      name: entry.name,
+      type: "stdio",
+      command,
+      args: Array.isArray(args) ? args : [],
+      env: envPairs,
+    }
+  }
+```
+
+HTTP/SSE MCP 会转为 `{ name, type: "http", url, headers }`：
+
+代码位置：`src/main/lib/trpc/routers/codex.ts:881`
+
+```ts
+} else if (
+  transportType === "streamable_http" ||
+  transportType === "http" ||
+  transportType === "sse"
+) {
+  const url = entry.transport.url || undefined
+  const headers = objectToPairs(resolvedHttpHeaders)
+  if (includeInSession && url) {
+    sessionServer = {
+      name: entry.name,
+      type: "http",
+      url,
+      headers: headers || [],
+    }
+  }
+```
+
+最后这些 MCP server 被传给 ACP provider session：
+
+代码位置：`src/main/lib/trpc/routers/codex.ts:1261`
+
+```ts
+session: {
+  cwd: params.cwd,
+  mcpServers: params.mcpServers,
+},
+```
+
+并通过 AI SDK 的 `tools: provider.tools` 暴露给模型：
+
+代码位置：`src/main/lib/trpc/routers/codex.ts:1774`
+
+```ts
+tools: provider.tools,
+```
+
+闭环：
+
+```text
+Codex MCP 配置
+  -> bundled codex mcp list --json
+  -> resolveCodexMcpSnapshot()
+  -> mcpServersForSession
+  -> createACPProvider({ session: { cwd, mcpServers } })
+  -> provider.tools
+  -> streamText({ tools: provider.tools })
+```
+
+### 0.5 中断、取消与恢复
+
+Codex 后端维护 `activeStreams`，每个 active stream 保存 `runId`、`AbortController` 和取消标记：
+
+代码位置：`src/main/lib/trpc/routers/codex.ts:97`
+
+```ts
+const providerSessions = new Map<string, CodexProviderSession>()
+type ActiveCodexStream = {
+  runId: string
+  controller: AbortController
+  cancelRequested: boolean
+}
+
+const activeStreams = new Map<string, ActiveCodexStream>()
+```
+
+新的请求进入时，如果同一个 `subChatId` 已有 stream，会先标记旧 stream 取消、abort 旧 controller，并 cleanup provider，避免旧 run 继续 emit：
+
+代码位置：`src/main/lib/trpc/routers/codex.ts:1583`
+
+```ts
+const existingStream = activeStreams.get(input.subChatId)
+if (existingStream) {
+  existingStream.cancelRequested = true
+  existingStream.controller.abort()
+  // Ensure old run cannot continue emitting after supersede.
+  cleanupProvider(input.subChatId)
+}
+```
+
+取消接口会校验 `runId`，避免取消到已经过期的旧请求：
+
+代码位置：`src/main/lib/trpc/routers/codex.ts:1915`
+
+```ts
+cancel: publicProcedure
+  .input(
+    z.object({
+      subChatId: z.string(),
+      runId: z.string(),
+    }),
+  )
+  .mutation(({ input }) => {
+    const activeStream = activeStreams.get(input.subChatId)
+    ...
+    if (activeStream.runId !== input.runId) {
+      return { cancelled: false, ignoredStale: true }
+    }
+
+    activeStream.cancelRequested = true
+    activeStream.controller.abort()
+```
+
+前端 stop 时会立即关闭本地 stream，让 UI 立即响应；同时保留一小段订阅时间，让后端有机会持久化被中断的状态：
+
+代码位置：`src/renderer/features/agents/lib/acp-chat-transport.ts:280`
+
+```ts
+// Keep stop UX immediate in the client.
+try {
+  controller.close()
+} catch {
+  // Stream already closed
+}
+
+// Keep subscription alive briefly so server-side onFinish can persist
+// interrupted response state before cleanup unsubscribe runs.
+```
+
+恢复方面，Codex provider 创建时会接收已有 session id，并设置 `persistSession: true`：
+
+代码位置：`src/main/lib/trpc/routers/codex.ts:1257`
+
+```ts
+const provider = createACPProvider({
+  ...
+  ...(existingSessionIdForProvider
+    ? { existingSessionId: existingSessionIdForProvider }
+    : {}),
+  persistSession: true,
+})
+```
+
+chat 启动时，后端从输入或历史消息中取 `sessionId` 传给 provider：
+
+代码位置：`src/main/lib/trpc/routers/codex.ts:1738`
+
+```ts
+existingSessionId:
+  input.forceNewSession
+    ? undefined
+    : input.sessionId ?? getLastSessionId(existingMessages),
+```
+
+AI SDK stream metadata 会持续记录 provider 返回的 session id：
+
+代码位置：`src/main/lib/trpc/routers/codex.ts:1781`
+
+```ts
+messageMetadata: ({ part }) => {
+  const sessionId = provider.getSessionId() || undefined
+  if (sessionId) {
+    latestSessionId = sessionId
+  }
+```
+
+闭环：
+
+```text
+取消：
+  codex.cancel(subChatId, runId)
+  -> 校验 activeStreams[subChatId].runId
+  -> abort controller
+  -> cleanup provider
+  -> 前端本地 stream 立即关闭
+
+恢复：
+  provider persistSession: true
+  -> UI/DB 保存 sessionId
+  -> 下一次 codex.chat 带 sessionId
+  -> getOrCreateProvider(existingSessionId)
+  -> codex-acp 恢复 ACP session
+```
+
+### 0.6 审批与权限控制：Codex 当前没有 Claude 式 canUseTool 闭环
+
+源码中 Codex router 没有类似 Claude `canUseTool` 的审批 hook，也没有 `respondToolApproval` 这样的 pending approval mutation。Codex 的工具能力是通过 ACP provider 暴露给 AI SDK：
+
+代码位置：`src/main/lib/trpc/routers/codex.ts:1766`
+
+```ts
+const result = streamText({
+  model: provider.languageModel(selectedModelId),
+  ...
+  tools: provider.tools,
+  abortSignal: abortController.signal,
+})
+```
+
+这意味着当前 1Code 对 Codex 的审批边界和 Claude 不同：
+
+- Claude：工具执行前可通过 Claude SDK `canUseTool` 被 1Code 拦截、allow/deny、发 UI 审批。
+- Codex：当前源码没有同等的 per-tool approval hook；工具由 `provider.tools` 进入 AI SDK stream，审批能力取决于 `codex-acp`/Codex runtime 自身以及 ACP provider 暴露的行为。
+
+Codex 前端有认证错误处理和自动/手动重试入口，但这不是工具审批。收到 `auth-error` 时，前端会设置待重试状态、打开登录弹窗或提示更新认证，并 cleanup Codex provider：
+
+代码位置：`src/renderer/features/agents/lib/acp-chat-transport.ts:195`
+
+```ts
+if (chunk.type === "auth-error") {
+  forceFreshSessionSubChats.add(this.config.subChatId)
+  ...
+  appStore.set(pendingAuthRetryMessageAtom, {
+    subChatId: this.config.subChatId,
+    provider: "codex",
+    prompt,
+    ...
+  })
+  ...
+  void trpcClient.codex.cleanup
+    .mutate({ subChatId: this.config.subChatId })
+```
+
+所以 Codex 审批/恢复边界应这样理解：
+
+```text
+Codex 工具能力：
+  provider.tools -> streamText
+  当前 1Code 源码没有 canUseTool/AskUserQuestion 等同审批层
+
+Codex 认证错误：
+  auth-error chunk
+  -> 前端保存 pendingAuthRetryMessage
+  -> 打开登录/提示更新认证
+  -> cleanup provider
+  -> 后续重新发起 codex.chat
+```
+
 ## 1. Codex 的 binary、Skill 与 MCP 复用路径
 
 Codex 这条链路和 Claude 不同：Codex 不是通过 Claude SDK 的 `settingSources`/`mcpServers` 机制加载 Skill/MCP，而是通过两类 binary 协作：

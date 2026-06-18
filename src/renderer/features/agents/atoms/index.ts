@@ -220,7 +220,7 @@ export const lastSelectedModelIdAtom = atomWithStorage<string>(
 
 export const lastSelectedCodexModelIdAtom = atomWithStorage<string>(
   "agents:lastSelectedCodexModelId",
-  "gpt-5.3-codex",
+  "gpt-5.5",
   undefined,
   { getOnInit: true },
 )
@@ -344,6 +344,7 @@ export const subChatModeAtomFamily = atomFamily((subChatId: string) =>
 
 // Model ID to full Claude model string mapping
 export const MODEL_ID_MAP: Record<string, string> = {
+  "opus-4-7": "claude-opus-4-7",
   opus: "opus",
   sonnet: "sonnet",
   haiku: "haiku",

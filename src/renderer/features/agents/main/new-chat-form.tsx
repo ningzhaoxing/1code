@@ -55,12 +55,10 @@ import {
   agentsSettingsDialogActiveTabAtom,
   anthropicOnboardingCompletedAtom,
   apiKeyOnboardingCompletedAtom,
-  codexApiKeyAtom,
   codexOnboardingCompletedAtom,
   customClaudeConfigAtom,
   extendedThinkingEnabledAtom,
   hiddenModelsAtom,
-  normalizeCodexApiKey,
   normalizeCustomClaudeConfig,
   showOfflineModeFeaturesAtom,
   selectedOllamaModelAtom,
@@ -344,17 +342,12 @@ export function NewChatForm({
     }
   }, [lastSelectedModelId])
 
-  const storedCodexApiKey = useAtomValue(codexApiKeyAtom)
-  const hasAppCodexApiKey = Boolean(normalizeCodexApiKey(storedCodexApiKey))
   const hiddenModels = useAtomValue(hiddenModelsAtom)
   const codexUiModels = useMemo(
     () => {
-      let models = hasAppCodexApiKey
-        ? CODEX_MODELS.filter((model) => model.id !== "gpt-5.3-codex")
-        : CODEX_MODELS
-      return models.filter((model) => !hiddenModels.includes(model.id))
+      return CODEX_MODELS.filter((model) => !hiddenModels.includes(model.id))
     },
-    [hasAppCodexApiKey, hiddenModels],
+    [hiddenModels],
   )
   const selectedCodexModel = useMemo(
     () =>
