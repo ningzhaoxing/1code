@@ -1,178 +1,142 @@
-# 1Code
+# 1Code Security Mining PoC
 
-[1Code.dev](https://1code.dev)
+这是基于 [1Code](https://1code.dev) 二开的安全漏洞挖掘 PoC 版本。目标是在 1Code 桌面端里跑通“Agent 漏洞挖掘 + 实时 Markdown 记录 + Markdown 报告导出”的最小闭环。
 
-Open-source coding agent client. Run Claude Code, Codex, and more - locally or in the cloud.
+本仓库仍保留 1Code 原有的 Agent chat、右侧文件预览器、文件搜索、diff、MCP、skill、终端等能力；新增能力集中在漏洞挖掘过程文档化。
 
-By [21st.dev](https://21st.dev) team
+## PoC 新增能力
 
-## Highlights
+- **实时记录按钮**：聊天顶部新增“实时记录”，可直接打开当前漏洞挖掘会话的 `漏洞挖掘记录.md`。
+- **自动打开右侧预览**：Agent 写入漏洞挖掘记录文件后，右侧 Markdown 预览器会自动打开并刷新。
+- **每个会话独立产物目录**：当 chat 没有真实独立 worktree 时，会创建带 chat/subChat 短 ID 的产物目录，避免多个对话文件冲突。
+- **外置漏洞挖掘 skill**：漏洞挖掘记录规则放在 `skills/security-mining-record/SKILL.md`，运行时建议安装到 Claude 用户级 skill 目录。
+- **Markdown 报告导出**：点击“导出报告”后，生成 `漏洞挖掘报告.md`，并在右侧 Markdown 预览器打开；右上角下载按钮可下载。
+- **报告基于完整链路生成**：最终报告不是简单下载实时记录，而是汇总当前 subChat 的消息链路、工具调用摘要、实时记录内容和产物路径。
 
-- **Multi-Agent Support** - Claude Code and Codex in one app, switch instantly
-- **Visual UI** - Cursor-like desktop app with diff previews and real-time tool execution
-- **Custom Models & Providers (BYOK)** - Bring your own API keys
-- **Git Worktree Isolation** - Each chat runs in its own isolated worktree
-- **Background Agents** - Cloud sandboxes that run when your laptop sleeps
-- **Live Browser Previews** - Preview dev branches in a real browser
-- **Kanban Board** - Visualize agent sessions
-- **Built-in Git Client** - Visual staging, diffs, PR creation, push to GitHub
-- **File Viewer** - File preview with Cmd+P search and image viewer
-- **Integrated Terminal** - Sidebar or bottom panel with Cmd+J toggle
-- **Model Selector** - Switch between models and providers
-- **MCP & Plugins** - Server management, plugin marketplace, rich tool display
-- **Automations** - Trigger agents from GitHub, Linear, Slack, or manually from git events
-- **Chat Forking** - Fork a sub-chat from any assistant message
-- **Message Queue** - Queue prompts while an agent is working
-- **API** - Run agents programmatically with a single API call
-- **Voice Input** - Hold-to-talk dictation
-- **Plan Mode** - Structured plans with markdown preview
-- **Extended Thinking** - Enabled by default with visual UX
-- **Skills & Slash Commands** - Custom skills and slash commands
-- **Custom Sub-agents** - Visual task display in sidebar
-- **Memory** - CLAUDE.md and AGENTS.md support
-- **PWA** - Start and monitor background agents from your phone
-- **Cross Platform** - macOS desktop, web app, Windows and Linux
+## 产物路径规则
 
-## Features
+真实独立 worktree 场景：
 
-### Run coding agents the right way
-
-Run agents locally, in worktrees, in background - without touching main branch.
-
-![Worktree Demo](assets/worktree.gif)
-
-- **Git Worktree Isolation** - Each chat session runs in its own isolated worktree
-- **Background Execution** - Run agents in background while you continue working
-- **Local-first** - All code stays on your machine, no cloud sync required
-- **Branch Safety** - Never accidentally commit to main branch
-- **Shared Terminals** - Share terminal sessions across local-mode workspaces
-
----
-
-### UI that finally respects your code
-
-Cursor-like UI with diff previews, built-in git client, and the ability to see changes before they land.
-
-![Cursor UI Demo](assets/cursor-ui.gif)
-
-- **Diff Previews** - See exactly what changes the agent is making in real-time
-- **Built-in Git Client** - Stage, commit, push to GitHub, and manage branches without leaving the app
-- **Git Activity Badges** - See git operations directly on agent messages
-- **Rollback** - Roll back changes from any user message bubble
-- **Real-time Tool Execution** - See bash commands, file edits, and web searches as they happen
-- **File Viewer** - File preview with Cmd+P search, syntax highlighting, and image viewer
-- **Chat Forking** - Fork a sub-chat from any assistant message to explore alternatives
-- **Chat Export** - Export conversations for sharing or archival
-- **File Mentions** - Reference files directly in chat with @ mentions
-- **Message Queue** - Queue up prompts while an agent is working
-
----
-
-### Plan mode that actually helps you think
-
-The agent asks clarifying questions, builds structured plans, and shows clean markdown preview - all before execution.
-
-![Plan Mode Demo](assets/plan-mode.gif)
-
-- **Clarifying Questions** - The agent asks what it needs to know before starting
-- **Structured Plans** - See step-by-step breakdown of what will happen
-- **Clean Markdown Preview** - Review plans in readable format
-- **Review Before Execution** - Approve or modify the plan before the agent acts
-- **Extended Thinking** - Enabled by default with visual thinking gradient
-- **Sub-agents** - Visual task list for sub-agents in the details sidebar
-
----
-
-### Background agents that never sleep
-
-Close your laptop. Your agents keep running in isolated cloud sandboxes with live browser previews.
-
-- **Runs When You Sleep** - Background agents continue working even when your laptop is closed
-- **Cloud Sandboxes** - Every background session runs in an isolated cloud environment
-- **Live Browser Previews** - See your dev branch running in a real browser
-
----
-
-### Connect anything with MCP
-
-Full MCP server lifecycle management with a built-in plugin marketplace. No config files needed.
-
-- **MCP Server Management** - Toggle, configure, and delete MCP servers from the UI
-- **Plugin Marketplace** - Browse and install plugins with one click
-- **Rich Tool Display** - See MCP tool calls with formatted inputs and outputs
-- **@ Mentions** - Reference MCP servers directly in chat input
-
----
-
-### Automations that work while you sleep
-
-Trigger agents from GitHub, Linear, Slack, or manually from git events. Auto-review PRs, fix CI failures, and complete tasks - all configurable.
-
-- **@1code Triggers** - Tag @1code in GitHub, Linear, or Slack to start agents
-- **Git Event Triggers** - Run automations on push, PR, or any git event
-- **Conditions & Filters** - Control when automations fire
-- **Execution Timeline** - Visual history of past runs
-- **Silent Mode** - Toggle respond-to-trigger for background automations
-
-Automations require a [Pro or Max subscription](https://1code.dev/pro). Learn more at [1code.dev/agents/async](https://1code.dev/agents/async).
-
-
-## API
-
-Run coding agents programmatically. Point at a repo, give it a task - the agent runs in a sandbox and delivers a PR.
-
-```bash
-curl -X POST https://1code.dev/api/v1/tasks \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -d '{
-    "repository": "https://github.com/your-org/your-repo",
-    "prompt": "Fix the failing CI tests"
-  }'
+```text
+<worktreePath>/漏洞挖掘记录.md
+<worktreePath>/漏洞挖掘报告.md
 ```
 
-- **Remote Sandboxes** - Isolated cloud environment, repo cloned, dependencies installed
-- **Git & PR Integration** - Agent commits, pushes branches, opens PRs automatically
-- **Async Execution** - Fire and forget, poll for status or get notified
-- **Follow-up Messages** - Send additional instructions to a running task
+没有真实独立 worktree、但能定位项目根目录时：
 
-Learn more at [1code.dev/agents/api](https://1code.dev/agents/api)
-
-## Installation
-
-### Option 1: Build from source (free)
-
-```bash
-# Prerequisites: Bun, Python 3.11, setuptools, Xcode Command Line Tools (macOS)
-bun install
-bun run claude:download  # Download Claude binary (required!)
-bun run codex:download   # Download Codex binary (required!)
-bun run build
-bun run package:mac  # or package:win, package:linux
+```text
+<projectPath>/漏洞挖掘-<chatId短ID>-<subChatId短ID>/漏洞挖掘记录.md
+<projectPath>/漏洞挖掘-<chatId短ID>-<subChatId短ID>/漏洞挖掘报告.md
 ```
 
-> **Important:** The `claude:download` and `codex:download` steps download required agent binaries. If you skip them, the app may build but agent functionality will not work correctly.
->
-> **Python note:** Python 3.11 is recommended for native module rebuilds. On Python 3.12+, make sure `setuptools` is installed (`pip install setuptools`).
+项目根目录也不可用时：
 
-### Option 2: Subscribe to 1code.dev (recommended)
+```text
+<app userData>/security-mining-records/漏洞挖掘-<chatId短ID>-<subChatId短ID>/漏洞挖掘记录.md
+<app userData>/security-mining-records/漏洞挖掘-<chatId短ID>-<subChatId短ID>/漏洞挖掘报告.md
+```
 
-Get pre-built releases + background agents support by subscribing at [1code.dev](https://1code.dev).
+## 功能链路
 
-Your subscription helps us maintain and improve 1Code.
+1. 用户在 Agent chat 中发起漏洞挖掘任务。
+2. 前端识别安全测试类 prompt，调用 `securityMiningRecord.ensure` 创建空白实时记录文件。
+3. 前端把 `@[skill:security-mining-record]` 和实时记录文件路径注入给模型执行侧。
+4. Agent 按 skill 要求，把关键目标、边界、工具结论、发现、证据和用户纠偏写入 `漏洞挖掘记录.md`。
+5. Claude Write/Edit 工具产生文件变更事件后，1Code 自动打开右侧 Markdown 预览。
+6. 用户点击“导出报告”，后端读取当前 subChat 消息、工具调用、实时记录内容，生成 `漏洞挖掘报告.md`。
+7. 报告在右侧 Markdown 预览器打开，可直接下载。
 
-## Development
+## 关键代码位置
+
+- 路径解析：`src/main/lib/security-mining-record/path.ts`
+- Markdown 报告生成：`src/main/lib/security-mining-record/report.ts`
+- tRPC 路由：`src/main/lib/trpc/routers/security-mining-record.ts`
+- Claude prompt/skill 注入：`src/renderer/features/agents/lib/ipc-chat-transport.ts`
+- 聊天顶部按钮与右侧预览联动：`src/renderer/features/agents/main/active-chat.tsx`
+- Markdown 下载按钮：`src/renderer/features/file-viewer/components/markdown-viewer.tsx`
+- 外置 skill：`skills/security-mining-record/SKILL.md`
+- 产品需求说明：`docs/security-mining-live-document-requirements.md`
+- UI 原型：`docs/prototypes/security-mining-record-preview.html`
+
+## 启动方式
+
+### macOS
+
+可以直接双击：
+
+```text
+start-1code.command
+```
+
+或在终端运行：
 
 ```bash
 bun install
-bun run claude:download  # First time only
-bun run codex:download   # First time only
+bun run claude:download
+bun run codex:download
 bun run dev
 ```
 
-## Feedback & Community
+### Windows
 
-Join our [Discord](https://discord.gg/8ektTZGnj4) for support and discussions.
+可以运行：
+
+```text
+start-1code.bat
+```
+
+或在终端运行：
+
+```bash
+bun install
+bun run claude:download
+bun run codex:download
+bun run dev
+```
+
+## Skill 安装
+
+源码内置的 skill 文件在：
+
+```text
+skills/security-mining-record/SKILL.md
+```
+
+运行 Claude Code 路径时，建议同步到用户级 Claude skill 目录：
+
+```bash
+mkdir -p "$HOME/.claude/skills/security-mining-record"
+cp skills/security-mining-record/SKILL.md "$HOME/.claude/skills/security-mining-record/SKILL.md"
+```
+
+Windows 下对应目录通常是：
+
+```text
+%USERPROFILE%\.claude\skills\security-mining-record\SKILL.md
+```
+
+## 验证命令
+
+```bash
+bun test src/main/lib/security-mining-record/path.test.ts src/main/lib/security-mining-record/report.test.ts
+bun run build
+```
+
+## 当前限制
+
+- 这是 PoC 第一版，报告生成是确定性 Markdown 汇总，不额外调用模型润色。
+- 最终报告是 `漏洞挖掘报告.md`，不是 Word/docx。
+- 右侧实时文档预览复用 1Code 现有 Markdown 文件预览器。
+- 实时记录内容不要求固定 JSON schema，由 skill 引导 Agent 写自然 Markdown。
+- Codex provider 的 skill 加载语义和 Claude Code 不完全一致；PoC 优先基于 1Code + Claude Code 路径验证。
+
+## 上游项目
+
+本项目二开自 1Code：
+
+- 官网：[https://1code.dev](https://1code.dev)
+- 原能力包括：Claude Code / Codex、worktree、diff 预览、MCP、skills、插件、终端、文件预览、chat fork、plan mode 等。
 
 ## License
 
-Apache License 2.0 - see [LICENSE](LICENSE) for details.
+Apache License 2.0，见 [LICENSE](LICENSE)。
