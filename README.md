@@ -102,7 +102,7 @@ bun run dev
 skills/security-mining-record/SKILL.md
 ```
 
-运行 Claude Code 路径时，实际加载位置是用户级 Claude skill 目录，需要把上面的安装源复制过去：
+运行 Claude Code 路径验证本 PoC 时，必须先把上面的安装源复制到用户级 Claude skill 目录；否则 `security-mining-record` skill 规则不会生效：
 
 ```bash
 mkdir -p "$HOME/.claude/skills/security-mining-record"
@@ -115,7 +115,7 @@ Windows 下对应目录通常是：
 %USERPROFILE%\.claude\skills\security-mining-record\SKILL.md
 ```
 
-注意：`skills/security-mining-record/SKILL.md` 不会因为存在于源码仓库里就自动生效。1Code 当前 Claude 路径通过 `~/.claude/skills` 和项目 `.claude/skills` 加载 skill；本 PoC 的产品代码只注入 `@[skill:security-mining-record]` 和本次记录文件路径，不在源码中硬编码 skill 内容。
+注意：`skills/security-mining-record/SKILL.md` 不会因为存在于源码仓库里就自动生效。1Code 当前 Claude 路径通过 `~/.claude/skills` 和项目 `.claude/skills` 加载 skill；本 PoC 的产品代码只注入 `@[skill:security-mining-record]` 和本次记录文件路径，不在源码中硬编码 skill 内容。因此没有完成用户级安装时，实时记录文件仍可打开，报告也可导出，但 Agent 不会按该 skill 的完整规则持续沉淀过程、证据和发现。
 
 ## 验证命令
 
