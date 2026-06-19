@@ -14,6 +14,7 @@ import {
   TooltipTrigger,
 } from "../../../components/ui/tooltip"
 import { useResolvedHotkeyDisplayWithAlt, useResolvedHotkeyDisplay } from "../../../lib/hotkeys"
+import { useI18n } from "../../../lib/i18n"
 import { cn } from "../../../lib/utils"
 import type { AgentMode } from "../atoms"
 
@@ -70,6 +71,7 @@ export function AgentSendButton({
   onVoiceMouseUp,
   onVoiceMouseLeave,
 }: AgentSendButtonProps) {
+  const { t } = useI18n()
   // Resolved hotkeys for stop-generation tooltip
   const stopHotkey = useResolvedHotkeyDisplayWithAlt("stop-generation")
   // Resolved hotkey for voice input
@@ -130,11 +132,11 @@ export function AgentSendButton({
   const getTooltipContent = () => {
     // Voice input mode
     if (isVoiceMode) {
-      if (isTranscribing) return "Transcribing..."
-      if (isRecording) return "Click to stop"
+      if (isTranscribing) return t("chat.send.transcribing")
+      if (isRecording) return t("chat.send.clickToStop")
       return (
         <div className="flex flex-col items-start gap-0.5">
-          <span>Voice input</span>
+          <span>{t("chat.send.voiceInput")}</span>
           {voiceHotkey && (
             <span className="text-muted-foreground">{voiceHotkey}</span>
           )}
@@ -144,11 +146,11 @@ export function AgentSendButton({
     if (isStreaming && !hasContent)
       return (
         <div className="flex flex-col items-start gap-1">
-          <span>Stop</span>
+          <span>{t("chat.send.stop")}</span>
           {stopHotkey.primary && (
             <span className="flex items-center gap-1.5">
               <Kbd>{stopHotkey.primary}</Kbd>
-              {stopHotkey.alt && <><span className="text-[10px] opacity-50">or</span><Kbd>{stopHotkey.alt}</Kbd></>}
+              {stopHotkey.alt && <><span className="text-[10px] opacity-50">{t("common.or")}</span><Kbd>{stopHotkey.alt}</Kbd></>}
             </span>
           )}
         </div>
@@ -156,23 +158,23 @@ export function AgentSendButton({
     if (isStreaming && hasContent)
       return (
         <span className="flex items-center gap-1">
-          Add to queue
+          {t("chat.send.addToQueue")}
           <Kbd className="ms-0.5">
             <EnterIcon className="size-2.5 inline" />
           </Kbd>
-          <span className="text-muted-foreground/60">or</span>
-          Send now
+          <span className="text-muted-foreground/60">{t("common.or")}</span>
+          {t("chat.send.sendNow")}
           <Kbd className="ms-0.5">Alt</Kbd>
           <Kbd className="-me-1">
             <EnterIcon className="size-2.5 inline" />
           </Kbd>
         </span>
       )
-    if (isSubmitting) return "Generating..."
+    if (isSubmitting) return t("chat.send.generating")
     return (
       <div className="flex flex-col items-start gap-0.5">
         <div className="flex items-center gap-1">
-          <span>Send</span>
+          <span>{t("chat.send.send")}</span>
           <span className="text-muted-foreground inline-flex items-center gap-1">
             <Kbd>
               <EnterIcon className="size-2.5 inline" />
@@ -180,7 +182,7 @@ export function AgentSendButton({
           </span>
         </div>
         <div className="flex items-center gap-1">
-          <span>Send now</span>
+          <span>{t("chat.send.sendNow")}</span>
           <span className="text-muted-foreground inline-flex items-center gap-1">
             <Kbd>Alt</Kbd>
             <Kbd>
@@ -196,14 +198,14 @@ export function AgentSendButton({
   const getAriaLabel = () => {
     if (ariaLabel) return ariaLabel
     if (isVoiceMode) {
-      if (isTranscribing) return "Transcribing..."
-      if (isRecording) return "Stop recording"
-      return "Voice input"
+      if (isTranscribing) return t("chat.send.transcribing")
+      if (isRecording) return t("chat.send.stopRecording")
+      return t("chat.send.voiceInput")
     }
-    if (isStreaming && !hasContent) return "Stop generation"
-    if (isStreaming && hasContent) return "Add to queue"
-    if (isSubmitting) return "Generating..."
-    return "Send message"
+    if (isStreaming && !hasContent) return t("chat.send.stopGeneration")
+    if (isStreaming && hasContent) return t("chat.send.addToQueue")
+    if (isSubmitting) return t("chat.send.generating")
+    return t("chat.send.sendMessage")
   }
 
   // Apply glow effect when button is active and ready to send/queue
@@ -212,9 +214,8 @@ export function AgentSendButton({
     ((!isStreaming && !isSubmitting && !disabled) || shouldShowQueueArrow) &&
     !isRecording
 
-  const glowClass = shouldShowGlow
-    ? "shadow-[0_0_0_2px_white,0_0_0_4px_rgba(0,0,0,0.06)] dark:shadow-[0_0_0_2px_#1a1a1a,0_0_0_4px_rgba(255,255,255,0.08)]"
-    : undefined
+  // Operator: flat send button, no soft glow ring
+  const glowClass = shouldShowGlow ? "" : undefined
 
   // Mode-specific styling (agent=foreground, plan=orange)
   // Recording state uses same styling as normal mode (wave indicator shows recording state)
@@ -261,7 +262,7 @@ export function AgentSendButton({
       <TooltipTrigger asChild>
         <Button
           size={size}
-          className={`h-7 w-7 rounded-full transition-[background-color,transform,opacity] duration-150 ease-out active:scale-[0.97] flex items-center justify-center ${glowClass || ""} ${modeClass} ${className}`}
+          className={`h-7 w-7 rounded-md transition-[background-color,transform,opacity] duration-150 ease-out active:scale-[0.97] flex items-center justify-center ${glowClass || ""} ${modeClass} ${className}`}
           disabled={isDisabled || isTranscribing}
           type="button"
           onClick={handleButtonClick}
@@ -277,4 +278,3 @@ export function AgentSendButton({
     </Tooltip>
   )
 }
-

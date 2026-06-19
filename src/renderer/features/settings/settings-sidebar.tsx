@@ -12,6 +12,7 @@ import {
   isDesktopAtom,
   type SettingsTab,
 } from "../../lib/atoms"
+import { useI18n, type TranslationKey } from "../../lib/i18n"
 import { cn } from "../../lib/utils"
 import {
   BrainFilledIcon,
@@ -36,27 +37,27 @@ const DEVTOOLS_UNLOCK_CLICKS = 5
 const MAIN_TABS = [
   {
     id: "preferences" as SettingsTab,
-    label: "Preferences",
+    labelKey: "settings.tabs.preferences",
     icon: SlidersFilledIcon,
   },
   {
     id: "profile" as SettingsTab,
-    label: "Account",
+    labelKey: "settings.tabs.account",
     icon: ProfileIconFilled,
   },
   {
     id: "appearance" as SettingsTab,
-    label: "Appearance",
+    labelKey: "settings.tabs.appearance",
     icon: EyeOpenFilledIcon,
   },
   {
     id: "keyboard" as SettingsTab,
-    label: "Keyboard",
+    labelKey: "settings.tabs.keyboard",
     icon: KeyboardFilledIcon,
   },
   {
     id: "beta" as SettingsTab,
-    label: "Beta",
+    labelKey: "settings.tabs.beta",
     icon: FlaskFilledIcon,
   },
 ]
@@ -65,32 +66,32 @@ const MAIN_TABS = [
 const ADVANCED_TABS_BASE = [
   {
     id: "projects" as SettingsTab,
-    label: "Projects",
+    labelKey: "settings.tabs.projects",
     icon: FolderFilledIcon,
   },
   {
     id: "models" as SettingsTab,
-    label: "Models",
+    labelKey: "settings.tabs.models",
     icon: BrainFilledIcon,
   },
   {
     id: "skills" as SettingsTab,
-    label: "Skills",
+    labelKey: "settings.tabs.skills",
     icon: SkillIconFilled,
   },
   {
     id: "agents" as SettingsTab,
-    label: "Custom Agents",
+    labelKey: "settings.tabs.customAgents",
     icon: CustomAgentIconFilled,
   },
   {
     id: "mcp" as SettingsTab,
-    label: "MCP Servers",
+    labelKey: "settings.tabs.mcpServers",
     icon: OriginalMCPIcon,
   },
   {
     id: "plugins" as SettingsTab,
-    label: "Plugins",
+    labelKey: "settings.tabs.plugins",
     icon: PluginFilledIcon,
   },
 ]
@@ -98,7 +99,7 @@ const ADVANCED_TABS_BASE = [
 // Debug tab definition
 const DEBUG_TAB = {
   id: "debug" as SettingsTab,
-  label: "Debug",
+  labelKey: "settings.tabs.debug",
   icon: BugFilledIcon,
 }
 
@@ -143,6 +144,7 @@ export function SettingsSidebar() {
   const [devToolsUnlocked, setDevToolsUnlocked] = useAtom(devToolsUnlockedAtom)
   const setDesktopView = useSetAtom(desktopViewAtom)
   const isDesktop = useAtomValue(isDesktopAtom)
+  const { t } = useI18n()
 
   // Hide native traffic lights when settings sidebar is shown
   useEffect(() => {
@@ -159,9 +161,21 @@ export function SettingsSidebar() {
   const showDebugTab = isDevelopment || devToolsUnlocked
 
   const mainTabs = useMemo(() => {
-    if (showDebugTab) return [...MAIN_TABS, DEBUG_TAB]
-    return MAIN_TABS
-  }, [showDebugTab])
+    const tabs = showDebugTab ? [...MAIN_TABS, DEBUG_TAB] : MAIN_TABS
+    return tabs.map((tab) => ({
+      ...tab,
+      label: t(tab.labelKey as TranslationKey),
+    }))
+  }, [showDebugTab, t])
+
+  const advancedTabs = useMemo(
+    () =>
+      ADVANCED_TABS_BASE.map((tab) => ({
+        ...tab,
+        label: t(tab.labelKey as TranslationKey),
+      })),
+    [t],
+  )
 
   const handleTabClick = (tabId: SettingsTab) => {
     // Handle Beta tab clicks for devtools unlock
@@ -195,7 +209,7 @@ export function SettingsSidebar() {
           className="inline-flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm h-7 rounded-md text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer"
         >
           <ChevronLeft className="h-4 w-4" />
-          <span>Back</span>
+          <span>{t("common.back")}</span>
         </button>
       </div>
 
@@ -218,7 +232,7 @@ export function SettingsSidebar() {
 
         {/* Advanced Tabs */}
         <div className="space-y-1">
-          {ADVANCED_TABS_BASE.map((tab) => (
+          {advancedTabs.map((tab) => (
             <TabButton
               key={tab.id}
               tab={tab}

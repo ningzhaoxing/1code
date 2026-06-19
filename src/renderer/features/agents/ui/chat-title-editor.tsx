@@ -5,6 +5,7 @@ import { useAtomValue } from "jotai"
 import { cn } from "../../../lib/utils"
 import { TypewriterText } from "../../../components/ui/typewriter-text"
 import { justCreatedIdsAtom } from "../atoms"
+import { useI18n } from "../../../lib/i18n"
 
 interface ChatTitleEditorProps {
   name: string
@@ -33,13 +34,15 @@ function areTitlePropsEqual(
 
 export const ChatTitleEditor = memo(function ChatTitleEditor({
   name,
-  placeholder = "New Chat",
+  placeholder,
   onSave,
   isMobile = false,
   disabled = false,
   chatId,
   hasMessages = false,
 }: ChatTitleEditorProps) {
+  const { t } = useI18n()
+  const displayPlaceholder = placeholder ?? t("chat.new")
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState(name)
   const [isSaving, setIsSaving] = useState(false)
@@ -132,7 +135,7 @@ export const ChatTitleEditor = memo(function ChatTitleEditor({
   }
 
   const isJustCreated = chatId ? justCreatedIds.has(chatId) : false
-  const hasRealName = name && name !== placeholder
+  const hasRealName = name && name !== displayPlaceholder
 
   const handleClick = () => {
     // Don't allow editing if disabled or if it's a placeholder (not saved to DB yet)
@@ -157,7 +160,7 @@ export const ChatTitleEditor = memo(function ChatTitleEditor({
           onChange={(e) => setEditValue(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={isSaving}
-          placeholder={placeholder}
+          placeholder={displayPlaceholder}
           className={cn(
             "w-full h-full bg-transparent border-0 outline-none",
             isMobile ? "text-base" : "text-lg",
@@ -177,7 +180,7 @@ export const ChatTitleEditor = memo(function ChatTitleEditor({
           <span className="block truncate">
             <TypewriterText
               text={name}
-              placeholder={placeholder}
+              placeholder={displayPlaceholder}
               id={chatId}
               isJustCreated={isJustCreated}
               showPlaceholder={hasMessages}

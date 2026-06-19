@@ -5,6 +5,7 @@ import { useSetAtom } from "jotai"
 import { memo, useEffect, useMemo, useState } from "react"
 import { CheckIcon, PlanIcon } from "../../../components/ui/icons"
 import { TextShimmer } from "../../../components/ui/text-shimmer"
+import { translateCurrentLocale, useI18n } from "../../../lib/i18n"
 import { cn } from "../../../lib/utils"
 import { currentTaskToolsAtomFamily } from "../atoms"
 import { getToolStatus } from "./agent-tool-registry"
@@ -138,7 +139,7 @@ function updateTaskSnapshotFromParts(
       if (id) {
         tasks.set(id, {
           id,
-          subject: part.input?.subject ?? "Task",
+          subject: part.input?.subject ?? translateCurrentLocale("chat.task.fallback"),
           description: part.input?.description,
           activeForm: part.input?.activeForm,
           status: "pending",
@@ -161,7 +162,7 @@ function updateTaskSnapshotFromParts(
 
       tasks.set(taskId, {
         id: taskId,
-        subject: part.input?.subject ?? existing?.subject ?? `Task #${taskId}`,
+        subject: part.input?.subject ?? existing?.subject ?? translateCurrentLocale("chat.task.fallbackWithId", { id: taskId }),
         description: part.input?.description ?? existing?.description,
         activeForm: part.input?.activeForm ?? existing?.activeForm,
         status: statusChange?.to ?? part.input?.status ?? existing?.status ?? "pending",
@@ -178,7 +179,7 @@ function updateTaskSnapshotFromParts(
           const existing = tasks.get(id)
           tasks.set(id, {
             id,
-            subject: task.subject ?? "Task",
+            subject: task.subject ?? translateCurrentLocale("chat.task.fallback"),
             description: task.description ?? existing?.description,
             activeForm: task.activeForm ?? existing?.activeForm,  // Preserve UI-only field
             status: task.status ?? "pending",
@@ -197,7 +198,7 @@ function updateTaskSnapshotFromParts(
         const existing = tasks.get(id)
         tasks.set(id, {
           id,
-          subject: task.subject ?? "Task",
+          subject: task.subject ?? translateCurrentLocale("chat.task.fallback"),
           description: task.description ?? existing?.description,
           activeForm: task.activeForm ?? existing?.activeForm,  // Preserve UI-only field
           status: task.status ?? "pending",
@@ -307,7 +308,7 @@ function extractChangesFromParts(
       if (seenTaskIds.has(id)) continue
       seenTaskIds.add(id)
 
-      const rawSubject = part.input?.subject ?? "Task"
+      const rawSubject = part.input?.subject ?? translateCurrentLocale("chat.task.fallback")
       const formattedSubject = formatTaskSubject(id, rawSubject)
 
       changes.push({
@@ -329,7 +330,7 @@ function extractChangesFromParts(
       const inputSubject = part.input?.subject
       const subject = inputSubject
         ? formatTaskSubject(taskId, inputSubject)
-        : taskSubjects.get(taskId) ?? formatTaskSubject(taskId, `Task #${taskId}`)
+        : taskSubjects.get(taskId) ?? formatTaskSubject(taskId, translateCurrentLocale("chat.task.fallbackWithId", { id: taskId }))
 
       // Check if this task was already in our changes (e.g., created then updated in same group)
       let existingIdx = changes.findIndex(c => c.id === taskId)
@@ -425,7 +426,7 @@ function extractReadDataFromParts(parts: any[]): ExtractedReadData {
     if (part.type === "tool-TaskList" && Array.isArray(part.output?.tasks)) {
       taskList = part.output.tasks.map((task: any) => {
         const id = task.id ?? ""
-        const rawSubject = task.subject ?? "Task"
+        const rawSubject = task.subject ?? translateCurrentLocale("chat.task.fallback")
         return {
           id,
           subject: id ? formatTaskSubject(id, rawSubject) : rawSubject,
@@ -442,7 +443,7 @@ function extractReadDataFromParts(parts: any[]): ExtractedReadData {
     if (part.type === "tool-TaskGet" && part.output?.task) {
       const task = part.output.task
       const id = task.id ?? ""
-      const rawSubject = task.subject ?? "Task"
+      const rawSubject = task.subject ?? translateCurrentLocale("chat.task.fallback")
       taskGet = {
         id,
         subject: id ? formatTaskSubject(id, rawSubject) : rawSubject,
@@ -463,25 +464,25 @@ function extractReadDataFromParts(parts: any[]): ExtractedReadData {
  * Get human-readable description of the change
  * Returns null for "created" since header already says "Created X tasks"
  */
-function getChangeDescription(change: TaskChange): string | null {
+function getChangeDescription(change: TaskChange, t: ReturnType<typeof useI18n>["t"]): string | null {
   switch (change.changeType) {
     case "created":
       return null // Header already says "Created X tasks"
     case "deleted":
-      return "Deleted"
+      return t("chat.tool.taskDeleted")
     case "status_changed":
-      if (change.newStatus === "in_progress") return "Started"
-      if (change.newStatus === "completed") return "Completed"
-      if (change.newStatus === "pending") return "Reset to pending"
-      return "Updated"
+      if (change.newStatus === "in_progress") return t("chat.tool.taskStarted")
+      if (change.newStatus === "completed") return t("chat.tool.taskCompleted")
+      if (change.newStatus === "pending") return t("chat.tool.taskResetToPending")
+      return t("chat.tool.taskUpdated")
     case "updated":
       // For dependency updates, we'll show the details in the component
       if (change.updatedFields?.includes("blockedBy") || change.updatedFields?.includes("blocks")) {
         return null // Details shown separately
       }
-      return "Updated"
+      return t("chat.tool.taskUpdated")
     default:
-      return "Changed"
+      return t("chat.tool.taskChanged")
   }
 }
 
@@ -652,6 +653,7 @@ const TaskInfoItem = memo(function TaskInfoItem({
   taskSubjects: Map<string, string>
   taskSnapshot: Map<string, TaskSnapshot>
 }) {
+  const { t } = useI18n()
   // Check if task has blockedBy dependencies
   const hasBlockedBy = task.blockedBy && task.blockedBy.length > 0
 
@@ -661,7 +663,7 @@ const TaskInfoItem = memo(function TaskInfoItem({
     const deps = task.blocks
       .map(id => taskSubjects.get(id) ?? `#${id}`)
       .join(", ")
-    blocksDesc = `blocks ${deps}`
+    blocksDesc = t("chat.tool.blocks", { items: deps })
   }
 
   return (
@@ -692,7 +694,7 @@ const TaskInfoItem = memo(function TaskInfoItem({
         )}
         {task.owner && (
           <p className="text-xs text-muted-foreground/70 mt-0.5">
-            owner: {task.owner}
+            {t("chat.tool.owner", { owner: task.owner })}
           </p>
         )}
       </div>
@@ -715,7 +717,8 @@ const ChangeItem = memo(function ChangeItem({
   taskSubjects: Map<string, string>
   taskSnapshot: Map<string, TaskSnapshot>
 }) {
-  const statusSuffix = getChangeDescription(change)
+  const { t } = useI18n()
+  const statusSuffix = getChangeDescription(change, t)
   const displayText = change.newStatus === "in_progress" && change.activeForm
     ? change.activeForm
     : change.subject
@@ -729,7 +732,7 @@ const ChangeItem = memo(function ChangeItem({
     const deps = change.blocksIds
       .map(id => taskSubjects.get(id) ?? `#${id}`)
       .join(", ")
-    blocksDesc = `blocks ${deps}`
+    blocksDesc = t("chat.tool.blocks", { items: deps })
   }
 
   return (
@@ -785,6 +788,7 @@ export const AgentTaskToolsGroup = memo(function AgentTaskToolsGroup({
   isStreaming,
   subChatId,
 }: AgentTaskToolsGroupProps) {
+  const { t } = useI18n()
   // Build snapshots using linear history
   // Each group gets its own snapshot keyed by groupKey (first toolCallId)
   // previousSnapshot = state before this group, currentSnapshot = state after
@@ -954,7 +958,7 @@ export const AgentTaskToolsGroup = memo(function AgentTaskToolsGroup({
                   duration={1.2}
                   className="inline-flex items-center text-xs leading-none h-4 m-0"
                 >
-                  Updating tasks...
+                  {t("chat.task.updating")}
                 </TextShimmer>
               </span>
             </div>
@@ -966,7 +970,9 @@ export const AgentTaskToolsGroup = memo(function AgentTaskToolsGroup({
   }
 
   // Generate header text based on what we're showing
-  let headerText = "Tasks"
+  let headerText = t("chat.task.tasks")
+  const taskItem = (count: number) =>
+    count === 1 ? t("chat.task.singular") : t("chat.task.plural")
 
   if (hasChanges) {
     // Count changes by type for header
@@ -975,16 +981,16 @@ export const AgentTaskToolsGroup = memo(function AgentTaskToolsGroup({
     const startedCount = changes.filter(c => c.newStatus === "in_progress").length
 
     if (createdCount > 0 && createdCount === changes.length) {
-      headerText = `Created ${createdCount} task${createdCount > 1 ? "s" : ""}`
+      headerText = t("chat.task.created", { count: createdCount, item: taskItem(createdCount) })
     } else if (completedCount > 0 && completedCount === changes.length) {
-      headerText = `Completed ${completedCount} task${completedCount > 1 ? "s" : ""}`
+      headerText = t("chat.task.completed", { count: completedCount, item: taskItem(completedCount) })
     } else if (startedCount > 0 && startedCount === changes.length) {
-      headerText = `Started ${startedCount} task${startedCount > 1 ? "s" : ""}`
+      headerText = t("chat.task.started", { count: startedCount, item: taskItem(startedCount) })
     } else {
-      headerText = `${changes.length} task update${changes.length > 1 ? "s" : ""}`
+      headerText = t("chat.task.updated", { count: changes.length, item: taskItem(changes.length) })
     }
   } else if (hasTaskList) {
-    headerText = `List ${taskList!.length} task${taskList!.length > 1 ? "s" : ""}`
+    headerText = t("chat.task.list", { count: taskList!.length, item: taskItem(taskList!.length) })
   } else if (hasTaskGet) {
     // For TaskGet, we'll use a custom header with bold "Read task" prefix
     // The headerText will be used as a flag to trigger special rendering
@@ -1038,7 +1044,7 @@ export const AgentTaskToolsGroup = memo(function AgentTaskToolsGroup({
           <PlanIcon className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
           {headerText.startsWith("__TASK_GET__") ? (
             <span className="text-xs flex-1">
-              <span className="font-medium text-foreground">Read task</span>
+              <span className="font-medium text-foreground">{t("chat.tool.readTask")}</span>
               <span className="text-muted-foreground ml-1">
                 {(() => {
                   const parts = headerText.replace("__TASK_GET__", "").split("__")

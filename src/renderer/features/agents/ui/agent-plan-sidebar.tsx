@@ -7,6 +7,7 @@ import { IconDoubleChevronRight, IconSpinner, PlanIcon, MarkdownIcon, CodeIcon }
 import { Kbd } from "../../../components/ui/kbd"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../../components/ui/tooltip"
 import { ChatMarkdownRenderer } from "../../../components/chat-markdown-renderer"
+import { useI18n } from "../../../lib/i18n"
 import { cn } from "../../../lib/utils"
 import { trpc } from "../../../lib/trpc"
 import { CopyButton } from "./message-action-buttons"
@@ -31,6 +32,7 @@ export function AgentPlanSidebar({
   refetchTrigger,
   mode = "agent",
 }: AgentPlanSidebarProps) {
+  const { t } = useI18n()
   // View mode: rendered markdown or plaintext
   const [viewMode, setViewMode] = useState<"rendered" | "plaintext">("rendered")
 
@@ -54,10 +56,10 @@ export function AgentPlanSidebar({
 
   // Extract plan title from markdown (first H1)
   const planTitle = useMemo(() => {
-    if (!planContent) return "Plan"
+    if (!planContent) return t("chat.plan.title")
     const match = planContent.match(/^#\s+(.+)$/m)
-    return match ? match[1] : "Plan"
-  }, [planContent])
+    return match ? match[1] : t("chat.plan.title")
+  }, [planContent, t])
 
   return (
     <div className="flex flex-col h-full bg-tl-background">
@@ -69,7 +71,7 @@ export function AgentPlanSidebar({
             size="icon"
             onClick={onClose}
             className="h-6 w-6 p-0 hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] text-foreground flex-shrink-0 rounded-md"
-            aria-label="Close plan"
+            aria-label={t("chat.plan.close")}
           >
             <IconDoubleChevronRight className="h-4 w-4" />
           </Button>
@@ -85,7 +87,11 @@ export function AgentPlanSidebar({
                   size="icon"
                   onClick={handleToggleViewMode}
                   className="h-6 w-6 p-0 hover:bg-foreground/10 text-muted-foreground hover:text-foreground"
-                  aria-label={viewMode === "rendered" ? "Show raw markdown" : "Show rendered"}
+                  aria-label={
+                    viewMode === "rendered"
+                      ? t("chat.plan.showRawMarkdown")
+                      : t("chat.plan.showRendered")
+                  }
                 >
                   <div className="relative w-4 h-4">
                     <MarkdownIcon
@@ -104,7 +110,9 @@ export function AgentPlanSidebar({
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom" showArrow={false}>
-                {viewMode === "rendered" ? "View raw markdown" : "View rendered"}
+                {viewMode === "rendered"
+                  ? t("chat.plan.viewRawMarkdown")
+                  : t("chat.plan.viewRendered")}
               </TooltipContent>
             </Tooltip>
           )}
@@ -118,7 +126,7 @@ export function AgentPlanSidebar({
                 </div>
               </TooltipTrigger>
               <TooltipContent side="bottom" showArrow={false}>
-                Copy plan
+                {t("chat.plan.copy")}
               </TooltipContent>
             </Tooltip>
           )}
@@ -130,7 +138,7 @@ export function AgentPlanSidebar({
               className="h-6 px-3 text-xs font-medium rounded-md transition-transform duration-150 active:scale-[0.97]"
               onClick={onBuildPlan}
             >
-              Approve
+              {t("chat.plan.approve")}
               <Kbd className="ml-1.5 text-primary-foreground/70">⌘↵</Kbd>
             </Button>
           )}
@@ -142,7 +150,7 @@ export function AgentPlanSidebar({
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-full p-6 text-center">
             <IconSpinner className="h-8 w-8 text-muted-foreground mb-3" />
-            <p className="text-sm text-muted-foreground">Loading plan...</p>
+            <p className="text-sm text-muted-foreground">{t("chat.plan.loading")}</p>
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center h-full p-6 text-center">

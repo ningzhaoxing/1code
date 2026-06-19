@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback } from "react"
 import { useAtom } from "jotai"
 import { atomWithStorage } from "jotai/utils"
 import { isDesktopApp } from "../../../lib/utils/platform"
+import { translateCurrentLocale } from "../../../lib/i18n"
 
 // Track pending notifications count for badge
 const pendingNotificationsAtom = atomWithStorage<number>(
@@ -137,8 +138,10 @@ export function useDesktopNotifications() {
 
         // Show native notification
         window.desktopApi?.showNotification({
-          title: "Agent finished",
-          body: `${agentName} completed the task`,
+          title: translateCurrentLocale("chat.notification.agentFinished.title"),
+          body: translateCurrentLocale("chat.notification.agentFinished.body", {
+            name: agentName,
+          }),
         })
       }
     },
@@ -172,8 +175,10 @@ export function showAgentNotification(agentName: string) {
   // Only notify if window is not focused
   if (!document.hasFocus()) {
     window.desktopApi?.showNotification({
-      title: "Agent finished",
-      body: `${agentName} completed the task`,
+      title: translateCurrentLocale("chat.notification.agentFinished.title"),
+      body: translateCurrentLocale("chat.notification.agentFinished.body", {
+        name: agentName,
+      }),
     })
   }
 }

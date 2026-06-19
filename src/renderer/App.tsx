@@ -1,11 +1,15 @@
 import { Provider as JotaiProvider, useAtomValue, useSetAtom } from "jotai"
 import { ThemeProvider, useTheme } from "next-themes"
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import { Toaster } from "sonner"
 import { TooltipProvider } from "./components/ui/tooltip"
 import { TRPCProvider } from "./contexts/TRPCProvider"
 import { WindowProvider, getInitialWindowParams } from "./contexts/WindowContext"
-import { selectedProjectAtom, selectedAgentChatIdAtom } from "./features/agents/atoms"
+import {
+  lastSelectedAgentIdAtom,
+  selectedProjectAtom,
+  selectedAgentChatIdAtom,
+} from "./features/agents/atoms"
 import { useAgentSubChatStore } from "./features/agents/stores/sub-chat-store"
 import { AgentsLayout } from "./features/layout/agents-layout"
 import {
@@ -20,7 +24,9 @@ import {
   anthropicOnboardingCompletedAtom,
   apiKeyOnboardingCompletedAtom,
   billingMethodAtom,
+  codexOnboardingAuthMethodAtom,
   codexOnboardingCompletedAtom,
+  appLocaleAtom,
 } from "./lib/atoms"
 import { appStore } from "./lib/jotai-store"
 import { VSCodeThemeProvider } from "./lib/themes/theme-provider"
@@ -41,6 +47,16 @@ function ThemedToaster() {
   )
 }
 
+function I18nDocumentAttributes() {
+  const locale = useAtomValue(appLocaleAtom)
+
+  useEffect(() => {
+    document.documentElement.lang = locale
+  }, [locale])
+
+  return null
+}
+
 /**
  * Main content router - decides which page to show based on onboarding state
  */
@@ -54,9 +70,15 @@ function AppContent() {
   const apiKeyOnboardingCompleted = useAtomValue(apiKeyOnboardingCompletedAtom)
   const setApiKeyOnboardingCompleted = useSetAtom(apiKeyOnboardingCompletedAtom)
   const codexOnboardingCompleted = useAtomValue(codexOnboardingCompletedAtom)
+  const setCodexOnboardingCompleted = useSetAtom(codexOnboardingCompletedAtom)
+  const setCodexOnboardingAuthMethod = useSetAtom(codexOnboardingAuthMethodAtom)
+  const setLastSelectedAgentId = useSetAtom(lastSelectedAgentIdAtom)
   const selectedProject = useAtomValue(selectedProjectAtom)
+  const setSelectedProject = useSetAtom(selectedProjectAtom)
   const setSelectedChatId = useSetAtom(selectedAgentChatIdAtom)
   const { setActiveSubChat, addToOpenSubChats, setChatId } = useAgentSubChatStore()
+  const hasTriedDefaultProject = useRef(false)
+  const utils = trpc.useUtils()
 
   // Apply initial window params (chatId/subChatId) when opening via "Open in new window"
   useEffect(() => {
@@ -94,6 +116,58 @@ function AppContent() {
   // Based on PR #29 by @sa4hnd
   const { data: cliConfig, isLoading: isLoadingCliConfig } =
     trpc.claudeCode.hasExistingCliConfig.useQuery()
+  const { data: claudeCodeIntegration } =
+    trpc.claudeCode.getIntegration.useQuery()
+  const { data: codexIntegration } = trpc.codex.getIntegration.useQuery()
+  const createDefaultProject = trpc.projects.create.useMutation()
+
+  useEffect(() => {
+    const shouldBypassProviderOnboarding =
+      import.meta.env.DEV &&
+      import.meta.env.VITE_BYPASS_PROVIDER_ONBOARDING === "1"
+
+    if (!shouldBypassProviderOnboarding) return
+
+    const defaultProvider = import.meta.env.VITE_DEFAULT_PROVIDER
+    const preferCodex =
+      defaultProvider === "codex" || Boolean(codexIntegration?.isConnected)
+
+    if (!codexOnboardingCompleted) {
+      setCodexOnboardingCompleted(true)
+      setCodexOnboardingAuthMethod("chatgpt")
+    }
+
+    if (preferCodex) {
+      setLastSelectedAgentId("codex")
+      if (!billingMethod) {
+        setBillingMethod(
+          codexIntegration?.state === "connected_api_key"
+            ? "codex-api-key"
+            : "codex-subscription",
+        )
+      }
+      return
+    }
+
+    if (claudeCodeIntegration?.isConnected && !anthropicOnboardingCompleted) {
+      setAnthropicOnboardingCompleted(true)
+    }
+    if (!billingMethod && claudeCodeIntegration?.isConnected) {
+      setBillingMethod("claude-subscription")
+    }
+  }, [
+    anthropicOnboardingCompleted,
+    billingMethod,
+    claudeCodeIntegration?.isConnected,
+    codexIntegration?.isConnected,
+    codexIntegration?.state,
+    codexOnboardingCompleted,
+    setAnthropicOnboardingCompleted,
+    setBillingMethod,
+    setCodexOnboardingAuthMethod,
+    setCodexOnboardingCompleted,
+    setLastSelectedAgentId,
+  ])
 
   // Migration: If user already completed Anthropic onboarding but has no billing method set,
   // automatically set it to "claude-subscription" (legacy users before billing method was added)
@@ -113,6 +187,47 @@ function AppContent() {
     }
   }, [cliConfig?.hasConfig, billingMethod, setBillingMethod, setApiKeyOnboardingCompleted])
 
+  useEffect(() => {
+    const hasClaudeCode = Boolean(claudeCodeIntegration?.isConnected)
+    const hasCodex = Boolean(codexIntegration?.isConnected)
+
+    if (hasClaudeCode && !anthropicOnboardingCompleted) {
+      console.log("[App] Detected Claude Code integration, auto-completing onboarding")
+      setAnthropicOnboardingCompleted(true)
+    }
+
+    if (hasCodex && !codexOnboardingCompleted) {
+      console.log("[App] Detected Codex integration, auto-completing onboarding")
+      setCodexOnboardingCompleted(true)
+      setCodexOnboardingAuthMethod(
+        codexIntegration?.state === "connected_api_key" ? "api_key" : "chatgpt",
+      )
+    }
+
+    if (!billingMethod) {
+      if (hasClaudeCode) {
+        setBillingMethod("claude-subscription")
+      } else if (hasCodex) {
+        setBillingMethod(
+          codexIntegration?.state === "connected_api_key"
+            ? "codex-api-key"
+            : "codex-subscription",
+        )
+      }
+    }
+  }, [
+    anthropicOnboardingCompleted,
+    billingMethod,
+    claudeCodeIntegration?.isConnected,
+    codexIntegration?.isConnected,
+    codexIntegration?.state,
+    codexOnboardingCompleted,
+    setAnthropicOnboardingCompleted,
+    setBillingMethod,
+    setCodexOnboardingAuthMethod,
+    setCodexOnboardingCompleted,
+  ])
+
   // Fetch projects to validate selectedProject exists
   const { data: projects, isLoading: isLoadingProjects } =
     trpc.projects.list.useQuery()
@@ -127,6 +242,64 @@ function AppContent() {
     const exists = projects.some((p) => p.id === selectedProject.id)
     return exists ? selectedProject : null
   }, [selectedProject, projects, isLoadingProjects])
+
+  useEffect(() => {
+    const defaultProjectPath =
+      import.meta.env.DEV ? import.meta.env.VITE_DEFAULT_PROJECT_PATH : undefined
+    if (!defaultProjectPath || validatedProject || isLoadingProjects) return
+
+    const applyProject = (project: NonNullable<typeof projects>[number]) => {
+      setSelectedProject({
+        id: project.id,
+        name: project.name,
+        path: project.path,
+        gitRemoteUrl: project.gitRemoteUrl,
+        gitProvider: project.gitProvider as
+          | "github"
+          | "gitlab"
+          | "bitbucket"
+          | null,
+        gitOwner: project.gitOwner,
+        gitRepo: project.gitRepo,
+      })
+    }
+
+    const existingProject = projects?.find((project) => project.path === defaultProjectPath)
+    if (existingProject) {
+      applyProject(existingProject)
+      return
+    }
+
+    if (hasTriedDefaultProject.current || createDefaultProject.isPending) return
+    hasTriedDefaultProject.current = true
+    createDefaultProject.mutate(
+      { path: defaultProjectPath },
+      {
+        onSuccess: (project) => {
+          if (project) {
+            utils.projects.list.setData(undefined, (oldData) => {
+              if (!oldData) return [project]
+              const exists = oldData.some((item) => item.id === project.id)
+              if (exists) {
+                return oldData.map((item) =>
+                  item.id === project.id ? project : item
+                )
+              }
+              return [project, ...oldData]
+            })
+            applyProject(project)
+          }
+        },
+      },
+    )
+  }, [
+    createDefaultProject,
+    isLoadingProjects,
+    projects,
+    setSelectedProject,
+    utils.projects.list,
+    validatedProject,
+  ])
 
   // Determine which page to show:
   // 1. No billing method selected -> BillingMethodPage
@@ -204,10 +377,11 @@ export function App() {
   return (
     <WindowProvider>
       <JotaiProvider store={appStore}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
           <VSCodeThemeProvider>
             <TooltipProvider delayDuration={100}>
               <TRPCProvider>
+                <I18nDocumentAttributes />
                 <div
                   data-agents-page
                   className="h-screen w-screen bg-background text-foreground overflow-hidden"

@@ -35,6 +35,7 @@ import { useUpdateChecker } from "../../lib/hooks/use-update-checker"
 import { useAgentSubChatStore } from "../agents/stores/sub-chat-store"
 import { QueueProcessor } from "../agents/components/queue-processor"
 import { SettingsSidebar } from "../settings/settings-sidebar"
+import { useI18n } from "../../lib/i18n"
 
 // ============================================================================
 // Constants
@@ -50,6 +51,7 @@ const SIDEBAR_CLOSE_HOTKEY = "⌘\\"
 // ============================================================================
 
 export function AgentsLayout() {
+  const { t } = useI18n()
   // No useHydrateAtoms - desktop doesn't need SSR, atomWithStorage handles persistence
   const isMobile = useIsMobile()
 
@@ -216,14 +218,14 @@ export function AgentsLayout() {
       const errorMessage = payload.message.replace(/\s+/g, " ").trim()
       const title =
         payload.kind === "create-failed"
-          ? "Worktree creation failed"
-          : "Worktree setup failed"
+          ? t("settings.worktrees.toast.creationFailed")
+          : t("settings.worktrees.toast.setupFailed")
 
       toast.error(title, {
         description: errorMessage || undefined,
         duration: 10000,
         action: {
-          label: "Open settings",
+          label: t("settings.worktrees.toast.openSettings"),
           onClick: () => {
             const projectMatch = projects?.find((project) => project.id === payload.projectId)
             if (projectMatch) {
@@ -237,7 +239,7 @@ export function AgentsLayout() {
     })
 
     return unsubscribe
-  }, [projects, setSelectedProject, setSettingsActiveTab, setSettingsDialogOpen])
+  }, [projects, setSelectedProject, setSettingsActiveTab, setSettingsDialogOpen, t])
 
   // Handle sign out
   const handleSignOut = useCallback(async () => {

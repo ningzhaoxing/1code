@@ -103,7 +103,6 @@ const JETBRAINS: EditorOption[] = [
 ]
 import vscodeBaseIcon from "../../../assets/app-icons/vscode.svg"
 import jetbrainsBaseIcon from "../../../assets/app-icons/jetbrains.svg"
-import { Kbd } from "../../ui/kbd"
 import {
   Select,
   SelectContent,
@@ -123,6 +122,7 @@ import {
 import { ChevronDown } from "lucide-react"
 import { Switch } from "../../ui/switch"
 import { trpc } from "../../../lib/trpc"
+import { useI18n, type AppLocale } from "../../../lib/i18n"
 
 // Hook to detect narrow screen
 function useIsNarrowScreen(): boolean {
@@ -154,6 +154,7 @@ export function AgentsPreferencesTab() {
   const [defaultAgentMode, setDefaultAgentMode] = useAtom(defaultAgentModeAtom)
   const [preferredEditor, setPreferredEditor] = useAtom(preferredEditorAtom)
   const isNarrowScreen = useIsNarrowScreen()
+  const { locale, setLocale, t, supportedLocales, localeLabels } = useI18n()
 
   // Co-authored-by setting from Claude settings.json
   const { data: includeCoAuthoredBy, refetch: refetchCoAuthoredBy } =
@@ -180,29 +181,86 @@ export function AgentsPreferencesTab() {
     }
   }
 
+  const defaultModeLabel =
+    defaultAgentMode === "agent"
+      ? t("settings.preferences.defaultMode.agent")
+      : t("settings.preferences.defaultMode.plan")
+
+  const quickSwitchLabel =
+    ctrlTabTarget === "workspaces"
+      ? t("settings.preferences.quickSwitch.workspaces")
+      : t("settings.preferences.quickSwitch.agents")
+
+  const autoAdvanceLabel =
+    autoAdvanceTarget === "next"
+      ? t("settings.preferences.autoAdvance.next")
+      : autoAdvanceTarget === "previous"
+        ? t("settings.preferences.autoAdvance.previous")
+        : t("settings.preferences.autoAdvance.close")
+
   return (
     <div className="p-6 space-y-6">
       {/* Header - hidden on narrow screens since it's in the navigation bar */}
       {!isNarrowScreen && (
         <div className="flex flex-col space-y-1.5 text-center sm:text-left">
-          <h3 className="text-sm font-semibold text-foreground">Preferences</h3>
+          <h3 className="text-sm font-semibold text-foreground">
+            {t("settings.preferences.title")}
+          </h3>
           <p className="text-xs text-muted-foreground">
-            Configure Claude's behavior and features
+            {t("settings.preferences.description")}
           </p>
         </div>
       )}
+
+      {/* Language */}
+      <div className="bg-background rounded-lg border border-border overflow-hidden">
+        <div className="flex items-center justify-between gap-6 p-4">
+          <div className="flex flex-col space-y-1">
+            <span className="text-sm font-medium text-foreground">
+              {t("settings.preferences.language.title")}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {t("settings.preferences.language.description")}
+            </span>
+          </div>
+          <Select
+            value={locale}
+            onValueChange={(value: AppLocale) => setLocale(value)}
+          >
+            <SelectTrigger className="w-auto min-w-32 px-2">
+              <span className="text-xs">{localeLabels[locale]}</span>
+            </SelectTrigger>
+            <SelectContent>
+              {supportedLocales.map((item) => (
+                <SelectItem key={item} value={item}>
+                  {localeLabels[item]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-col space-y-1 p-4 border-t border-border">
+          <span className="text-sm font-medium text-foreground">
+            {t("settings.preferences.language.scopeTitle")}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {t("settings.preferences.language.scopeDescription")}
+          </span>
+        </div>
+      </div>
 
       {/* Agent Behavior */}
       <div className="bg-background rounded-lg border border-border overflow-hidden">
         <div className="flex items-center justify-between p-4">
           <div className="flex flex-col space-y-1">
             <span className="text-sm font-medium text-foreground">
-              Extended Thinking
+              {t("settings.preferences.extendedThinking.title")}
             </span>
             <span className="text-xs text-muted-foreground">
-              Enable deeper reasoning with more thinking tokens (uses more
-              credits).{" "}
-              <span className="text-foreground/70">Disables response streaming.</span>
+              {t("settings.preferences.extendedThinking.description")}{" "}
+              <span className="text-foreground/70">
+                {t("settings.preferences.extendedThinking.streamingNote")}
+              </span>
             </span>
           </div>
           <Switch
@@ -213,10 +271,10 @@ export function AgentsPreferencesTab() {
         <div className="flex items-center justify-between p-4 border-t border-border">
           <div className="flex flex-col space-y-1">
             <span className="text-sm font-medium text-foreground">
-              Default Mode
+              {t("settings.preferences.defaultMode.title")}
             </span>
             <span className="text-xs text-muted-foreground">
-              Mode for new agents (Plan = read-only, Agent = can edit)
+              {t("settings.preferences.defaultMode.description")}
             </span>
           </div>
           <Select
@@ -224,23 +282,25 @@ export function AgentsPreferencesTab() {
             onValueChange={(value: AgentMode) => setDefaultAgentMode(value)}
           >
             <SelectTrigger className="w-auto px-2">
-              <span className="text-xs">
-                {defaultAgentMode === "agent" ? "Agent" : "Plan"}
-              </span>
+              <span className="text-xs">{defaultModeLabel}</span>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="agent">Agent</SelectItem>
-              <SelectItem value="plan">Plan</SelectItem>
+              <SelectItem value="agent">
+                {t("settings.preferences.defaultMode.agent")}
+              </SelectItem>
+              <SelectItem value="plan">
+                {t("settings.preferences.defaultMode.plan")}
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="flex items-center justify-between p-4 border-t border-border">
           <div className="flex flex-col space-y-1">
             <span className="text-sm font-medium text-foreground">
-              Include Co-Authored-By
+              {t("settings.preferences.coAuthoredBy.title")}
             </span>
             <span className="text-xs text-muted-foreground">
-              Add "Co-authored-by: Claude" to git commits made by Claude
+              {t("settings.preferences.coAuthoredBy.description")}
             </span>
           </div>
           <Switch
@@ -256,10 +316,10 @@ export function AgentsPreferencesTab() {
         <div className="flex items-center justify-between p-4">
           <div className="flex flex-col space-y-1">
             <span className="text-sm font-medium text-foreground">
-              Desktop Notifications
+              {t("settings.preferences.desktopNotifications.title")}
             </span>
             <span className="text-xs text-muted-foreground">
-              Show system notifications when agent needs input or completes work
+              {t("settings.preferences.desktopNotifications.description")}
             </span>
           </div>
           <Switch checked={desktopNotificationsEnabled} onCheckedChange={setDesktopNotificationsEnabled} />
@@ -267,10 +327,10 @@ export function AgentsPreferencesTab() {
         <div className="flex items-center justify-between p-4 border-t border-border">
           <div className="flex flex-col space-y-1">
             <span className="text-sm font-medium text-foreground">
-              Sound Notifications
+              {t("settings.preferences.soundNotifications.title")}
             </span>
             <span className="text-xs text-muted-foreground">
-              Play a sound when agent completes work while you're away
+              {t("settings.preferences.soundNotifications.description")}
             </span>
           </div>
           <Switch checked={soundEnabled} onCheckedChange={setSoundEnabled} />
@@ -278,10 +338,10 @@ export function AgentsPreferencesTab() {
         <div className="flex items-center justify-between p-4 border-t border-border">
           <div className="flex flex-col space-y-1">
             <span className="text-sm font-medium text-foreground">
-              Notify When Focused
+              {t("settings.preferences.notifyWhenFocused.title")}
             </span>
             <span className="text-xs text-muted-foreground">
-              Show notifications even when the app window is active
+              {t("settings.preferences.notifyWhenFocused.description")}
             </span>
           </div>
           <Switch
@@ -297,10 +357,12 @@ export function AgentsPreferencesTab() {
         <div className="flex items-center justify-between p-4">
           <div className="flex flex-col space-y-1">
             <span className="text-sm font-medium text-foreground">
-              Quick Switch
+              {t("settings.preferences.quickSwitch.title")}
             </span>
             <span className="text-xs text-muted-foreground">
-              What <Kbd>⌃Tab</Kbd> switches between
+              {t("settings.preferences.quickSwitch.description", {
+                shortcut: "Ctrl+Tab",
+              })}
             </span>
           </div>
           <Select
@@ -308,23 +370,25 @@ export function AgentsPreferencesTab() {
             onValueChange={(value: CtrlTabTarget) => setCtrlTabTarget(value)}
           >
             <SelectTrigger className="w-auto px-2">
-              <span className="text-xs">
-                {ctrlTabTarget === "workspaces" ? "Workspaces" : "Agents"}
-              </span>
+              <span className="text-xs">{quickSwitchLabel}</span>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="workspaces">Workspaces</SelectItem>
-              <SelectItem value="agents">Agents</SelectItem>
+              <SelectItem value="workspaces">
+                {t("settings.preferences.quickSwitch.workspaces")}
+              </SelectItem>
+              <SelectItem value="agents">
+                {t("settings.preferences.quickSwitch.agents")}
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="flex items-center justify-between p-4 border-t border-border">
           <div className="flex flex-col space-y-1">
             <span className="text-sm font-medium text-foreground">
-              Auto-advance
+              {t("settings.preferences.autoAdvance.title")}
             </span>
             <span className="text-xs text-muted-foreground">
-              Where to go after archiving a workspace
+              {t("settings.preferences.autoAdvance.description")}
             </span>
           </div>
           <Select
@@ -332,28 +396,28 @@ export function AgentsPreferencesTab() {
             onValueChange={(value: AutoAdvanceTarget) => setAutoAdvanceTarget(value)}
           >
             <SelectTrigger className="w-auto px-2">
-              <span className="text-xs">
-                {autoAdvanceTarget === "next"
-                  ? "Go to next workspace"
-                  : autoAdvanceTarget === "previous"
-                    ? "Go to previous workspace"
-                    : "Close workspace"}
-              </span>
+              <span className="text-xs">{autoAdvanceLabel}</span>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="next">Go to next workspace</SelectItem>
-              <SelectItem value="previous">Go to previous workspace</SelectItem>
-              <SelectItem value="close">Close workspace</SelectItem>
+              <SelectItem value="next">
+                {t("settings.preferences.autoAdvance.next")}
+              </SelectItem>
+              <SelectItem value="previous">
+                {t("settings.preferences.autoAdvance.previous")}
+              </SelectItem>
+              <SelectItem value="close">
+                {t("settings.preferences.autoAdvance.close")}
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="flex items-center justify-between p-4 border-t border-border">
           <div className="flex flex-col space-y-1">
             <span className="text-sm font-medium text-foreground">
-              Preferred Editor
+              {t("settings.preferences.preferredEditor.title")}
             </span>
             <span className="text-xs text-muted-foreground">
-              Default app for opening workspaces
+              {t("settings.preferences.preferredEditor.description")}
             </span>
           </div>
           <DropdownMenu>
@@ -458,10 +522,10 @@ export function AgentsPreferencesTab() {
         <div className="flex items-center justify-between gap-6 p-4">
           <div className="flex flex-col space-y-1">
             <span className="text-sm font-medium text-foreground">
-              Share Usage Analytics
+              {t("settings.preferences.analytics.title")}
             </span>
             <span className="text-xs text-muted-foreground">
-              Help us improve Agents by sharing anonymous usage data. We only track feature usage and app performance–never your code, prompts, or messages. No AI training on your data.
+              {t("settings.preferences.analytics.description")}
             </span>
           </div>
           <Switch

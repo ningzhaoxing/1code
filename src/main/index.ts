@@ -49,7 +49,10 @@ const PROTOCOL = IS_DEV ? "twentyfirst-agents-dev" : "twentyfirst-agents"
 // This ensures dev and prod have separate instance locks
 if (IS_DEV) {
   const { join } = require("path")
-  const devUserData = join(app.getPath("userData"), "..", "Agents Dev")
+  const devUserData =
+    import.meta.env.MAIN_VITE_DEV_USER_DATA_PATH ||
+    process.env.ONECODE_DEV_USER_DATA_PATH ||
+    join(app.getPath("userData"), "..", "Agents Dev")
   app.setPath("userData", devUserData)
   console.log("[Dev] Using separate userData path:", devUserData)
 }
@@ -468,6 +471,17 @@ const server = createServer((req, res) => {
       res.end("Not found")
     }
   })
+
+server.on("error", (error: NodeJS.ErrnoException) => {
+  if (error.code === "EADDRINUSE") {
+    console.warn(
+      `[Auth Server] Port ${AUTH_SERVER_PORT} already in use; continuing without local callback server`,
+    )
+    return
+  }
+
+  throw error
+})
 
 server.listen(AUTH_SERVER_PORT, () => {
   console.log(`[Auth Server] Listening on http://localhost:${AUTH_SERVER_PORT}`)

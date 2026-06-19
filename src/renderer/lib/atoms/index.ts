@@ -1,6 +1,7 @@
 import { atom } from "jotai"
 import { atomWithStorage } from "jotai/utils"
 import { desktopViewAtom as _desktopViewAtom } from "../../features/agents/atoms"
+import type { AppLocale } from "../i18n/messages"
 
 // ============================================
 // RE-EXPORT FROM FEATURES/AGENTS/ATOMS (source of truth)
@@ -426,6 +427,15 @@ export const analyticsOptOutAtom = atomWithStorage<boolean>(
   { getOnInit: true },
 )
 
+// Preferences - UI language
+// Scope: application chrome and explicitly migrated product UI strings only.
+export const appLocaleAtom = atomWithStorage<AppLocale>(
+  "preferences:app-locale",
+  "en",
+  undefined,
+  { getOnInit: true },
+)
+
 // Beta: Enable git features in diff sidebar (commit, staging, file selection)
 // When enabled, shows checkboxes for file selection and commit UI in diff sidebar
 // When disabled, shows simple file list with "Create PR" button
@@ -562,7 +572,7 @@ export type VSCodeFullTheme = {
  */
 export const selectedFullThemeIdAtom = atomWithStorage<string | null>(
   "preferences:selected-full-theme-id",
-  null, // null means use system default
+  "21st-dark", // Default to Operator Console (dark) — the product's primary identity
   undefined,
   { getOnInit: true },
 )

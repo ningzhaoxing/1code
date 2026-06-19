@@ -18,8 +18,10 @@ import {
   mcpApprovalDialogOpenAtom,
   pendingMcpApprovalsAtom,
 } from "../../lib/atoms"
+import { useI18n } from "../../lib/i18n"
 
 export function McpApprovalDialog() {
+  const { t } = useI18n()
   const [isOpen, setIsOpen] = useAtom(mcpApprovalDialogOpenAtom)
   const [pendingApprovals, setPendingApprovals] = useAtom(
     pendingMcpApprovalsAtom,
@@ -39,12 +41,12 @@ export function McpApprovalDialog() {
       await approveMutation.mutateAsync({
         identifier: currentApproval.identifier,
       })
-      toast.success("MCP server approved", {
+      toast.success(t("mcp.approval.toast.approved"), {
         description: currentApproval.serverName,
       })
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Failed to approve"
+        error instanceof Error ? error.message : t("mcp.approval.toast.approveFailed")
       toast.error(message)
     }
 
@@ -64,12 +66,15 @@ export function McpApprovalDialog() {
         pluginSource: currentApproval.pluginSource,
         serverNames: samePlugin.map((a) => a.serverName),
       })
-      toast.success("All MCP servers approved", {
-        description: `${samePlugin.length} server(s) from ${currentApproval.pluginSource}`,
+      toast.success(t("mcp.approval.toast.allApproved"), {
+        description: t("mcp.approval.toast.allApprovedDescription", {
+          count: samePlugin.length,
+          source: currentApproval.pluginSource,
+        }),
       })
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Failed to approve"
+        error instanceof Error ? error.message : t("mcp.approval.toast.approveFailed")
       toast.error(message)
     }
 
@@ -111,9 +116,9 @@ export function McpApprovalDialog() {
               <Shield className="h-5 w-5 text-yellow-500" />
             </div>
             <div>
-              <AlertDialogTitle>MCP Server Approval</AlertDialogTitle>
+              <AlertDialogTitle>{t("mcp.approval.title")}</AlertDialogTitle>
               <AlertDialogDescription>
-                A plugin wants to connect to an MCP server
+                {t("mcp.approval.description")}
               </AlertDialogDescription>
             </div>
           </div>
@@ -124,7 +129,7 @@ export function McpApprovalDialog() {
             <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
               <div className="flex gap-2">
                 <span className="text-xs text-muted-foreground w-14 shrink-0">
-                  Plugin
+                  {t("mcp.approval.plugin")}
                 </span>
                 <span className="text-xs text-foreground font-medium">
                   {currentApproval.pluginSource}
@@ -132,7 +137,7 @@ export function McpApprovalDialog() {
               </div>
               <div className="flex gap-2">
                 <span className="text-xs text-muted-foreground w-14 shrink-0">
-                  Server
+                  {t("mcp.approval.server")}
                 </span>
                 <span className="text-xs text-foreground font-mono">
                   {currentApproval.serverName}
@@ -141,7 +146,7 @@ export function McpApprovalDialog() {
               {command && (
                 <div className="flex gap-2">
                   <span className="text-xs text-muted-foreground w-14 shrink-0">
-                    Command
+                    {t("mcp.approval.command")}
                   </span>
                   <span className="text-xs text-foreground font-mono break-all">
                     {command}
@@ -163,8 +168,9 @@ export function McpApprovalDialog() {
 
             {pendingApprovals.length > 1 && (
               <p className="text-[11px] text-muted-foreground text-center">
-                +{pendingApprovals.length - 1} more approval
-                {pendingApprovals.length - 1 !== 1 ? "s" : ""} pending
+                {t("mcp.approval.morePending", {
+                  count: pendingApprovals.length - 1,
+                })}
               </p>
             )}
           </div>
@@ -172,13 +178,13 @@ export function McpApprovalDialog() {
 
         <AlertDialogFooter>
           <Button variant="ghost" size="sm" onClick={handleDeny}>
-            Don't Allow
+            {t("mcp.approval.dontAllow")}
           </Button>
           <Button variant="outline" size="sm" onClick={handleAllowAll}>
-            Allow All
+            {t("mcp.approval.allowAll")}
           </Button>
           <Button size="sm" onClick={handleAllow}>
-            Allow
+            {t("mcp.approval.allow")}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

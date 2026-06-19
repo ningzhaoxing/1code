@@ -75,6 +75,7 @@ import {
 // import { useIsHydrated } from "@/hooks/use-is-hydrated"
 const useIsHydrated = () => true // Desktop is always hydrated
 import { cn } from "../../../lib/utils"
+import { useI18n } from "../../../lib/i18n"
 import { isDesktopApp } from "../../../lib/utils/platform"
 import { api } from "../../../lib/mock-api"
 import { trpcClient } from "../../../lib/trpc"
@@ -540,6 +541,7 @@ const FileDiffCard = memo(function FileDiffCard({
   showViewed = true,
   chatId,
 }: FileDiffCardProps) {
+  const { t } = useI18n()
   const diffCardRef = useRef<HTMLDivElement>(null)
   const isLargeDiff = file.additions + file.deletions >= LARGE_DIFF_LINE_THRESHOLD
 
@@ -634,13 +636,13 @@ const FileDiffCard = memo(function FileDiffCard({
   const handleCopyPath = async () => {
     if (absolutePath) {
       await navigator.clipboard.writeText(absolutePath)
-      toast.success("Copied to clipboard", { description: absolutePath })
+      toast.success(t("common.copiedToClipboard"), { description: absolutePath })
     }
   }
 
   const handleCopyRelativePath = async () => {
     await navigator.clipboard.writeText(displayPath)
-    toast.success("Copied to clipboard", { description: displayPath })
+    toast.success(t("common.copiedToClipboard"), { description: displayPath })
   }
 
   const handleRevealInFinder = () => {
@@ -726,12 +728,12 @@ const FileDiffCard = memo(function FileDiffCard({
               )}
               {isNewFile && (
                 <span className="shrink-0 text-[11px] text-emerald-600 dark:text-emerald-400">
-                  (new)
+                  {t("chat.diff.newFile")}
                 </span>
               )}
               {isDeletedFile && (
                 <span className="shrink-0 text-[11px] text-red-600 dark:text-red-400">
-                  (deleted)
+                  {t("chat.diff.deletedFile")}
                 </span>
               )}
             </div>
@@ -795,7 +797,11 @@ const FileDiffCard = memo(function FileDiffCard({
                 </button>
               </TooltipTrigger>
               <TooltipContent side="left">
-                {isExpandLoading ? "Expanding..." : isFullExpanded ? "Show changes only" : "Show full file"}
+                {isExpandLoading
+                  ? t("chat.diff.expanding")
+                  : isFullExpanded
+                    ? t("chat.diff.showChangesOnly")
+                    : t("chat.diff.showFullFile")}
               </TooltipContent>
             </Tooltip>
           )}
@@ -835,11 +841,13 @@ const FileDiffCard = memo(function FileDiffCard({
                   )}>
                     {isViewed && <Check className="size-3" strokeWidth={2.5} />}
                   </div>
-                  <span>Viewed</span>
+                  <span>{t("chat.diff.viewed")}</span>
                 </button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                {isViewed ? "Mark as unviewed" : "Mark as viewed"}
+                {isViewed
+                  ? t("chat.diff.markUnviewed")
+                  : t("chat.diff.markViewed")}
                 <Kbd>V</Kbd>
               </TooltipContent>
             </Tooltip>
@@ -862,30 +870,32 @@ const FileDiffCard = memo(function FileDiffCard({
           <ContextMenuContent className="w-56">
             <ContextMenuItem onClick={handleCopyPath} className="text-xs">
               <ClipboardIcon className="mr-2 size-3.5" />
-              Copy File Path
+              {t("chat.diff.copyFilePath")}
             </ContextMenuItem>
             <ContextMenuItem onClick={handleCopyRelativePath} className="text-xs">
               <ClipboardIcon className="mr-2 size-3.5" />
-              Copy Relative File Path
+              {t("chat.diff.copyRelativeFilePath")}
             </ContextMenuItem>
             <ContextMenuSeparator />
             <ContextMenuItem onClick={handleRevealInFinder} className="text-xs">
               <FolderIcon className="mr-2 size-3.5" />
-              Reveal in Finder
+              {t("chat.diff.revealInFinder")}
             </ContextMenuItem>
             <ContextMenuSeparator />
             <ContextMenuItem onClick={handleOpenInFilePreview} className="text-xs">
-              Open in File Preview
+              {t("chat.diff.openInFilePreview")}
             </ContextMenuItem>
             <ContextMenuItem onClick={handleOpenInPreferredEditor} className="text-xs">
-              Open in {editorMeta.label}
+              {t("chat.diff.openInEditor", { editor: editorMeta.label })}
             </ContextMenuItem>
             <ContextMenuSeparator />
             <ContextMenuItem
               onClick={() => onToggleViewed(file.key, file.diffText)}
               className="text-xs justify-between"
             >
-              {isViewed ? "Mark as unviewed" : "Mark as viewed"}
+              {isViewed
+                ? t("chat.diff.markUnviewed")
+                : t("chat.diff.markViewed")}
               <Kbd>V</Kbd>
             </ContextMenuItem>
             {onDiscardFile && !isDeletedFile && (
@@ -895,7 +905,7 @@ const FileDiffCard = memo(function FileDiffCard({
                   onClick={handleDiscard}
                   className="text-xs data-[highlighted]:bg-red-500/15 data-[highlighted]:text-red-400"
                 >
-                  Discard Changes
+                  {t("chat.diff.discardChanges")}
                 </ContextMenuItem>
               </>
             )}
@@ -910,13 +920,13 @@ const FileDiffCard = memo(function FileDiffCard({
         <div>
           {file.isBinary ? (
             <div className="px-3 py-2 text-xs text-muted-foreground">
-              Binary file diff can't be rendered.
+              {t("chat.diff.binaryUnavailable")}
             </div>
           ) : isLargeDiff ? (
             <div className="px-3 py-3 text-xs text-muted-foreground">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  File is too large to display here
+                  {t("chat.diff.fileTooLarge")}
                 </div>
                 {absolutePath && (
                   <div className="flex shrink-0 items-center gap-0 text-xs">
@@ -943,10 +953,7 @@ const FileDiffCard = memo(function FileDiffCard({
           ) : !file.isValid ? (
             <div className="flex items-center gap-2 px-3 py-2 text-xs text-yellow-600 dark:text-yellow-500 bg-yellow-50 dark:bg-yellow-950/30">
               <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
-              <span>
-                Diff format appears truncated or corrupted. Unable to render
-                this file's changes.
-              </span>
+              <span>{t("chat.diff.truncated")}</span>
             </div>
           ) : (
             <DiffErrorBoundary fileName={file.newPath || file.oldPath} rawDiff={file.diffText}>
@@ -1064,9 +1071,10 @@ export const AgentDiffView = forwardRef<AgentDiffViewRef, AgentDiffViewProps>(
       initialSelectedFile,
     },
     ref,
-  ) {
-    const { resolvedTheme } = useTheme()
-    const isHydrated = useIsHydrated()
+	  ) {
+	    const { t } = useI18n()
+	    const { resolvedTheme } = useTheme()
+	    const isHydrated = useIsHydrated()
 
     const [diff, setDiff] = useState<string | null>(initialDiff ?? null)
     // Loading if initialDiff not provided, or if it's null AND no parsed files array provided
@@ -1155,10 +1163,10 @@ export const AgentDiffView = forwardRef<AgentDiffViewRef, AgentDiffViewProps>(
             const result = await trpcClient.chats.getDiff.query({ chatId })
             const diffContent = result.diff || ""
             setDiff(diffContent.trim() ? diffContent : "")
-          } catch (error) {
-            setDiffError(
-              error instanceof Error ? error.message : "Failed to fetch diff",
-            )
+	        } catch (error) {
+	          setDiffError(
+	              error instanceof Error ? error.message : t("chat.diff.fetchFailed"),
+	          )
           } finally {
             setIsLoadingDiff(false)
           }
@@ -1166,10 +1174,10 @@ export const AgentDiffView = forwardRef<AgentDiffViewRef, AgentDiffViewProps>(
         }
 
         // Web: use sandbox API
-        if (!sandboxId) {
-          setDiffError("Sandbox ID is required")
-          setIsLoadingDiff(false)
-          return
+	        if (!sandboxId) {
+	          setDiffError(t("chat.diff.sandboxRequired"))
+	          setIsLoadingDiff(false)
+	          return
         }
 
         try {
@@ -1188,17 +1196,17 @@ export const AgentDiffView = forwardRef<AgentDiffViewRef, AgentDiffViewProps>(
           } else {
             setDiff("")
           }
-        } catch (error) {
-          setDiffError(
-            error instanceof Error ? error.message : "Failed to fetch diff",
-          )
+	        } catch (error) {
+	          setDiffError(
+	            error instanceof Error ? error.message : t("chat.diff.fetchFailed"),
+	          )
         } finally {
           setIsLoadingDiff(false)
         }
       }
 
       fetchDiff()
-    }, [sandboxId, chatId, initialDiff, initialParsedFiles])
+	    }, [sandboxId, chatId, initialDiff, initialParsedFiles, t])
 
     const handleRefresh = useCallback(async () => {
       setIsLoadingDiff(true)
@@ -1227,14 +1235,14 @@ export const AgentDiffView = forwardRef<AgentDiffViewRef, AgentDiffViewProps>(
         } else {
           setDiff("")
         }
-      } catch (error) {
-        setDiffError(
-          error instanceof Error ? error.message : "Failed to fetch diff",
-        )
+	      } catch (error) {
+	        setDiffError(
+	          error instanceof Error ? error.message : t("chat.diff.fetchFailed"),
+	        )
       } finally {
         setIsLoadingDiff(false)
       }
-    }, [chatId, sandboxId])
+	    }, [chatId, sandboxId, t])
 
     const isLight = isHydrated ? resolvedTheme !== "dark" : true
     const codeThemeId = useCodeTheme()
@@ -1320,15 +1328,17 @@ export const AgentDiffView = forwardRef<AgentDiffViewRef, AgentDiffViewProps>(
         } else {
           await trpcClient.changes.discardChanges.mutate({ worktreePath, filePath: discardFilePath })
         }
-        toast.success("Changes discarded")
-        // Refresh the diff
-        handleRefresh()
-      } catch (error) {
-        toast.error(`Failed to discard: ${error instanceof Error ? error.message : "Unknown error"}`)
-      } finally {
-        setDiscardFilePath(null)
-      }
-    }, [discardFilePath, worktreePath, fileDiffs, handleRefresh])
+	        toast.success(t("chat.diff.changesDiscarded"))
+	        // Refresh the diff
+	        handleRefresh()
+	      } catch (error) {
+	        toast.error(t("chat.diff.discardFailed", {
+	          message: error instanceof Error ? error.message : t("common.unknownError"),
+	        }))
+	      } finally {
+	        setDiscardFilePath(null)
+	      }
+	    }, [discardFilePath, worktreePath, fileDiffs, handleRefresh, t])
 
     // Expand/collapse all functions - exposed via ref for parent control
     // Uses batched updates to avoid blocking UI with many files
@@ -2021,8 +2031,8 @@ export const AgentDiffView = forwardRef<AgentDiffViewRef, AgentDiffViewProps>(
                 onClick={onClose}
                 className="h-7 w-7 p-0 hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] flex-shrink-0 rounded-md"
               >
-                <IconChatBubble className="h-4 w-4" />
-                <span className="sr-only">Back to chat</span>
+	                <IconChatBubble className="h-4 w-4" />
+	                <span className="sr-only">{t("chat.diff.backToChat")}</span>
               </Button>
 
               {/* Stats - centered */}
@@ -2030,7 +2040,9 @@ export const AgentDiffView = forwardRef<AgentDiffViewRef, AgentDiffViewProps>(
                 {!isLoadingDiff && fileDiffs.length > 0 && (
                   <>
                     <span className="font-mono">
-                      {fileDiffs.length} file{fileDiffs.length !== 1 ? "s" : ""}
+	                      {fileDiffs.length} {fileDiffs.length === 1
+	                        ? t("chat.fileSingular")
+	                        : t("chat.filePlural")}
                     </span>
                     {(totalAdditions > 0 || totalDeletions > 0) && (
                       <>
@@ -2058,14 +2070,14 @@ export const AgentDiffView = forwardRef<AgentDiffViewRef, AgentDiffViewProps>(
                 <button
                   onClick={() => setDiffMode("split")}
                   className="relative z-[2] px-1.5 flex items-center justify-center transition-colors duration-200 rounded text-muted-foreground"
-                  title="Split view"
+	                  title={t("chat.diff.splitView")}
                 >
                   <Columns2 className="h-3.5 w-3.5" />
                 </button>
                 <button
                   onClick={() => setDiffMode("unified")}
                   className="relative z-[2] px-1.5 flex items-center justify-center transition-colors duration-200 rounded text-muted-foreground"
-                  title="Unified view"
+	                  title={t("chat.diff.unifiedView")}
                 >
                   <Rows2 className="h-3.5 w-3.5" />
                 </button>
@@ -2095,10 +2107,10 @@ export const AgentDiffView = forwardRef<AgentDiffViewRef, AgentDiffViewProps>(
             </div>
           ) : diffError ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-4">
-              <p className="text-sm text-red-500 mb-2">{diffError}</p>
-              <Button variant="outline" size="sm" onClick={handleRefresh}>
-                Try again
-              </Button>
+	              <p className="text-sm text-red-500 mb-2">{diffError}</p>
+	              <Button variant="outline" size="sm" onClick={handleRefresh}>
+	                {t("common.tryAgain")}
+	              </Button>
             </div>
           ) : deferredFileDiffs.length > 0 ? (
             <div
@@ -2153,7 +2165,7 @@ export const AgentDiffView = forwardRef<AgentDiffViewRef, AgentDiffViewProps>(
             </div>
           ) : (
             <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm px-4 text-center h-full">
-              No changes detected
+	              {t("chat.diff.noChangesDetected")}
             </div>
           )}
         </div>
@@ -2163,11 +2175,11 @@ export const AgentDiffView = forwardRef<AgentDiffViewRef, AgentDiffViewProps>(
           <AlertDialogContent className="w-[340px]">
             <AlertDialogHeader>
               <AlertDialogTitle>
-                Discard changes to "{discardFilePath?.split("/").pop()}"?
+                {t("changes.discardFileQuestion", { file: discardFilePath?.split("/").pop() || "" })}
               </AlertDialogTitle>
             </AlertDialogHeader>
             <AlertDialogDescription className="px-5 pb-5">
-              This will revert all changes to this file. This action cannot be undone.
+              {t("changes.discardFileDescription")}
             </AlertDialogDescription>
             <AlertDialogFooter>
               <Button
@@ -2175,14 +2187,14 @@ export const AgentDiffView = forwardRef<AgentDiffViewRef, AgentDiffViewProps>(
                 size="sm"
                 onClick={() => setDiscardFilePath(null)}
               >
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button
                 variant="destructive"
                 size="sm"
                 onClick={handleConfirmDiscard}
               >
-                Discard
+                {t("changes.discard")}
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>

@@ -40,6 +40,7 @@ import { ViewerErrorBoundary } from "@/components/ui/error-boundary"
 import { trpc } from "@/lib/trpc"
 import { preferredEditorAtom } from "@/lib/atoms"
 import { useResolvedHotkeyDisplay } from "@/lib/hotkeys"
+import { useI18n } from "@/lib/i18n"
 import { APP_META } from "../../../../shared/external-apps"
 import { CopyButton } from "../../agents/ui/message-action-buttons"
 import { EDITOR_ICONS } from "@/lib/editor-icons"
@@ -116,17 +117,21 @@ function FileViewerModeSwitcher({
 }
 
 function LoadingSpinner() {
+  const { t } = useI18n()
+
   return (
     <div className="flex-1 flex items-center justify-center">
       <div className="flex flex-col items-center gap-3 text-muted-foreground">
         <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="text-sm">Loading file...</span>
+        <span className="text-sm">{t("files.loadingFile")}</span>
       </div>
     </div>
   )
 }
 
 function ErrorDisplay({ error }: { error: string }) {
+  const { t } = useI18n()
+
   return (
     <div className="flex-1 flex items-center justify-center p-4">
       <div className="flex flex-col items-center gap-3 text-center max-w-[300px]">
@@ -144,6 +149,7 @@ function UnsupportedViewer({
   filePath: string
   onClose: () => void
 }) {
+  const { t } = useI18n()
   const fileName = getFileName(filePath)
   const [displayMode, setDisplayMode] = useAtom(fileViewerDisplayModeAtom)
 
@@ -179,7 +185,7 @@ function UnsupportedViewer({
       <div className="flex-1 flex items-center justify-center p-4">
         <div className="flex flex-col items-center gap-3 text-center max-w-[300px]">
           <FileWarning className="h-10 w-10 text-muted-foreground" />
-          <p className="font-medium text-foreground">Cannot view this file</p>
+          <p className="font-medium text-foreground">{t("files.cannotViewFile")}</p>
         </div>
       </div>
     </div>
@@ -197,6 +203,7 @@ function CodeViewerHeader({
   onClose: () => void
   content?: string | null
 }) {
+  const { t } = useI18n()
   const [wordWrap, setWordWrap] = useAtom(fileViewerWordWrapAtom)
   const [minimap, setMinimap] = useAtom(fileViewerMinimapAtom)
   const [lineNumbers, setLineNumbers] = useAtom(fileViewerLineNumbersAtom)
@@ -250,7 +257,7 @@ function CodeViewerHeader({
               onClick={handleOpenInEditor}
               className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer rounded-md px-1.5 py-1 hover:bg-accent hover:text-accent-foreground transition-colors"
             >
-              <span className="hidden @[400px]:inline">Open in</span>
+              <span className="hidden @[400px]:inline">{t("info.openIn")}</span>
               {EDITOR_ICONS[preferredEditor] && (
                 <img
                   src={EDITOR_ICONS[preferredEditor]}
@@ -261,7 +268,7 @@ function CodeViewerHeader({
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom" showArrow={false}>
-            Open in {editorMeta.label}
+              {t("info.openInApp", { app: editorMeta.label })}
             {openInEditorHotkey && <Kbd className="normal-case font-sans">{openInEditorHotkey}</Kbd>}
           </TooltipContent>
         </Tooltip>

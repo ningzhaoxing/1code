@@ -25,6 +25,7 @@ import {
   AlertDialogAction,
 } from "../../ui/alert-dialog"
 import { toast } from "sonner"
+import { useI18n } from "../../../lib/i18n"
 
 // --- Unified Item Type ---
 interface UnifiedItem {
@@ -51,6 +52,7 @@ function ItemDetail({
   onDelete?: () => void
   isSaving: boolean
 }) {
+  const { t } = useI18n()
   const [description, setDescription] = useState(item.description)
   const [content, setContent] = useState(item.content)
   const [viewMode, setViewMode] = useState<"rendered" | "editor">("rendered")
@@ -107,38 +109,40 @@ function ItemDetail({
                   ? "bg-blue-500/10 text-blue-500"
                   : "bg-orange-500/10 text-orange-500"
               )}>
-                {item.kind === "skill" ? "Skill" : "Command"}
+                {item.kind === "skill" ? t("settings.skills.skill") : t("settings.skills.command")}
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">{item.path}</p>
           </div>
           {!isReadOnly && hasChanges && (
             <Button size="sm" onClick={handleSave} disabled={isSaving}>
-              {isSaving ? "Saving..." : "Save"}
+              {isSaving ? t("settings.common.saving") : t("settings.common.save")}
             </Button>
           )}
         </div>
 
         {/* Description */}
         <div className="space-y-1.5">
-          <Label>Description</Label>
+          <Label>{t("settings.common.description")}</Label>
           {isReadOnly ? (
             <p className="text-sm text-foreground px-3 py-2 bg-muted/50 border border-border rounded-lg">
-              {item.description || <span className="text-muted-foreground">No description</span>}
+              {item.description || <span className="text-muted-foreground">{t("settings.skills.noDescription")}</span>}
             </p>
           ) : (
             <Input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               onBlur={handleBlur}
-              placeholder={item.kind === "skill" ? "Skill description..." : "Command description..."}
+              placeholder={item.kind === "skill"
+                ? t("settings.skills.skillDescriptionPlaceholder")
+                : t("settings.skills.commandDescriptionPlaceholder")}
             />
           )}
         </div>
 
         {/* Usage */}
         <div className="space-y-1.5">
-          <Label>Usage</Label>
+          <Label>{t("settings.common.usage")}</Label>
           <div className="px-3 py-2 text-sm bg-muted/50 border border-border rounded-lg">
             <code className="text-xs text-foreground">
               {item.kind === "skill" ? `@${item.name}` : `/${item.name}`}
@@ -149,7 +153,7 @@ function ItemDetail({
         {/* Instructions */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label>Instructions</Label>
+            <Label>{t("settings.common.instructions")}</Label>
             {!isReadOnly && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -158,7 +162,7 @@ function ItemDetail({
                     size="icon"
                     onClick={handleToggleViewMode}
                     className="h-6 w-6 p-0 hover:bg-foreground/10 text-muted-foreground hover:text-foreground"
-                    aria-label={viewMode === "rendered" ? "Edit markdown" : "Preview markdown"}
+                    aria-label={viewMode === "rendered" ? t("settings.skills.editMarkdown") : t("settings.skills.previewMarkdown")}
                   >
                     <div className="relative w-4 h-4">
                       <MarkdownIcon
@@ -177,7 +181,7 @@ function ItemDetail({
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {viewMode === "rendered" ? "Edit markdown" : "Preview markdown"}
+                  {viewMode === "rendered" ? t("settings.skills.editMarkdown") : t("settings.skills.previewMarkdown")}
                 </TooltipContent>
               </Tooltip>
             )}
@@ -194,7 +198,7 @@ function ItemDetail({
               {content ? (
                 <ChatMarkdownRenderer content={content} size="sm" />
               ) : (
-                <p className="text-sm text-muted-foreground">No instructions</p>
+                <p className="text-sm text-muted-foreground">{t("settings.skills.noInstructions")}</p>
               )}
             </div>
           ) : (
@@ -204,7 +208,9 @@ function ItemDetail({
               onBlur={handleBlur}
               rows={16}
               className="font-mono resize-y"
-              placeholder={item.kind === "skill" ? "Skill instructions (markdown)..." : "Command prompt (markdown)..."}
+              placeholder={item.kind === "skill"
+                ? t("settings.skills.skillInstructionsPlaceholder")
+                : t("settings.skills.commandPromptPlaceholder")}
               autoFocus
             />
           )}
@@ -220,7 +226,9 @@ function ItemDetail({
               onClick={onDelete}
             >
               <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-              Delete {item.kind === "skill" ? "Skill" : "Command"}
+              {t("settings.skills.deleteItem", {
+                kind: item.kind === "skill" ? t("settings.skills.skill") : t("settings.skills.command"),
+              })}
             </Button>
           </div>
         )}
@@ -243,6 +251,7 @@ function CreateItemForm({
   hasProject: boolean
   projectName?: string
 }) {
+  const { t } = useI18n()
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [content, setContent] = useState("")
@@ -256,62 +265,66 @@ function CreateItemForm({
       <div className="max-w-2xl mx-auto p-6 space-y-5">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-foreground">
-            {kind === "skill" ? "New Skill" : "New Command"}
+            {kind === "skill" ? t("settings.skills.newSkill") : t("settings.skills.newCommand")}
           </h3>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
+            <Button variant="ghost" size="sm" onClick={onCancel}>{t("settings.common.cancel")}</Button>
             <Button size="sm" onClick={() => onCreated({ name, description, content, source, kind })} disabled={!canSave || isSaving}>
-              {isSaving ? "Creating..." : "Create"}
+              {isSaving ? t("settings.common.creating") : t("settings.common.create")}
             </Button>
           </div>
         </div>
 
         <div className="space-y-1.5">
-          <Label>Type</Label>
+          <Label>{t("settings.common.type")}</Label>
           <Select value={kind} onValueChange={(v) => setKind(v as "skill" | "command")}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="skill">Skill (referenced via @mention)</SelectItem>
-              <SelectItem value="command">Command (triggered via /slash)</SelectItem>
+              <SelectItem value="skill">{t("settings.skills.skillType")}</SelectItem>
+              <SelectItem value="command">{t("settings.skills.commandType")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         <div className="space-y-1.5">
-          <Label>Name</Label>
+          <Label>{t("settings.common.name")}</Label>
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={kind === "skill" ? "my-skill" : "my-command"}
             autoFocus
           />
-          <p className="text-[11px] text-muted-foreground">Will be converted to kebab-case (lowercase letters, numbers, hyphens)</p>
+          <p className="text-[11px] text-muted-foreground">{t("settings.skills.nameHint")}</p>
         </div>
 
         <div className="space-y-1.5">
-          <Label>Description</Label>
+          <Label>{t("settings.common.description")}</Label>
           <Input
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder={kind === "skill" ? "What this skill does..." : "What this command does..."}
+            placeholder={kind === "skill"
+              ? t("settings.skills.newSkillDescriptionPlaceholder")
+              : t("settings.skills.newCommandDescriptionPlaceholder")}
           />
         </div>
 
         {hasProject && (
           <div className="space-y-1.5">
-            <Label>Scope</Label>
+            <Label>{t("settings.common.scope")}</Label>
             <Select value={source} onValueChange={(v) => setSource(v as "user" | "project")}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="user">
-                  {kind === "skill" ? "User (~/.claude/skills/)" : "User (~/.claude/commands/)"}
+                  {t("settings.common.user")} ({kind === "skill" ? "~/.claude/skills/" : "~/.claude/commands/"})
                 </SelectItem>
                 <SelectItem value="project">
-                  {projectName ? `Project: ${projectName}` : "Project"} ({kind === "skill" ? ".claude/skills/" : ".claude/commands/"})
+                  {projectName
+                    ? `${t("settings.common.project")}: ${projectName}`
+                    : t("settings.common.project")} ({kind === "skill" ? ".claude/skills/" : ".claude/commands/"})
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -319,13 +332,15 @@ function CreateItemForm({
         )}
 
         <div className="space-y-1.5">
-          <Label>Instructions</Label>
+          <Label>{t("settings.common.instructions")}</Label>
           <Textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
             rows={12}
             className="font-mono resize-y"
-            placeholder={kind === "skill" ? "Skill instructions (markdown)..." : "Command prompt (markdown)..."}
+            placeholder={kind === "skill"
+              ? t("settings.skills.skillInstructionsPlaceholder")
+              : t("settings.skills.commandPromptPlaceholder")}
           />
         </div>
       </div>
@@ -374,6 +389,7 @@ function SidebarListItem({
 
 // --- Main Component ---
 export function AgentsSkillsTab() {
+  const { t } = useI18n()
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [showAddForm, setShowAddForm] = useState(false)
@@ -493,7 +509,7 @@ export function AgentsSkillsTab() {
           source: data.source,
           cwd: selectedProject?.path,
         })
-        toast.success("Skill created", { description: result.name })
+        toast.success(t("settings.skills.toast.skillCreated"), { description: result.name })
         setShowAddForm(false)
         await refetchAll()
         setSelectedItemId(`skill:${data.source}:${result.name}`)
@@ -505,16 +521,16 @@ export function AgentsSkillsTab() {
           source: data.source,
           projectPath: selectedProject?.path,
         })
-        toast.success("Command created", { description: result.name })
+        toast.success(t("settings.skills.toast.commandCreated"), { description: result.name })
         setShowAddForm(false)
         await refetchAll()
         setSelectedItemId(`cmd:${data.source}:${result.name}`)
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to create"
-      toast.error("Failed to create", { description: message })
+      const message = error instanceof Error ? error.message : t("settings.skills.toast.createFailed")
+      toast.error(t("settings.skills.toast.createFailed"), { description: message })
     }
-  }, [createSkillMutation, createCommandMutation, selectedProject?.path, refetchAll])
+  }, [createSkillMutation, createCommandMutation, selectedProject?.path, refetchAll, t])
 
   const handleSave = useCallback(async (
     item: UnifiedItem,
@@ -539,13 +555,14 @@ export function AgentsSkillsTab() {
           projectPath: selectedProject?.path,
         })
       }
-      toast.success(`${item.kind === "skill" ? "Skill" : "Command"} saved`, { description: item.name })
+      const kind = item.kind === "skill" ? t("settings.skills.skill") : t("settings.skills.command")
+      toast.success(t("settings.skills.toast.saved", { kind }), { description: item.name })
       await refetchAll()
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to save"
-      toast.error("Failed to save", { description: message })
+      const message = error instanceof Error ? error.message : t("settings.skills.toast.saveFailed")
+      toast.error(t("settings.skills.toast.saveFailed"), { description: message })
     }
-  }, [updateSkillMutation, updateCommandMutation, selectedProject?.path, refetchAll])
+  }, [updateSkillMutation, updateCommandMutation, selectedProject?.path, refetchAll, t])
 
   const handleDelete = useCallback(async () => {
     if (!deletingItem) return
@@ -561,15 +578,16 @@ export function AgentsSkillsTab() {
           projectPath: selectedProject?.path,
         })
       }
-      toast.success(`${deletingItem.kind === "skill" ? "Skill" : "Command"} deleted`, { description: deletingItem.name })
+      const kind = deletingItem.kind === "skill" ? t("settings.skills.skill") : t("settings.skills.command")
+      toast.success(t("settings.skills.toast.deleted", { kind }), { description: deletingItem.name })
       setDeletingItem(null)
       setSelectedItemId(null)
       await refetchAll()
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to delete"
-      toast.error("Failed to delete", { description: message })
+      const message = error instanceof Error ? error.message : t("settings.skills.toast.deleteFailed")
+      toast.error(t("settings.skills.toast.deleteFailed"), { description: message })
     }
-  }, [deletingItem, deleteSkillMutation, deleteCommandMutation, selectedProject?.path, refetchAll])
+  }, [deletingItem, deleteSkillMutation, deleteCommandMutation, selectedProject?.path, refetchAll, t])
 
   const isSaving = updateSkillMutation.isPending || updateCommandMutation.isPending
   const isCreating = createSkillMutation.isPending || createCommandMutation.isPending
@@ -596,7 +614,7 @@ export function AgentsSkillsTab() {
           <div className="px-2 pt-2 flex-shrink-0 flex items-center gap-1.5">
             <input
               ref={searchInputRef}
-              placeholder="Search skills & commands..."
+              placeholder={t("settings.list.skills.search")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={listKeyDown}
@@ -605,7 +623,7 @@ export function AgentsSkillsTab() {
             <button
               onClick={() => { setShowAddForm(true); setSelectedItemId(null) }}
               className="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors cursor-pointer"
-              title="Create new skill or command"
+              title={t("settings.list.skills.addTitle")}
             >
               <Plus className="h-4 w-4" />
             </button>
@@ -614,12 +632,16 @@ export function AgentsSkillsTab() {
           <div ref={listRef} onKeyDown={listKeyDown} tabIndex={-1} className="flex-1 overflow-y-auto px-2 pt-2 pb-2 outline-none">
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
-                <p className="text-xs text-muted-foreground">Loading...</p>
+                <p className="text-xs text-muted-foreground">
+                  {t("settings.common.loading")}
+                </p>
               </div>
             ) : totalCount === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center px-4">
                 <SkillIcon className="h-8 w-8 text-border mb-3" />
-                <p className="text-sm text-muted-foreground mb-1">No skills or commands</p>
+                <p className="text-sm text-muted-foreground mb-1">
+                  {t("settings.list.skills.empty")}
+                </p>
                 <Button
                   variant="outline"
                   size="sm"
@@ -627,12 +649,14 @@ export function AgentsSkillsTab() {
                   onClick={() => setShowAddForm(true)}
                 >
                   <Plus className="h-3.5 w-3.5 mr-1.5" />
-                  Create
+                  {t("settings.common.create")}
                 </Button>
               </div>
             ) : filteredItems.length === 0 ? (
               <div className="flex items-center justify-center py-8">
-                <p className="text-xs text-muted-foreground">No results found</p>
+                <p className="text-xs text-muted-foreground">
+                  {t("settings.common.noResults")}
+                </p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -640,7 +664,7 @@ export function AgentsSkillsTab() {
                 {userItems.length > 0 && (
                   <div>
                     <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-2 mb-1">
-                      User
+                      {t("settings.common.user")}
                     </p>
                     <div className="space-y-0.5">
                       {userItems.map((item) => (
@@ -659,7 +683,7 @@ export function AgentsSkillsTab() {
                 {projectItems.length > 0 && (
                   <div>
                     <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-2 mb-1">
-                      Project
+                      {t("settings.common.project")}
                     </p>
                     <div className="space-y-0.5">
                       {projectItems.map((item) => (
@@ -678,7 +702,7 @@ export function AgentsSkillsTab() {
                 {pluginItems.length > 0 && (
                   <div>
                     <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-2 mb-1">
-                      Plugin
+                      {t("settings.common.plugin")}
                     </p>
                     <div className="space-y-0.5">
                       {pluginItems.map((item) => (
@@ -721,8 +745,8 @@ export function AgentsSkillsTab() {
             <SkillIcon className="h-12 w-12 text-border mb-4" />
             <p className="text-sm text-muted-foreground">
               {totalCount > 0
-                ? "Select an item to view details"
-                : "No skills or commands found"}
+                ? t("settings.list.skills.selectDetail")
+                : t("settings.list.skills.none")}
             </p>
             {totalCount === 0 && (
               <Button
@@ -732,7 +756,7 @@ export function AgentsSkillsTab() {
                 onClick={() => setShowAddForm(true)}
               >
                 <Plus className="h-3.5 w-3.5 mr-1.5" />
-                Create your first skill or command
+                {t("settings.list.skills.createFirst")}
               </Button>
             )}
           </div>
@@ -743,21 +767,26 @@ export function AgentsSkillsTab() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Delete {deletingItem?.kind === "skill" ? "Skill" : "Command"}
+              {t("settings.skills.deleteItem", {
+                kind: deletingItem?.kind === "skill"
+                  ? t("settings.skills.skill")
+                  : t("settings.skills.command"),
+              })}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{deletingItem?.name}</strong>?
-              This will remove the file from disk and cannot be undone.
+              {t("settings.skills.deleteDialog.description", {
+                name: deletingItem?.name ?? "",
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>{t("settings.common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={isDeleting}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
-              {isDeleting ? "Deleting..." : "Delete"}
+              {isDeleting ? t("settings.skills.deleting") : t("settings.common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

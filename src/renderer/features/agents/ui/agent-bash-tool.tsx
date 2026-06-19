@@ -12,6 +12,7 @@ import { TextShimmer } from "../../../components/ui/text-shimmer"
 import { getToolStatus } from "./agent-tool-registry"
 import { AgentToolInterrupted } from "./agent-tool-interrupted"
 import { areToolPropsEqual } from "./agent-tool-utils"
+import { useI18n } from "../../../lib/i18n"
 import { cn } from "../../../lib/utils"
 import { selectedProjectAtom } from "../atoms"
 
@@ -60,6 +61,7 @@ export const AgentBashTool = memo(function AgentBashTool({
   partIndex,
   chatStatus,
 }: AgentBashToolProps) {
+  const { t } = useI18n()
   const [isOutputExpanded, setIsOutputExpanded] = useState(false)
   const { isPending } = getToolStatus(part, chatStatus)
   const selectedProject = useAtomValue(selectedProjectAtom)
@@ -115,7 +117,7 @@ export const AgentBashTool = memo(function AgentBashTool({
                 duration={1.2}
                 className="inline-flex items-center text-xs leading-none h-4 m-0"
               >
-                Generating command
+                {t("chat.tool.generatingCommand")}
               </TextShimmer>
             </span>
           </div>
@@ -126,7 +128,7 @@ export const AgentBashTool = memo(function AgentBashTool({
 
   // If no command and not streaming, tool was interrupted
   if (!command) {
-    return <AgentToolInterrupted toolName="Command" />
+    return <AgentToolInterrupted toolName={t("chat.tool.command")} />
   }
 
   return (
@@ -145,7 +147,7 @@ export const AgentBashTool = memo(function AgentBashTool({
         )}
       >
         <span className="text-xs text-muted-foreground truncate flex-1 min-w-0">
-          {isPending ? "Running command: " : "Ran command: "}
+          {isPending ? t("chat.tool.runningCommand") : t("chat.tool.ranCommand")}
           {commandSummary}
         </span>
 
@@ -157,12 +159,12 @@ export const AgentBashTool = memo(function AgentBashTool({
               {isSuccess ? (
                 <>
                   <Check className="w-3 h-3" />
-                  <span>Success</span>
+                  <span>{t("common.success")}</span>
                 </>
               ) : isError ? (
                 <>
                   <X className="w-3 h-3" />
-                  <span>Failed</span>
+                  <span>{t("common.failed")}</span>
                 </>
               ) : null}
             </div>

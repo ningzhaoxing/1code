@@ -23,6 +23,7 @@ import { DevicePresetsBar } from "./device-presets-bar"
 import { ResizeHandle } from "./resize-handle"
 import { MobileCopyLinkButton } from "./mobile-copy-link-button"
 import { DEVICE_PRESETS, AGENTS_PREVIEW_CONSTANTS } from "../constants"
+import { useI18n } from "../../../lib/i18n"
 // import { getSandboxPreviewUrl } from "@/app/(alpha)/canvas/{components}/settings-tabs/repositories/preview-url"
 const getSandboxPreviewUrl = (sandboxId: string, port: number, _type: string) => `https://${sandboxId}-${port}.csb.app` // Desktop mock
 interface AgentPreviewProps {
@@ -44,6 +45,7 @@ export function AgentPreview({
   onClose,
   isMobile = false,
 }: AgentPreviewProps) {
+  const { t } = useI18n()
   const [isLoaded, setIsLoaded] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -340,7 +342,7 @@ export function AgentPreview({
               className="h-7 w-7 p-0 hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] flex-shrink-0 rounded-md"
             >
               <IconChatBubble className="h-4 w-4" />
-              <span className="sr-only">Back to chat</span>
+              <span className="sr-only">{t("chat.preview.backToChat")}</span>
             </Button>
 
             {/* Reload button */}
@@ -477,7 +479,7 @@ export function AgentPreview({
                 width="100%"
                 height="100%"
                 style={{ border: "none" }}
-                title="Preview"
+                title={t("chat.preview.title")}
                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
                 allow="clipboard-write"
                 onLoad={() => setIsLoaded(true)}
@@ -567,7 +569,7 @@ export function AgentPreview({
                   }}
                   sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
                   onLoad={() => setIsLoaded(true)}
-                  title="Preview"
+                  title={t("chat.preview.title")}
                   tabIndex={-1}
                 />
 

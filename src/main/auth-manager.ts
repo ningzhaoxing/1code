@@ -10,6 +10,31 @@ function getApiBaseUrl(): string {
   return import.meta.env.MAIN_VITE_API_URL || "https://21st.dev"
 }
 
+function isLocalAuthBypassEnabled(): boolean {
+  if (app.isPackaged) return false
+
+  const value = String(
+    import.meta.env.MAIN_VITE_BYPASS_AUTH ||
+      process.env.ONECODE_BYPASS_AUTH ||
+      "",
+  ).toLowerCase()
+
+  return value === "1" || value === "true" || value === "yes" || value === "on"
+}
+
+const LOCAL_DEV_AUTH: AuthData = {
+  token: "local-dev-token",
+  refreshToken: "local-dev-refresh-token",
+  expiresAt: "2099-12-31T23:59:59.000Z",
+  user: {
+    id: "local-dev-user",
+    email: "local-dev@1code.local",
+    name: "Local Dev",
+    imageUrl: null,
+    username: "local-dev",
+  },
+}
+
 export class AuthManager {
   private store: AuthStore
   private refreshTimer?: NodeJS.Timeout
@@ -21,7 +46,7 @@ export class AuthManager {
     this.isDev = isDev
 
     // Schedule refresh if already authenticated
-    if (this.store.isAuthenticated()) {
+    if (!isLocalAuthBypassEnabled() && this.store.isAuthenticated()) {
       this.scheduleRefresh()
     }
   }
@@ -86,6 +111,10 @@ export class AuthManager {
    * Get a valid token, refreshing if necessary
    */
   async getValidToken(): Promise<string | null> {
+    if (isLocalAuthBypassEnabled()) {
+      return LOCAL_DEV_AUTH.token
+    }
+
     if (!this.store.isAuthenticated()) {
       return null
     }
@@ -101,6 +130,10 @@ export class AuthManager {
    * Refresh the current session
    */
   async refresh(): Promise<boolean> {
+    if (isLocalAuthBypassEnabled()) {
+      return true
+    }
+
     const refreshToken = this.store.getRefreshToken()
     if (!refreshToken) {
       console.warn("No refresh token available")
@@ -175,6 +208,10 @@ export class AuthManager {
    * Check if user is authenticated
    */
   isAuthenticated(): boolean {
+    if (isLocalAuthBypassEnabled()) {
+      return true
+    }
+
     return this.store.isAuthenticated()
   }
 
@@ -182,6 +219,10 @@ export class AuthManager {
    * Get current user
    */
   getUser(): AuthUser | null {
+    if (isLocalAuthBypassEnabled()) {
+      return LOCAL_DEV_AUTH.user
+    }
+
     return this.store.getUser()
   }
 
@@ -189,6 +230,10 @@ export class AuthManager {
    * Get current auth data
    */
   getAuth(): AuthData | null {
+    if (isLocalAuthBypassEnabled()) {
+      return LOCAL_DEV_AUTH
+    }
+
     return this.store.load()
   }
 
@@ -226,6 +271,10 @@ export class AuthManager {
    * Update user profile on server and locally
    */
   async updateUser(updates: { name?: string }): Promise<AuthUser | null> {
+    if (isLocalAuthBypassEnabled()) {
+      return { ...LOCAL_DEV_AUTH.user, name: updates.name ?? LOCAL_DEV_AUTH.user.name }
+    }
+
     const token = await this.getValidToken()
     if (!token) {
       throw new Error("Not authenticated")

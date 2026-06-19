@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "motion/react"
 import { memo, useEffect, useMemo, useState } from "react"
 import { Button } from "../../../components/ui/button"
 import { useFileChangeListener } from "../../../lib/hooks/use-file-change-listener"
+import { useI18n } from "../../../lib/i18n"
 import { trpc } from "../../../lib/trpc"
 import { cn } from "../../../lib/utils"
 import {
@@ -54,6 +55,7 @@ export const SubChatStatusCard = memo(function SubChatStatusCard({
   onStop,
   hasQueueCardAbove = false,
 }: SubChatStatusCardProps) {
+  const { t } = useI18n()
   const isBusy = isStreaming || isCompacting
   const [isExpanded, setIsExpanded] = useState(false)
   // Use per-chat atom family instead of legacy global atom
@@ -160,7 +162,7 @@ export const SubChatStatusCard = memo(function SubChatStatusCard({
           }
         }}
         aria-expanded={hasExpandableContent ? isExpanded : undefined}
-        aria-label={`${isExpanded ? "Collapse" : "Expand"} status details`}
+        aria-label={isExpanded ? t("chat.status.collapseDetails") : t("chat.status.expandDetails")}
         className={cn(
           "flex items-center justify-between pr-1 pl-3 h-8 transition-colors duration-150 focus:outline-none rounded-sm",
           hasExpandableContent ? "cursor-pointer hover:bg-muted/50" : "cursor-default"
@@ -180,14 +182,14 @@ export const SubChatStatusCard = memo(function SubChatStatusCard({
           {/* Streaming indicator */}
           {isBusy && (
             <span className="text-xs text-muted-foreground">
-              {isCompacting ? "Compacting" : "Generating"}<AnimatedDots />
+              {isCompacting ? t("chat.status.compacting") : t("chat.status.generating")}<AnimatedDots />
             </span>
           )}
 
           {/* File count and stats - only show when not streaming */}
           {!isBusy && (
             <span className="text-xs text-muted-foreground">
-              {totals.fileCount} {totals.fileCount === 1 ? "file" : "files"}
+              {totals.fileCount} {totals.fileCount === 1 ? t("chat.fileSingular") : t("chat.filePlural")}
               {(totals.additions > 0 || totals.deletions > 0) && (
                 <>
                   {" "}
@@ -216,7 +218,7 @@ export const SubChatStatusCard = memo(function SubChatStatusCard({
               }}
               className="h-6 px-2 text-xs font-normal rounded-md transition-transform duration-150 active:scale-[0.97]"
             >
-              Stop
+              {t("chat.send.stop")}
               <span className="text-muted-foreground/60 ml-1">⌃C</span>
             </Button>
           )}
@@ -232,7 +234,7 @@ export const SubChatStatusCard = memo(function SubChatStatusCard({
               }}
               className="h-6 px-3 text-xs font-medium rounded-md transition-transform duration-150 active:scale-[0.97]"
             >
-              Review
+              {t("chat.status.review")}
             </Button>
           )}
         </div>

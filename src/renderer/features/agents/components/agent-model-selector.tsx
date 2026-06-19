@@ -22,6 +22,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "../../../components/ui/popover"
+import { useI18n } from "../../../lib/i18n"
 import { cn } from "../../../lib/utils"
 import type { CodexThinkingLevel } from "../lib/models"
 import { formatCodexThinkingLabel } from "../lib/models"
@@ -98,6 +99,7 @@ function CodexThinkingSubMenu({
   selectedThinking: CodexThinkingLevel
   onSelectThinking: (thinking: CodexThinkingLevel) => void
 }) {
+  const { t } = useI18n()
   const triggerRef = useRef<HTMLDivElement>(null)
   const subMenuRef = useRef<HTMLDivElement>(null)
   const [showSub, setShowSub] = useState(false)
@@ -164,7 +166,7 @@ function CodexThinkingSubMenu({
       >
         <div className="flex items-center gap-1.5">
           <Brain className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-          <span>Thinking</span>
+          <span>{t("chat.model.thinking")}</span>
         </div>
         <div className="flex items-center gap-1 text-muted-foreground">
           <span className="text-xs">
@@ -218,6 +220,7 @@ function CrossProviderConfirmDialog({
   onConfirm: (dontShowAgain: boolean) => void
   onClose: () => void
 }) {
+  const { t } = useI18n()
   const [mounted, setMounted] = useState(false)
   const [dontShowAgain, setDontShowAgain] = useState(false)
   const dontShowAgainRef = useRef(false)
@@ -277,10 +280,10 @@ function CrossProviderConfirmDialog({
               <div className="bg-background rounded-2xl border shadow-2xl overflow-hidden">
                 <div className="p-6">
                   <h2 className="text-xl font-semibold mb-2">
-                    Switch to {providerName}
+                    {t("chat.model.switchTitle", { provider: providerName })}
                   </h2>
                   <p className="text-sm text-muted-foreground">
-                    To use a different agent, a new chat will be created with your current conversation history attached.
+                    {t("chat.model.switchDescription")}
                   </p>
                 </div>
                 <div className="bg-muted p-4 flex items-center justify-between border-t border-border rounded-b-xl">
@@ -289,14 +292,16 @@ function CrossProviderConfirmDialog({
                       checked={dontShowAgain}
                       onCheckedChange={(v) => setDontShowAgain(v === true)}
                     />
-                    <span className="text-xs text-muted-foreground">Don't ask again</span>
+                    <span className="text-xs text-muted-foreground">
+                      {t("chat.model.dontAskAgain")}
+                    </span>
                   </label>
                   <div className="flex items-center gap-2">
                     <Button onClick={onClose} variant="ghost" className="rounded-md">
-                      Cancel
+                      {t("common.cancel")}
                     </Button>
                     <Button onClick={() => onConfirm(dontShowAgain)} variant="default" className="rounded-md">
-                      New chat
+                      {t("chat.model.newChat")}
                     </Button>
                   </div>
                 </div>
@@ -324,6 +329,7 @@ export function AgentModelSelector({
   claude,
   codex,
 }: AgentModelSelectorProps) {
+  const { t } = useI18n()
   const [search, setSearch] = useState("")
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
   const [pendingProvider, setPendingProvider] = useState<AgentProviderId | null>(null)
@@ -513,9 +519,9 @@ export function AgentModelSelector({
       case "codex":
         return item.model.name
       case "ollama":
-        return item.modelName + (item.isRecommended ? " (recommended)" : "")
+        return item.modelName + (item.isRecommended ? ` (${t("chat.model.recommended")})` : "")
       case "custom":
-        return "Custom Model"
+        return t("chat.model.customModel")
     }
   }
 
@@ -553,7 +559,7 @@ export function AgentModelSelector({
       >
         <Command shouldFilter={false}>
           <CommandInput
-            placeholder="Search models..."
+            placeholder={t("chat.model.searchPlaceholder")}
             value={search}
             onValueChange={setSearch}
           />
@@ -569,7 +575,7 @@ export function AgentModelSelector({
               >
                 <div className="flex items-center gap-1.5">
                   <ThinkingIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <span className="text-sm">Thinking</span>
+                  <span className="text-sm">{t("chat.model.thinking")}</span>
                 </div>
                 <Switch
                   checked={claude.thinkingEnabled}
@@ -615,7 +621,9 @@ export function AgentModelSelector({
                       {getItemIcon(item)}
                       <span className="truncate flex-1">{getItemLabel(item)}</span>
                       {crossProvider && (
-                        <span className="text-[10px] text-muted-foreground shrink-0">New chat</span>
+                        <span className="text-[10px] text-muted-foreground shrink-0">
+                          {t("chat.model.newChat")}
+                        </span>
                       )}
                       {selected && (
                         <CheckIcon className="h-4 w-4 shrink-0" />
@@ -625,7 +633,7 @@ export function AgentModelSelector({
                 })}
               </CommandGroup>
             ) : (
-              <CommandEmpty>No models found.</CommandEmpty>
+              <CommandEmpty>{t("chat.model.noModelsFound")}</CommandEmpty>
             )}
           </CommandList>
 
@@ -638,7 +646,7 @@ export function AgentModelSelector({
                 }}
                 className="flex items-center gap-1.5 min-h-[32px] py-[5px] px-1.5 mx-1 w-[calc(100%-8px)] rounded-md text-sm cursor-default select-none outline-none dark:hover:bg-neutral-800 hover:text-foreground transition-colors"
               >
-                <span className="flex-1 text-left">Add Models</span>
+                <span className="flex-1 text-left">{t("chat.model.addModels")}</span>
                 <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               </button>
             </div>

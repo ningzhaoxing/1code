@@ -9,130 +9,132 @@ import type { VSCodeFullTheme } from "../atoms"
 import { CURSOR_DARK, CURSOR_LIGHT, CURSOR_MIDNIGHT } from "./cursor-themes"
 
 /**
- * 21st Dark - Default dark theme matching the app's original design
- * Uses the brand blue (#0034FF) as primary/accent color
+ * Operator Console — default dark theme (the product's primary identity).
+ * Amber = working/chrome/active, green reserved for validated/success, red = danger.
+ * Keeps id "21st-dark" so existing selections + syntax-highlight maps keep working.
  */
 const TWENTYFIRST_DARK: VSCodeFullTheme = {
   id: "21st-dark",
-  name: "21st Dark",
+  name: "Operator Console",
   type: "dark",
   source: "builtin",
   colors: {
-    "editor.background": "#0a0a0a", // 240 10% 3.9%
-    "editor.foreground": "#f4f4f5", // 240 4.8% 95.9%
-    "foreground": "#f4f4f5",
-    "sideBar.background": "#121212", // original tl-background (0 0% 7%)
-    "sideBar.foreground": "#f4f4f5",
-    "sideBar.border": "#27272a", // 240 3.7% 15.9%
-    "activityBar.background": "#0a0a0a",
-    "activityBar.foreground": "#f4f4f5",
-    "panel.background": "#121212", // match sidebar
-    "panel.border": "#27272a",
-    "tab.activeBackground": "#0a0a0a",
-    "tab.inactiveBackground": "#18181b", // 240 5.9% 10%
-    "tab.inactiveForeground": "#a1a1aa", // 240 4.4% 58%
-    "editorGroupHeader.tabsBackground": "#18181b",
-    "dropdown.background": "#171717", // popover
-    "dropdown.foreground": "#fafafa",
-    "input.background": "#121212", // same as sidebar/tl-background
-    "input.border": "#27272a",
-    "input.foreground": "#f4f4f5",
-    "focusBorder": "#0034ff", // primary blue
-    "textLink.foreground": "#0034ff",
-    "textLink.activeForeground": "#3366ff",
-    "list.activeSelectionBackground": "#27272a",
-    "list.hoverBackground": "#18181b",
-    "editor.selectionBackground": "#0034ff44",
-    "editorLineNumber.foreground": "#52525b",
-    "descriptionForeground": "#a1a1aa",
-    "errorForeground": "#ef4444",
-    "button.background": "#0034ff", // primary
-    "button.foreground": "#ffffff",
-    "button.secondaryBackground": "#27272a",
-    "button.secondaryForeground": "#fafafa",
+    "editor.background": "#0B0F0D",
+    "editor.foreground": "#D8E0DA",
+    "foreground": "#D8E0DA",
+    "sideBar.background": "#0E1310",
+    "sideBar.foreground": "#D8E0DA",
+    "sideBar.border": "#232C26",
+    "activityBar.background": "#0B0F0D",
+    "activityBar.foreground": "#D8E0DA",
+    "panel.background": "#0E1310",
+    "panel.border": "#232C26",
+    "tab.activeBackground": "#0B0F0D",
+    "tab.inactiveBackground": "#151B17",
+    "tab.inactiveForeground": "#7E8C82",
+    "editorGroupHeader.tabsBackground": "#151B17",
+    "dropdown.background": "#141A16",
+    "dropdown.foreground": "#E4EAE6",
+    "input.background": "#101512",
+    "input.border": "#232C26",
+    "input.foreground": "#D8E0DA",
+    "focusBorder": "#E8A23A", // amber primary
+    "textLink.foreground": "#E8A23A",
+    "textLink.activeForeground": "#F2B860",
+    "list.activeSelectionBackground": "#1A221C",
+    "list.hoverBackground": "#1A221C",
+    "editor.selectionBackground": "#E8A23A4D", // amber 30%
+    "editorLineNumber.foreground": "#4A554D",
+    "descriptionForeground": "#7E8C82",
+    "errorForeground": "#E5484D",
+    "button.background": "#E8A23A", // amber primary
+    "button.foreground": "#1E1402",
+    "button.secondaryBackground": "#182019",
+    "button.secondaryForeground": "#D8E0DA",
     // Terminal colors
-    "terminal.background": "#0a0a0a",
-    "terminal.foreground": "#f4f4f5",
-    "terminal.ansiBlack": "#18181b",
-    "terminal.ansiRed": "#ef4444",
-    "terminal.ansiGreen": "#22c55e",
-    "terminal.ansiYellow": "#eab308",
-    "terminal.ansiBlue": "#3b82f6",
-    "terminal.ansiMagenta": "#a855f7",
-    "terminal.ansiCyan": "#06b6d4",
-    "terminal.ansiWhite": "#f4f4f5",
-    "terminal.ansiBrightBlack": "#71717a",
-    "terminal.ansiBrightRed": "#f87171",
-    "terminal.ansiBrightGreen": "#4ade80",
-    "terminal.ansiBrightYellow": "#facc15",
-    "terminal.ansiBrightBlue": "#60a5fa",
-    "terminal.ansiBrightMagenta": "#c084fc",
-    "terminal.ansiBrightCyan": "#22d3ee",
-    "terminal.ansiBrightWhite": "#fafafa",
+    "terminal.background": "#0B0F0D",
+    "terminal.foreground": "#D8E0DA",
+    "terminal.ansiBlack": "#151B17",
+    "terminal.ansiRed": "#E5484D",
+    "terminal.ansiGreen": "#35C281",
+    "terminal.ansiYellow": "#E8A23A",
+    "terminal.ansiBlue": "#5B9DCF",
+    "terminal.ansiMagenta": "#C77BE6",
+    "terminal.ansiCyan": "#58B6AE",
+    "terminal.ansiWhite": "#D8E0DA",
+    "terminal.ansiBrightBlack": "#7E8C82",
+    "terminal.ansiBrightRed": "#F2727A",
+    "terminal.ansiBrightGreen": "#5BD6A0",
+    "terminal.ansiBrightYellow": "#F2B860",
+    "terminal.ansiBrightBlue": "#84B8E0",
+    "terminal.ansiBrightMagenta": "#D9A0EE",
+    "terminal.ansiBrightCyan": "#7FCFC7",
+    "terminal.ansiBrightWhite": "#EDF2EE",
   },
 }
 
 /**
- * 21st Light - Default light theme matching the app's original design
- * Uses the brand blue (#0034FF) as primary/accent color
+ * Operator Daylight — default light theme (the light counterpart).
+ * Amber primary (deepened for AA contrast on paper), green = validated, red = danger.
+ * Keeps id "21st-light" so existing selections + syntax-highlight maps keep working.
  */
 const TWENTYFIRST_LIGHT: VSCodeFullTheme = {
   id: "21st-light",
-  name: "21st Light",
+  name: "Operator Daylight",
   type: "light",
   source: "builtin",
   colors: {
-    "editor.background": "#ffffff",
-    "editor.foreground": "#0a0a0a", // 240 10% 3.9%
-    "foreground": "#0a0a0a",
-    "sideBar.background": "#FAFAFA", // original tl-background (0 0% 98%)
-    "sideBar.foreground": "#0a0a0a",
-    "sideBar.border": "#e4e4e7", // 240 5.9% 90%
-    "activityBar.background": "#ffffff",
-    "activityBar.foreground": "#0a0a0a",
-    "panel.background": "#FAFAFA", // match sidebar
-    "panel.border": "#e4e4e7",
-    "tab.activeBackground": "#ffffff",
-    "tab.inactiveBackground": "#f4f4f5", // 240 4.8% 95.9%
-    "tab.inactiveForeground": "#71717a", // 240 3.8% 46.1%
-    "editorGroupHeader.tabsBackground": "#f4f4f5",
-    "dropdown.background": "#ffffff",
-    "dropdown.foreground": "#0a0a0a",
-    "input.background": "#FAFAFA", // same as sidebar/tl-background
-    "input.border": "#e4e4e7",
-    "input.foreground": "#0a0a0a",
-    "focusBorder": "#0034ff", // primary blue
-    "textLink.foreground": "#0034ff",
-    "textLink.activeForeground": "#0028cc",
-    "list.activeSelectionBackground": "#f4f4f5",
-    "list.hoverBackground": "#f4f4f5",
-    "editor.selectionBackground": "#0034ff33",
-    "editorLineNumber.foreground": "#a1a1aa",
-    "descriptionForeground": "#71717a",
-    "errorForeground": "#dc2626",
-    "button.background": "#0034ff", // primary
-    "button.foreground": "#ffffff",
-    "button.secondaryBackground": "#f4f4f5",
-    "button.secondaryForeground": "#18181b",
+    "editor.background": "#FAFAF7",
+    "editor.foreground": "#161915",
+    "foreground": "#161915",
+    "sideBar.background": "#FFFFFF",
+    "sideBar.foreground": "#161915",
+    "sideBar.border": "#DAD9D0",
+    "activityBar.background": "#FAFAF7",
+    "activityBar.foreground": "#161915",
+    "panel.background": "#FFFFFF",
+    "panel.border": "#DAD9D0",
+    "tab.activeBackground": "#FFFFFF",
+    "tab.inactiveBackground": "#F0EFE9",
+    "tab.inactiveForeground": "#5E655D",
+    "editorGroupHeader.tabsBackground": "#F0EFE9",
+    "dropdown.background": "#FFFFFF",
+    "dropdown.foreground": "#161915",
+    "input.background": "#F3F2EC",
+    "input.border": "#DAD9D0",
+    "input.foreground": "#161915",
+    "focusBorder": "#C2790A", // amber primary
+    "textLink.foreground": "#B5710C",
+    "textLink.activeForeground": "#C2790A",
+    "list.activeSelectionBackground": "#EEEDE6",
+    "list.hoverBackground": "#EEEDE6",
+    "editor.selectionBackground": "#C2790A40", // amber ~25%
+    "editorLineNumber.foreground": "#A9A89E",
+    "descriptionForeground": "#5E655D",
+    "errorForeground": "#C0322C",
+    "button.background": "#C2790A", // amber primary
+    "button.foreground": "#FFFFFF",
+    "button.secondaryBackground": "#EEEDE6",
+    "button.secondaryForeground": "#2A2E29",
     // Terminal colors
-    "terminal.background": "#fafafa",
-    "terminal.foreground": "#0a0a0a",
-    "terminal.ansiBlack": "#18181b",
-    "terminal.ansiRed": "#dc2626",
-    "terminal.ansiGreen": "#16a34a",
-    "terminal.ansiYellow": "#ca8a04",
-    "terminal.ansiBlue": "#2563eb",
-    "terminal.ansiMagenta": "#9333ea",
-    "terminal.ansiCyan": "#0891b2",
-    "terminal.ansiWhite": "#f4f4f5",
-    "terminal.ansiBrightBlack": "#52525b",
-    "terminal.ansiBrightRed": "#ef4444",
-    "terminal.ansiBrightGreen": "#22c55e",
-    "terminal.ansiBrightYellow": "#eab308",
-    "terminal.ansiBrightBlue": "#3b82f6",
-    "terminal.ansiBrightMagenta": "#a855f7",
-    "terminal.ansiBrightCyan": "#06b6d4",
-    "terminal.ansiBrightWhite": "#fafafa",
+    "terminal.background": "#FAFAF7",
+    "terminal.foreground": "#161915",
+    "terminal.ansiBlack": "#2A2E29",
+    "terminal.ansiRed": "#C0322C",
+    "terminal.ansiGreen": "#0B7A4E",
+    "terminal.ansiYellow": "#B5710C",
+    "terminal.ansiBlue": "#2C5C99",
+    "terminal.ansiMagenta": "#9A2BB0",
+    "terminal.ansiCyan": "#2E8F86",
+    "terminal.ansiWhite": "#DAD9D0",
+    "terminal.ansiBrightBlack": "#5E655D",
+    "terminal.ansiBrightRed": "#E5484D",
+    "terminal.ansiBrightGreen": "#16A34A",
+    "terminal.ansiBrightYellow": "#C2790A",
+    "terminal.ansiBrightBlue": "#3A6FB0",
+    "terminal.ansiBrightMagenta": "#B23AC9",
+    "terminal.ansiBrightCyan": "#3AA89E",
+    "terminal.ansiBrightWhite": "#161915",
   },
 }
 

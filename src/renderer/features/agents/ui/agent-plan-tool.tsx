@@ -12,6 +12,7 @@ import { getToolStatus } from "./agent-tool-registry"
 import { areToolPropsEqual } from "./agent-tool-utils"
 import { cn } from "../../../lib/utils"
 import { Circle, SkipForward, FileCode2 } from "lucide-react"
+import { useI18n } from "../../../lib/i18n"
 
 interface PlanStep {
   id: string
@@ -114,6 +115,7 @@ export const AgentPlanTool = memo(function AgentPlanTool({
 }: AgentPlanToolProps) {
   const [isExpanded, setIsExpanded] = useState(false) // Collapsed by default
   const { isPending } = getToolStatus(part, chatStatus)
+  const { t } = useI18n()
 
   const plan = part.input?.plan
   const action = part.input?.action || "create"
@@ -130,15 +132,15 @@ export const AgentPlanTool = memo(function AgentPlanTool({
   // Determine header title based on action and status
   const getHeaderTitle = () => {
     if (isPending) {
-      if (action === "create") return "Creating plan..."
-      if (action === "approve") return "Approving plan..."
-      if (action === "complete") return "Completing plan..."
-      return "Updating plan..."
+      if (action === "create") return t("chat.tool.creatingPlanEllipsis")
+      if (action === "approve") return t("chat.tool.approvingPlanEllipsis")
+      if (action === "complete") return t("chat.tool.completingPlanEllipsis")
+      return t("chat.tool.updatingPlanEllipsis")
     }
     
-    if (plan.status === "awaiting_approval") return "Plan ready for review"
-    if (plan.status === "completed") return "Plan completed"
-    if (plan.status === "approved") return "Plan approved"
+    if (plan.status === "awaiting_approval") return t("chat.tool.planReadyForReview")
+    if (plan.status === "completed") return t("chat.tool.planCompleted")
+    if (plan.status === "approved") return t("chat.tool.planApproved")
     return plan.title
   }
 
@@ -146,12 +148,16 @@ export const AgentPlanTool = memo(function AgentPlanTool({
   const getProgressText = () => {
     if (totalSteps === 0) return null
     if (completedCount === totalSteps) {
-      return `${completedCount} of ${totalSteps} Completed`
+      return t("chat.tool.planProgressCompleted", { completed: completedCount, total: totalSteps })
     }
     if (inProgressCount > 0) {
-      return `${completedCount} of ${totalSteps} Completed, ${inProgressCount} in progress`
+      return t("chat.tool.planProgressInProgress", {
+        completed: completedCount,
+        total: totalSteps,
+        inProgress: inProgressCount,
+      })
     }
-    return `${completedCount} of ${totalSteps} Completed`
+    return t("chat.tool.planProgressCompleted", { completed: completedCount, total: totalSteps })
   }
 
   return (

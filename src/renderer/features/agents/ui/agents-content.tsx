@@ -38,6 +38,7 @@ import {
   betaAutomationsEnabledAtom,
   chatSourceModeAtom,
 } from "../../../lib/atoms"
+import { useI18n } from "../../../lib/i18n"
 import { NewChatForm } from "../main/new-chat-form"
 import { KanbanView } from "../../kanban"
 import { AutomationsView, AutomationsDetailView, InboxView } from "../../automations"
@@ -74,6 +75,7 @@ const useIsAdmin = () => false
 
 // Main Component
 export function AgentsContent() {
+  const { t } = useI18n()
   const [selectedChatId, setSelectedChatId] = useAtom(selectedAgentChatIdAtom)
   const desktopView = useAtomValue(desktopViewAtom)
   const setSelectedChatIsRemote = useSetAtom(selectedChatIsRemoteAtom)
@@ -170,8 +172,9 @@ export function AgentsContent() {
   const activeSubChatName = useMemo(() => {
     if (!activeSubChatId) return null
     const subChat = allSubChats.find((sc) => sc.id === activeSubChatId)
-    return subChat?.name ?? null
-  }, [activeSubChatId, allSubChats])
+    const name = subChat?.name?.trim()
+    return name && name !== "New Chat" ? name : t("chat.new")
+  }, [activeSubChatId, allSubChats, t])
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.desktopApi?.setWindowTitle) {

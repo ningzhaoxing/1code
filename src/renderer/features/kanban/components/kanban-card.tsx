@@ -6,6 +6,7 @@ import type { SubChatStatus } from "../lib/derive-status"
 import { LoadingDot, QuestionIcon, ArchiveIcon } from "../../../components/ui/icons"
 import { Pin } from "lucide-react"
 import { Checkbox } from "../../../components/ui/checkbox"
+import { useI18n } from "../../../lib/i18n"
 import {
   ContextMenu,
   ContextMenuContent,
@@ -62,6 +63,7 @@ export const KanbanCard = memo(function KanbanCard({
   onExportChat,
   onCopyChat,
 }: KanbanCardProps) {
+  const { t } = useI18n()
   const timeAgo = formatTimeAgo(card.updatedAt || card.createdAt)
 
   // Build display text: projectName + branch (if exists)
@@ -69,7 +71,7 @@ export const KanbanCard = memo(function KanbanCard({
     ? card.projectName
       ? `${card.projectName} • ${card.branch}`
       : card.branch
-    : card.projectName || "Local project"
+    : card.projectName || t("chat.localProject")
 
   // Status flags
   const isLoading = card.status === "in-progress"
@@ -99,7 +101,7 @@ export const KanbanCard = memo(function KanbanCard({
         {/* First row: name + status indicator (справа!) */}
         <div className="flex items-center gap-1">
           <span className="truncate block text-sm leading-tight flex-1">
-            {card.name || "New Workspace"}
+            {card.name || t("workspace.new")}
           </span>
 
           {/* Status indicator container - справа от названия */}
@@ -173,7 +175,7 @@ export const KanbanCard = memo(function KanbanCard({
                   }}
                   tabIndex={-1}
                   className="absolute inset-0 flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground transition-[opacity,transform,color] duration-150 ease-out opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto active:scale-[0.97]"
-                  aria-label="Archive workspace"
+                  aria-label={t("workspace.archiveWorkspace")}
                 >
                   <ArchiveIcon className="h-3.5 w-3.5" />
                 </button>
@@ -244,48 +246,48 @@ export const KanbanCard = memo(function KanbanCard({
       </ContextMenuTrigger>
       <ContextMenuContent className="w-48">
         <ContextMenuItem onClick={() => onTogglePin(card.chatId)}>
-          {card.isPinned ? "Unpin workspace" : "Pin workspace"}
+          {card.isPinned ? t("workspace.unpin") : t("workspace.pin")}
         </ContextMenuItem>
         <ContextMenuItem onClick={() => onRename({ id: card.chatId, name: card.name })}>
-          Rename workspace
+          {t("workspace.rename")}
         </ContextMenuItem>
         {card.branch && (
           <ContextMenuItem onClick={() => onCopyBranch(card.branch!)}>
-            Copy branch name
+            {t("workspace.copyBranch")}
           </ContextMenuItem>
         )}
         <ContextMenuSub>
-          <ContextMenuSubTrigger>Export workspace</ContextMenuSubTrigger>
+          <ContextMenuSubTrigger>{t("workspace.export")}</ContextMenuSubTrigger>
           <ContextMenuSubContent sideOffset={6} alignOffset={-4}>
             <ContextMenuItem onClick={() => onExportChat({ chatId: card.chatId, format: "markdown" })}>
-              Download as Markdown
+              {t("workspace.downloadMarkdown")}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => onExportChat({ chatId: card.chatId, format: "json" })}>
-              Download as JSON
+              {t("workspace.downloadJson")}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => onExportChat({ chatId: card.chatId, format: "text" })}>
-              Download as Text
+              {t("workspace.downloadText")}
             </ContextMenuItem>
             <ContextMenuSeparator />
             <ContextMenuItem onClick={() => onCopyChat({ chatId: card.chatId, format: "markdown" })}>
-              Copy as Markdown
+              {t("workspace.copyMarkdown")}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => onCopyChat({ chatId: card.chatId, format: "json" })}>
-              Copy as JSON
+              {t("workspace.copyJson")}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => onCopyChat({ chatId: card.chatId, format: "text" })}>
-              Copy as Text
+              {t("workspace.copyText")}
             </ContextMenuItem>
           </ContextMenuSubContent>
         </ContextMenuSub>
         {typeof window !== "undefined" && window.desktopApi && (
           <ContextMenuItem onClick={() => window.desktopApi?.newWindow({ chatId: card.chatId })}>
-            Open in new window
+            {t("workspace.openInNewWindow")}
           </ContextMenuItem>
         )}
         <ContextMenuSeparator />
         <ContextMenuItem onClick={() => onArchive(card.chatId)}>
-          Archive workspace
+          {t("workspace.archiveWorkspace")}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

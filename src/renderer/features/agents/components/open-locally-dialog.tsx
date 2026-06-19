@@ -9,6 +9,7 @@ import { toast } from "sonner"
 import { useSetAtom } from "jotai"
 import { selectedAgentChatIdAtom, desktopViewAtom } from "../atoms"
 import { chatSourceModeAtom } from "../../../lib/atoms"
+import { useI18n } from "../../../lib/i18n"
 import type { RemoteChat } from "../../../lib/remote-api"
 import { Folder, Download, Check } from "lucide-react"
 
@@ -40,6 +41,7 @@ export function OpenLocallyDialog({
   allProjects,
   remoteSubChatId,
 }: OpenLocallyDialogProps) {
+  const { t } = useI18n()
   const [mounted, setMounted] = useState(false)
   const openAtRef = useRef<number>(0)
   const setSelectedChatId = useSetAtom(selectedAgentChatIdAtom)
@@ -55,7 +57,7 @@ export function OpenLocallyDialog({
 
   const importMutation = trpc.sandboxImport.importSandboxChat.useMutation({
     onSuccess: (result) => {
-      toast.success("Opened locally")
+      toast.success(t("workspace.openedLocally"))
 
       // Invalidate list queries so sidebar updates
       utils.chats.list.invalidate()
@@ -68,7 +70,7 @@ export function OpenLocallyDialog({
       onClose()
     },
     onError: (error) => {
-      toast.error(`Import failed: ${error.message}`)
+      toast.error(t("workspace.importFailed", { message: error.message }))
     },
   })
 
@@ -76,7 +78,7 @@ export function OpenLocallyDialog({
 
   const cloneMutation = trpc.sandboxImport.cloneFromSandbox.useMutation({
     onSuccess: (result) => {
-      toast.success("Cloned and opened locally")
+      toast.success(t("workspace.clonedOpenedLocally"))
 
       // Invalidate list queries so sidebar updates
       utils.chats.list.invalidate()
@@ -89,7 +91,7 @@ export function OpenLocallyDialog({
       onClose()
     },
     onError: (error) => {
-      toast.error(`Clone failed: ${error.message}`)
+      toast.error(t("workspace.cloneFailed", { message: error.message }))
     },
   })
 
@@ -154,7 +156,13 @@ export function OpenLocallyDialog({
         chatName: remoteChat.name,
       })
     } else if (result.reason === "wrong-repo") {
-      toast.error(`That folder is ${result.found}, not ${owner}/${repo}`)
+      toast.error(
+        t("workspace.folderMismatch", {
+          found: result.found || t("common.unknownError"),
+          owner,
+          repo,
+        }),
+      )
     }
     // canceled = do nothing
   }, [remoteChat, remoteSubChatId, locateMutation, importMutation])
@@ -172,7 +180,7 @@ export function OpenLocallyDialog({
     if (!destResult.success || !destResult.targetPath) return
 
     // Clone
-    toast.info("Cloning repository... this may take a while")
+    toast.info(t("workspace.cloningLong"))
     cloneMutation.mutate({
       sandboxId: remoteChat.sandbox_id,
       remoteChatId: remoteChat.id,
@@ -243,13 +251,13 @@ export function OpenLocallyDialog({
                   // No matching projects view
                   <>
                     <div className="p-6">
-                      <h2 className="text-lg font-semibold mb-2">Project not found locally</h2>
+                      <h2 className="text-lg font-semibold mb-2">{t("workspace.projectNotFoundLocally")}</h2>
                       <p className="text-sm text-muted-foreground mb-5">
-                        This sandbox is working on{" "}
+                        {t("workspace.projectNotFoundPrefix")}{" "}
                         <code className="px-1.5 py-0.5 bg-muted rounded text-foreground text-xs">
                           {repository}
                         </code>
-                        , but we couldn't find it on your machine.
+                        , {t("workspace.projectNotFoundSuffix")}
                       </p>
 
                       <div className="space-y-2">
@@ -264,9 +272,9 @@ export function OpenLocallyDialog({
                               <Folder className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium">I have it cloned</div>
+                              <div className="text-sm font-medium">{t("workspace.haveItCloned")}</div>
                               <div className="text-xs text-muted-foreground">
-                                Point us to your local copy
+                                {t("workspace.localCopyHint")}
                               </div>
                             </div>
                           </div>
@@ -283,9 +291,9 @@ export function OpenLocallyDialog({
                               <Download className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium">Clone from sandbox</div>
+                              <div className="text-sm font-medium">{t("workspace.cloneFromSandbox")}</div>
                               <div className="text-xs text-muted-foreground">
-                                Download the repository (may take a while)
+                                {t("workspace.cloneFromSandboxHint")}
                               </div>
                             </div>
                           </div>
@@ -295,10 +303,10 @@ export function OpenLocallyDialog({
                       {/* Loading indicator */}
                       {isAnyLoading && (
                         <div className="mt-4 text-xs text-muted-foreground text-center">
-                          {locateMutation.isPending && "Opening folder picker..."}
-                          {pickDestMutation.isPending && "Opening folder picker..."}
-                          {importMutation.isPending && "Importing..."}
-                          {cloneMutation.isPending && "Cloning repository..."}
+                          {locateMutation.isPending && t("workspace.openingFolderPicker")}
+                          {pickDestMutation.isPending && t("workspace.openingFolderPicker")}
+                          {importMutation.isPending && t("workspace.importing")}
+                          {cloneMutation.isPending && t("workspace.cloningRepository")}
                         </div>
                       )}
                     </div>
@@ -311,7 +319,7 @@ export function OpenLocallyDialog({
                         onClick={handleClose}
                         disabled={isAnyLoading}
                       >
-                        Cancel
+                        {t("common.cancel")}
                       </Button>
                     </div>
                   </>
@@ -319,13 +327,13 @@ export function OpenLocallyDialog({
                   // Multiple matching projects view
                   <>
                     <div className="p-6">
-                      <h2 className="text-lg font-semibold mb-2">Multiple copies found</h2>
+                      <h2 className="text-lg font-semibold mb-2">{t("workspace.multipleCopiesFound")}</h2>
                       <p className="text-sm text-muted-foreground mb-5">
-                        You have{" "}
+                        {t("workspace.multipleCopiesPrefix")}{" "}
                         <code className="px-1.5 py-0.5 bg-muted rounded text-foreground text-xs">
                           {repository}
                         </code>{" "}
-                        in multiple locations. Which one should we use?
+                        {t("workspace.multipleCopiesSuffix")}
                       </p>
 
                       <div className="space-y-2">
@@ -369,14 +377,14 @@ export function OpenLocallyDialog({
                         onClick={handleClose}
                         disabled={isAnyLoading}
                       >
-                        Cancel
+                        {t("common.cancel")}
                       </Button>
                       <Button
                         size="sm"
                         onClick={handleSelectProject}
                         disabled={!selectedProjectId || isAnyLoading}
                       >
-                        {importMutation.isPending ? "Opening..." : "Open Locally"}
+                        {importMutation.isPending ? t("workspace.opening") : t("workspace.openLocally")}
                       </Button>
                     </div>
                   </>

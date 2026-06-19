@@ -9,6 +9,7 @@ import {
   normalizeCodexApiKey,
   sessionInfoAtom,
 } from "../../../lib/atoms"
+import { translateCurrentLocale as t } from "../../../lib/i18n"
 import { appStore } from "../../../lib/jotai-store"
 import { trpcClient } from "../../../lib/trpc"
 import {
@@ -210,10 +211,10 @@ export class ACPChatTransport implements ChatTransport<UIMessage> {
                   if (!credentials.hasAny) {
                     appStore.set(codexLoginModalOpenAtom, true)
                   } else if (!shouldAutoRetryOnce) {
-                    toast.error("Codex authentication failed", {
+                    toast.error(t("chat.transport.codexAuthFailed"), {
                       description: credentials.hasApiKey
-                        ? "Saved Codex API key was rejected. Update it in Settings."
-                        : "Saved Codex subscription auth failed. Reconnect subscription in Settings.",
+                        ? t("chat.transport.codexApiKeyRejected")
+                        : t("chat.transport.codexSubscriptionRejected"),
                     })
                   }
                 })()
@@ -230,8 +231,8 @@ export class ACPChatTransport implements ChatTransport<UIMessage> {
               }
 
               if (chunk.type === "error") {
-                toast.error("Codex error", {
-                  description: chunk.errorText || "An unexpected Codex error occurred.",
+                toast.error(t("chat.transport.codexError"), {
+                  description: chunk.errorText || t("chat.transport.codexUnexpectedError"),
                 })
               }
 
@@ -251,7 +252,7 @@ export class ACPChatTransport implements ChatTransport<UIMessage> {
               }
             },
             onError: (error: Error) => {
-              toast.error("Codex request failed", {
+              toast.error(t("chat.transport.codexRequestFailed"), {
                 description: error.message,
               })
               controller.error(error)

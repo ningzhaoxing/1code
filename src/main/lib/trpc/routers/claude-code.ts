@@ -160,6 +160,16 @@ export const claudeCodeRouter = router({
       .where(eq(claudeCodeCredentials.id, "default"))
       .get()
 
+    const systemToken = getExistingClaudeToken()?.trim()
+    if (!cred?.oauthToken && systemToken) {
+      return {
+        isConnected: true,
+        connectedAt: null,
+        accountId: "system",
+        displayName: "System Claude Code",
+      }
+    }
+
     return {
       isConnected: !!cred?.oauthToken,
       connectedAt: cred?.connectedAt?.toISOString() ?? null,

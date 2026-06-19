@@ -25,8 +25,10 @@ import { IconChevronDown, CheckIcon, FolderPlusIcon, GitHubIcon } from "../../..
 import { ProjectIcon } from "../../../components/ui/project-icon"
 import { trpc } from "../../../lib/trpc"
 import { selectedProjectAtom } from "../atoms"
+import { useI18n } from "../../../lib/i18n"
 
 export function ProjectSelector() {
+  const { t } = useI18n()
   const [selectedProject, setSelectedProject] = useAtom(selectedProjectAtom)
   const [open, setOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
@@ -173,7 +175,7 @@ export function ProjectSelector() {
         className="flex items-center gap-1.5 px-2 py-1 text-sm text-muted-foreground hover:text-foreground transition-[background-color,color] duration-150 ease-out rounded-md hover:bg-muted/50 outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70"
       >
         <FolderPlusIcon className="h-3.5 w-3.5" />
-        <span>{openFolder.isPending ? "Adding..." : "Add repository"}</span>
+        <span>{openFolder.isPending ? t("workspace.adding") : t("workspace.addRepository")}</span>
       </button>
     )
   }
@@ -197,7 +199,7 @@ export function ProjectSelector() {
             className="h-4 w-4"
           />
           <span className="truncate max-w-[120px]">
-            {validSelection?.name || "Select repo"}
+            {validSelection?.name || t("workspace.selectRepo")}
           </span>
           <IconChevronDown className="h-3 w-3 shrink-0 opacity-50" />
         </button>
@@ -205,14 +207,14 @@ export function ProjectSelector() {
       <PopoverContent className="w-64 p-0" align="start">
         <Command shouldFilter={false}>
           <CommandInput
-            placeholder="Search repos..."
+            placeholder={t("workspace.searchRepos")}
             value={searchQuery}
             onValueChange={setSearchQuery}
           />
           <CommandList className="max-h-[300px] overflow-y-auto">
             {isLoadingProjects ? (
               <div className="px-2.5 py-4 text-center text-sm text-muted-foreground">
-                Loading...
+                {t("settings.common.loading")}
               </div>
             ) : filteredProjects.length > 0 ? (
               <CommandGroup>
@@ -238,7 +240,7 @@ export function ProjectSelector() {
                 })}
               </CommandGroup>
             ) : (
-              <CommandEmpty>No projects found.</CommandEmpty>
+              <CommandEmpty>{t("workspace.noProjectsFound")}</CommandEmpty>
             )}
           </CommandList>
           <div className="border-t border-border/50 py-1">
@@ -248,7 +250,7 @@ export function ProjectSelector() {
               className="flex items-center gap-1.5 min-h-[32px] py-[5px] px-1.5 mx-1 w-[calc(100%-8px)] rounded-md text-sm cursor-default select-none outline-none dark:hover:bg-neutral-800 hover:text-foreground transition-colors"
             >
               <FolderPlusIcon className="h-4 w-4 text-muted-foreground" />
-              <span>{openFolder.isPending ? "Adding..." : "Add repository"}</span>
+              <span>{openFolder.isPending ? t("workspace.adding") : t("workspace.addRepository")}</span>
             </button>
             <button
               onClick={() => {
@@ -258,7 +260,7 @@ export function ProjectSelector() {
               className="flex items-center gap-1.5 min-h-[32px] py-[5px] px-1.5 mx-1 w-[calc(100%-8px)] rounded-md text-sm cursor-default select-none outline-none dark:hover:bg-neutral-800 hover:text-foreground transition-colors"
             >
               <GitHubIcon className="h-4 w-4 text-muted-foreground" />
-              <span>Add from GitHub</span>
+              <span>{t("workspace.addFromGitHub")}</span>
             </button>
           </div>
         </Command>
@@ -275,10 +277,10 @@ export function ProjectSelector() {
         >
           <div className="p-6">
             <h2 className="text-xl font-semibold mb-4">
-              Clone from GitHub
+              {t("workspace.cloneFromGitHub")}
             </h2>
             <Input
-              placeholder="owner/repo or https://github.com/..."
+              placeholder={t("workspace.githubRepoPlaceholder")}
               value={githubUrl}
               onChange={(e) => setGithubUrl(e.target.value)}
               className="w-full h-11 text-sm"
@@ -292,7 +294,7 @@ export function ProjectSelector() {
               variant="ghost"
               className="rounded-md"
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               type="submit"
@@ -300,7 +302,7 @@ export function ProjectSelector() {
               variant="default"
               className="rounded-md"
             >
-              {cloneFromGitHub.isPending ? "Cloning..." : "Clone"}
+              {cloneFromGitHub.isPending ? t("workspace.cloning") : t("workspace.clone")}
             </Button>
           </div>
         </form>

@@ -17,6 +17,7 @@ import {
 import { trpc } from "@/lib/trpc"
 import { preferredEditorAtom } from "@/lib/atoms"
 import { useResolvedHotkeyDisplay } from "@/lib/hotkeys"
+import { useI18n } from "@/lib/i18n"
 import { APP_META } from "../../../../shared/external-apps"
 import { EDITOR_ICONS } from "@/lib/editor-icons"
 import {
@@ -46,6 +47,7 @@ export function ImageViewer({
   projectPath,
   onClose,
 }: ImageViewerProps) {
+  const { t } = useI18n()
   const fileName = getFileName(filePath)
   const [displayMode, setDisplayMode] = useAtom(fileViewerDisplayModeAtom)
   const preferredEditor = useAtomValue(preferredEditorAtom)
@@ -136,7 +138,7 @@ export function ImageViewer({
                 onClick={handleOpenInEditor}
                 className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer rounded-md px-1.5 py-1 hover:bg-accent hover:text-accent-foreground transition-colors"
               >
-                <span className="hidden @[400px]:inline">Open in</span>
+                <span className="hidden @[400px]:inline">{t("info.openIn")}</span>
                 {EDITOR_ICONS[preferredEditor] && (
                   <img
                     src={EDITOR_ICONS[preferredEditor]}
@@ -147,7 +149,7 @@ export function ImageViewer({
               </button>
             </TooltipTrigger>
             <TooltipContent side="bottom" showArrow={false}>
-              Open in {editorMeta.label}
+              {t("info.openInApp", { app: editorMeta.label })}
               {openInEditorHotkey && <Kbd className="normal-case font-sans">{openInEditorHotkey}</Kbd>}
             </TooltipContent>
           </Tooltip>
@@ -159,14 +161,14 @@ export function ImageViewer({
         {isLoading && (
           <div className="flex flex-col items-center gap-3 text-muted-foreground">
             <Loader2 className="h-8 w-8 animate-spin" />
-            <span className="text-sm">Loading image...</span>
+            <span className="text-sm">{t("image.loading")}</span>
           </div>
         )}
 
         {error && (
           <div className="flex flex-col items-center gap-3 text-center max-w-[300px]">
             <AlertCircle className="h-10 w-10 text-muted-foreground" />
-            <p className="font-medium text-foreground">Failed to load image</p>
+            <p className="font-medium text-foreground">{t("image.loadFailed")}</p>
           </div>
         )}
 

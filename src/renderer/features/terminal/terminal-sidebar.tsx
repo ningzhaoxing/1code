@@ -40,6 +40,7 @@ import {
 import { trpc } from "@/lib/trpc"
 import type { TerminalInstance } from "./types"
 import { isSharedTerminalScope } from "./utils"
+import { useI18n } from "@/lib/i18n"
 
 // Animation constants - keep in sync with ResizableSidebar animationDuration
 const SIDEBAR_ANIMATION_DURATION_SECONDS = 0 // Disabled for performance
@@ -146,6 +147,8 @@ export function TerminalSidebar({
   isMobileFullscreen = false,
   onClose,
 }: TerminalSidebarProps) {
+  const { t } = useI18n()
+
   // Per-chat terminal sidebar state (sidebar open/close is per-workspace, not per-scope)
   const terminalSidebarAtom = useMemo(
     () => terminalSidebarOpenAtomFamily(chatId),
@@ -447,7 +450,7 @@ export function TerminalSidebar({
             size="icon"
             onClick={handleMobileClose}
             className="h-7 w-7 p-0 hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] flex-shrink-0 rounded-md"
-            aria-label="Back to chat"
+            aria-label={t("terminal.backToChat")}
             style={{
               // @ts-expect-error - WebKit-specific property
               WebkitAppRegion: "no-drag",
@@ -501,7 +504,7 @@ export function TerminalSidebar({
             </motion.div>
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-              {!canRenderTerminal ? "" : "No terminal open"}
+              {!canRenderTerminal ? "" : t("terminal.noTerminalOpen")}
             </div>
           )}
         </div>
@@ -545,13 +548,13 @@ export function TerminalSidebar({
                   size="icon"
                   onClick={closeSidebar}
                   className="h-6 w-6 p-0 hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] text-foreground flex-shrink-0 rounded-md"
-                  aria-label="Close terminal"
+                  aria-label={t("terminal.closeTerminal")}
                 >
                   <IconDoubleChevronRight className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                Close terminal
+                {t("terminal.closeTerminal")}
                 {toggleTerminalHotkey && <Kbd>{toggleTerminalHotkey}</Kbd>}
               </TooltipContent>
             </Tooltip>
@@ -601,7 +604,7 @@ export function TerminalSidebar({
             </motion.div>
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-              {!canRenderTerminal ? "" : "No terminal open"}
+              {!canRenderTerminal ? "" : t("terminal.noTerminalOpen")}
             </div>
           )}
         </div>
@@ -633,6 +636,7 @@ export function TerminalBottomPanelContent({
   initialCommands,
   onClose,
 }: TerminalBottomPanelContentProps) {
+  const { t } = useI18n()
   const [allTerminals, setAllTerminals] = useAtom(terminalsAtom)
   const [allActiveIds, setAllActiveIds] = useAtom(activeTerminalIdAtom)
   const terminalCwds = useAtomValue(terminalCwdAtom)
@@ -818,13 +822,13 @@ export function TerminalBottomPanelContent({
                 size="icon"
                 onClick={onClose}
                 className="h-6 w-6 p-0 hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] text-foreground flex-shrink-0 rounded-md"
-                aria-label="Close terminal"
+                aria-label={t("terminal.closeTerminal")}
               >
                 <ChevronsDown className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="top">
-              Close terminal
+              {t("terminal.closeTerminal")}
               {toggleTerminalHotkey && <Kbd>{toggleTerminalHotkey}</Kbd>}
             </TooltipContent>
           </Tooltip>
@@ -874,7 +878,7 @@ export function TerminalBottomPanelContent({
           </motion.div>
         ) : (
           <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-            No terminal open
+            {t("terminal.noTerminalOpen")}
           </div>
         )}
       </div>

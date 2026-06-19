@@ -11,6 +11,7 @@ import { TextShimmer } from "../../../components/ui/text-shimmer"
 import { getToolStatus } from "./agent-tool-registry"
 import { AgentToolInterrupted } from "./agent-tool-interrupted"
 import { areToolPropsEqual } from "./agent-tool-utils"
+import { useI18n } from "../../../lib/i18n"
 import { cn } from "../../../lib/utils"
 
 interface AgentWebSearchToolProps {
@@ -27,6 +28,7 @@ export const AgentWebSearchTool = memo(function AgentWebSearchTool({
   part,
   chatStatus,
 }: AgentWebSearchToolProps) {
+  const { t } = useI18n()
   const [isExpanded, setIsExpanded] = useState(false)
   const { isPending, isError, isInterrupted } = getToolStatus(part, chatStatus)
 
@@ -83,10 +85,10 @@ export const AgentWebSearchTool = memo(function AgentWebSearchTool({
               duration={1.2}
               className="text-xs text-muted-foreground"
             >
-              Searching
+              {t("chat.tool.searching")}
             </TextShimmer>
           ) : (
-            <span className="text-xs text-muted-foreground">Searched</span>
+            <span className="text-xs text-muted-foreground">{t("chat.tool.searched")}</span>
           )}
           
           <span className="truncate text-foreground">
@@ -100,10 +102,12 @@ export const AgentWebSearchTool = memo(function AgentWebSearchTool({
             {isPending ? (
               <IconSpinner className="w-3 h-3" />
             ) : isError ? (
-              <span className="text-destructive">Failed</span>
+              <span className="text-destructive">{t("common.failed")}</span>
             ) : (
               <span className="text-muted-foreground">
-                {resultCount} {resultCount === 1 ? "result" : "results"}
+                {resultCount} {resultCount === 1
+                  ? t("chat.tool.resultSingular")
+                  : t("chat.tool.resultPlural")}
               </span>
             )}
           </div>
@@ -147,4 +151,3 @@ export const AgentWebSearchTool = memo(function AgentWebSearchTool({
     </div>
   )
 }, areToolPropsEqual)
-

@@ -19,6 +19,7 @@ import { preferredEditorAtom } from "@/lib/atoms"
 import { useResolvedHotkeyDisplay } from "@/lib/hotkeys"
 import { APP_META } from "../../../../shared/external-apps"
 import { EDITOR_ICONS } from "@/lib/editor-icons"
+import { useI18n } from "@/lib/i18n"
 
 interface InfoSectionProps {
   chatId: string
@@ -126,6 +127,8 @@ export const InfoSection = memo(function InfoSection({
   isExpanded = false,
   remoteInfo,
 }: InfoSectionProps) {
+  const { t } = useI18n()
+
   // Extract folder name from path
   const folderName = worktreePath?.split("/").pop() || "Unknown"
 
@@ -254,37 +257,37 @@ export const InfoSection = memo(function InfoSection({
       {repositoryName && (
         <PropertyRow
           icon={FolderFilledIcon}
-          label="Repository"
+          label={t("info.repository")}
           value={repositoryName}
           title={remoteInfo?.repository}
           onClick={handleOpenRepository}
-          tooltip="Open in GitHub"
+          tooltip={t("info.openInGitHub")}
         />
       )}
       {/* Branch - for both local and remote */}
       {branchName && (
-        <PropertyRow icon={GitBranchFilledIcon} label="Branch" value={branchName} copyable />
+        <PropertyRow icon={GitBranchFilledIcon} label={t("info.branch")} value={branchName} copyable />
       )}
       {/* PR - only for local chats */}
       {pr && (
         <PropertyRow
           icon={GitPullRequestFilledIcon}
-          label="Pull Request"
+          label={t("info.pullRequest")}
           value={`#${pr.number}`}
           title={pr.title}
           onClick={handleOpenPr}
-          tooltip="Open in GitHub"
+          tooltip={t("info.openInGitHub")}
         />
       )}
       {/* Path - only for local chats */}
       {worktreePath && (
         <PropertyRow
           icon={FolderFilledIcon}
-          label="Path"
+          label={t("info.path")}
           value={folderName}
           title={worktreePath}
           onClick={handleOpenFolder}
-          tooltip="Open in Finder"
+          tooltip={t("info.openInFinder")}
         />
       )}
       {/* Open in Editor - only for actual git worktrees (under ~/.21st/worktrees/) */}
@@ -292,7 +295,7 @@ export const InfoSection = memo(function InfoSection({
         <div className="flex items-center min-h-[28px]">
           <div className="flex items-center gap-1.5 w-[100px] flex-shrink-0">
             <ExternalLinkIcon className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-            <span className="text-xs text-muted-foreground truncate">Open in</span>
+            <span className="text-xs text-muted-foreground truncate">{t("info.openIn")}</span>
           </div>
           <div className="flex-1 min-w-0 pl-2">
             <Tooltip delayDuration={500}>
@@ -313,7 +316,7 @@ export const InfoSection = memo(function InfoSection({
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                Open in {editorMeta.label}
+                {t("info.openInApp", { app: editorMeta.label })}
                 {openInEditorHotkey && <Kbd className="normal-case font-sans">{openInEditorHotkey}</Kbd>}
               </TooltipContent>
             </Tooltip>

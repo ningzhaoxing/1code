@@ -10,6 +10,7 @@ import { McpServerForm } from "./mcp-server-form"
 import { trpc } from "../../../../lib/trpc"
 import { toast } from "sonner"
 import type { McpServerFormData } from "./types"
+import { useI18n } from "../../../../lib/i18n"
 
 interface AddMcpServerDialogProps {
   open: boolean
@@ -22,6 +23,7 @@ export function AddMcpServerDialog({
   onOpenChange,
   onServerAdded,
 }: AddMcpServerDialogProps) {
+  const { t } = useI18n()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const addServerMutation = trpc.claude.addMcpServer.useMutation()
 
@@ -37,13 +39,13 @@ export function AddMcpServerDialog({
         url: data.url,
         projectPath: data.scope === "project" ? data.projectPath : undefined,
       })
-      toast.success("Server added", { description: data.name })
+      toast.success(t("settings.mcp.form.addServer"), { description: data.name })
       onOpenChange(false)
       onServerAdded?.()
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Failed to add server"
-      toast.error("Failed to add server", { description: message })
+        error instanceof Error ? error.message : t("settings.list.mcp.add")
+      toast.error(t("settings.list.mcp.add"), { description: message })
     } finally {
       setIsSubmitting(false)
     }
@@ -53,16 +55,16 @@ export function AddMcpServerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add MCP Server</DialogTitle>
+          <DialogTitle>{t("settings.mcp.dialog.addTitle")}</DialogTitle>
           <DialogDescription>
-            Configure a new MCP server connection.
+            {t("settings.mcp.dialog.addDescription")}
           </DialogDescription>
         </DialogHeader>
         <McpServerForm
           onSubmit={handleSubmit}
           onCancel={() => onOpenChange(false)}
           isSubmitting={isSubmitting}
-          submitLabel="Add Server"
+          submitLabel={t("settings.mcp.form.addServer")}
         />
       </DialogContent>
     </Dialog>

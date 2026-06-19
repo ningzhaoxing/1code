@@ -19,6 +19,7 @@ import { Circle } from "lucide-react"
 import { AgentToolCall } from "./agent-tool-call"
 import { currentTodosAtomFamily } from "../atoms"
 import { alwaysExpandTodoListAtom } from "../../../lib/atoms"
+import { useI18n } from "../../../lib/i18n"
 
 export interface TodoItem {
   content: string
@@ -99,14 +100,18 @@ function detectChanges(
 }
 
 // Get status verb for compact display
-function getStatusVerb(status: TodoItem["status"], content: string): string {
+function getStatusVerb(
+  status: TodoItem["status"],
+  content: string,
+  t: ReturnType<typeof useI18n>["t"],
+): string {
   switch (status) {
     case "in_progress":
-      return `Started: ${content}`
+      return t("chat.tool.todoStarted", { item: content })
     case "completed":
-      return `Finished: ${content}`
+      return t("chat.tool.todoFinished", { item: content })
     case "pending":
-      return `Created: ${content}`
+      return t("chat.tool.todoCreated", { item: content })
     default:
       return content
   }
@@ -311,6 +316,7 @@ export const AgentTodoTool = memo(function AgentTodoTool({
   chatStatus,
   subChatId,
 }: AgentTodoToolProps) {
+  const { t } = useI18n()
   // User preference for always expanded to-do list
   const alwaysExpandTodoList = useAtomValue(alwaysExpandTodoListAtom)
 
@@ -519,10 +525,10 @@ export const AgentTodoTool = memo(function AgentTodoTool({
                   duration={1.2}
                   className="inline-flex items-center text-xs leading-none h-4 m-0"
                 >
-                  Creating to-do list...
+                  {t("chat.tool.creatingTodoList")}
                 </TextShimmer>
               ) : (
-                "Creating to-do list..."
+                t("chat.tool.creatingTodoList")
               )}
             </span>
           </div>
@@ -548,7 +554,7 @@ export const AgentTodoTool = memo(function AgentTodoTool({
     return (
       <AgentToolCall
         icon={IconComponent}
-        title={getStatusVerb(change.newStatus, titleText)}
+        title={getStatusVerb(change.newStatus, titleText, t)}
         isPending={isPending}
         isError={false}
       />
@@ -566,13 +572,22 @@ export const AgentTodoTool = memo(function AgentTodoTool({
     ).length
 
     // Build summary title
-    let summaryTitle = "Updated to-dos"
+    let summaryTitle = t("chat.tool.updatedTodos")
     if (completedChanges > 0 && startedChanges === 0) {
-      summaryTitle = `Finished ${completedChanges} ${completedChanges === 1 ? "task" : "tasks"}`
+      summaryTitle = t("chat.tool.finishedTaskCount", {
+        count: completedChanges,
+        item: t(completedChanges === 1 ? "chat.task.singular" : "chat.task.plural"),
+      })
     } else if (startedChanges > 0 && completedChanges === 0) {
-      summaryTitle = `Started ${startedChanges} ${startedChanges === 1 ? "task" : "tasks"}`
+      summaryTitle = t("chat.tool.startedTaskCount", {
+        count: startedChanges,
+        item: t(startedChanges === 1 ? "chat.task.singular" : "chat.task.plural"),
+      })
     } else if (completedChanges > 0 && startedChanges > 0) {
-      summaryTitle = `Updated ${changes.items.length} ${changes.items.length === 1 ? "task" : "tasks"}`
+      summaryTitle = t("chat.tool.updatedTaskCount", {
+        count: changes.items.length,
+        item: t(changes.items.length === 1 ? "chat.task.singular" : "chat.task.plural"),
+      })
     }
 
     // Limit displayed items to avoid overflow
@@ -607,7 +622,7 @@ export const AgentTodoTool = memo(function AgentTodoTool({
               ))}
               {remainingCount > 0 && (
                 <span className="text-muted-foreground/60 whitespace-nowrap flex-shrink-0">
-                  +{remainingCount} more
+                  {t("chat.tool.moreCount", { count: remainingCount })}
                 </span>
               )}
             </div>
@@ -661,17 +676,20 @@ export const AgentTodoTool = memo(function AgentTodoTool({
         onClick={handleToggleExpand}
         role="button"
         aria-expanded={isExpanded}
-        aria-label={`To-do list with ${totalTodos} items. Click to ${isExpanded ? "collapse" : "expand"}`}
+        aria-label={t("todo.listAria", {
+          count: totalTodos,
+          action: isExpanded ? t("todo.collapse") : t("todo.expand"),
+        })}
         tabIndex={0}
         onKeyDown={handleKeyDown}
       >
         <div className="flex items-center gap-1.5">
           <PlanIcon className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
           <span className="text-xs font-medium text-foreground">
-            To-dos
+            {t("todo.title")}
           </span>
           <span className="text-xs text-muted-foreground truncate flex-1">
-            {displayTodos[0]?.content || "To-do list"}
+            {displayTodos[0]?.content || t("todo.list")}
           </span>
           {/* Expand/Collapse icon */}
           <div className="relative w-4 h-4 flex-shrink-0">

@@ -11,6 +11,7 @@ import {
   pendingUserQuestionsAtom,
 } from "../atoms"
 import { areAskUserQuestionPropsEqual } from "./agent-tool-utils"
+import { useI18n } from "../../../lib/i18n"
 
 interface AgentAskUserQuestionToolProps {
   input: {
@@ -43,6 +44,7 @@ export const AgentAskUserQuestionTool = memo(function AgentAskUserQuestionTool({
   isStreaming,
   toolCallId,
 }: AgentAskUserQuestionToolProps) {
+  const { t } = useI18n()
   const questions = input?.questions ?? []
   const questionCount = questions.length
 
@@ -82,7 +84,7 @@ export const AgentAskUserQuestionTool = memo(function AgentAskUserQuestionTool({
     return (
       <div className="flex items-center gap-2 py-1 px-2 text-xs text-muted-foreground">
         <TextShimmer className="text-xs" duration={1.5}>
-          Asking question...
+          {t("chat.question.asking")}
         </TextShimmer>
       </div>
     )
@@ -93,9 +95,9 @@ export const AgentAskUserQuestionTool = memo(function AgentAskUserQuestionTool({
     const firstQuestion = questions[0]?.header || questions[0]?.question
     return (
       <div className="flex items-center gap-2 py-1 px-2 text-xs text-muted-foreground">
-        <span>{firstQuestion || "Question"}</span>
+        <span>{firstQuestion || t("chat.question.label")}</span>
         <span className="text-muted-foreground/50">•</span>
-        <span>{isTimedOut ? "Timed out" : "Skipped"}</span>
+        <span>{isTimedOut ? t("chat.question.timedOut") : t("chat.question.skipped")}</span>
       </div>
     )
   }
@@ -104,9 +106,9 @@ export const AgentAskUserQuestionTool = memo(function AgentAskUserQuestionTool({
   if (state === "result" && isError) {
     return (
       <div className="flex items-center gap-2 py-1 px-2 text-xs text-muted-foreground">
-        <span>Question</span>
+        <span>{t("chat.question.label")}</span>
         <span className="text-muted-foreground/50">•</span>
-        <span className="text-red-500">{effectiveErrorText || "Error"}</span>
+        <span className="text-red-500">{effectiveErrorText || t("common.failed")}</span>
       </div>
     )
   }
@@ -117,7 +119,7 @@ export const AgentAskUserQuestionTool = memo(function AgentAskUserQuestionTool({
     if (entries.length === 0) {
       return (
         <div className="flex items-center gap-2 py-1 px-2 text-xs text-muted-foreground">
-          <span>Question answered</span>
+          <span>{t("chat.question.answered")}</span>
         </div>
       )
     }
@@ -128,7 +130,7 @@ export const AgentAskUserQuestionTool = memo(function AgentAskUserQuestionTool({
         <div className="flex items-center gap-1.5 pl-2.5 pr-2 h-7 border-b border-border">
           <QuestionIcon className="w-3.5 h-3.5 text-muted-foreground" />
           <span className="text-xs text-muted-foreground">
-            {entries.length === 1 ? "Answer" : "Answers"}
+            {entries.length === 1 ? t("chat.question.answer") : t("chat.question.answers")}
           </span>
         </div>
         {/* Content */}
@@ -152,9 +154,9 @@ export const AgentAskUserQuestionTool = memo(function AgentAskUserQuestionTool({
   if (isStreaming) {
     return (
       <div className="flex items-center gap-2 py-1 px-2 text-xs text-muted-foreground">
-        <span>{firstQuestion || "Question"}</span>
+        <span>{firstQuestion || t("chat.question.label")}</span>
         <span className="text-muted-foreground/50">•</span>
-        <span>Waiting for response...</span>
+        <span>{t("chat.question.waiting")}</span>
       </div>
     )
   }
@@ -166,9 +168,9 @@ export const AgentAskUserQuestionTool = memo(function AgentAskUserQuestionTool({
   if (state === "result" && realtimeResult && !answers && !isError && !isSkipped && !isTimedOut) {
     return (
       <div className="flex items-center gap-2 py-1 px-2 text-xs text-muted-foreground">
-        <span>{firstQuestion || "Question"}</span>
+        <span>{firstQuestion || t("chat.question.label")}</span>
         <span className="text-muted-foreground/50">•</span>
-        <span>Submitting...</span>
+        <span>{t("chat.question.submitting")}</span>
       </div>
     )
   }
@@ -176,9 +178,9 @@ export const AgentAskUserQuestionTool = memo(function AgentAskUserQuestionTool({
   // Not streaming and state is "call" - it was truly interrupted
   return (
     <div className="flex items-center gap-2 py-1 px-2 text-xs text-muted-foreground">
-      <span>{firstQuestion || "Question"}</span>
+      <span>{firstQuestion || t("chat.question.label")}</span>
       <span className="text-muted-foreground/50">•</span>
-      <span>Interrupted</span>
+      <span>{t("chat.question.interrupted")}</span>
     </div>
   )
 }, areAskUserQuestionPropsEqual)

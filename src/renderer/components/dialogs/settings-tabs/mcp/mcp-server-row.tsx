@@ -4,6 +4,7 @@ import { Button } from "../../../ui/button"
 import { Switch } from "../../../ui/switch"
 import { cn } from "../../../../lib/utils"
 import type { McpServer } from "./types"
+import { useI18n } from "../../../../lib/i18n"
 
 function StatusDot({ status }: { status: string }) {
   switch (status) {
@@ -60,9 +61,26 @@ export function McpServerRow({
   isEditable = true,
   showToggle = false,
 }: McpServerRowProps) {
+  const { t } = useI18n()
   const isConnected = server.status === "connected"
   const hasTools = server.tools.length > 0
   const isDisabled = server.status === "disabled"
+  const statusText = (() => {
+    switch (server.status) {
+      case "connected":
+        return t("settings.mcp.status.connected")
+      case "failed":
+        return t("settings.mcp.status.failed")
+      case "needs-auth":
+        return t("settings.mcp.status.needsAuth")
+      case "pending":
+        return t("settings.mcp.status.connecting")
+      case "disabled":
+        return t("settings.mcp.status.disabled")
+      default:
+        return getStatusText(server.status)
+    }
+  })()
 
   return (
     <div className="rounded-lg border border-border bg-background overflow-hidden">
@@ -90,8 +108,14 @@ export function McpServerRow({
         </div>
         <span className="text-xs text-muted-foreground shrink-0">
           {isConnected && hasTools
-            ? `${server.tools.length} tool${server.tools.length !== 1 ? "s" : ""}`
-            : getStatusText(server.status)}
+            ? t("settings.common.toolsCount", {
+                count: server.tools.length,
+                toolWord:
+                  server.tools.length === 1
+                    ? t("settings.common.toolSingular")
+                    : t("settings.common.toolPlural"),
+              })
+            : statusText}
         </span>
         {server.needsAuth && onAuth && (
           <Button
@@ -103,7 +127,7 @@ export function McpServerRow({
               onAuth()
             }}
           >
-            Auth
+            {t("settings.mcp.authenticate")}
           </Button>
         )}
         {isEditable && onEdit && (
@@ -144,7 +168,7 @@ export function McpServerRow({
             <div className="px-3 pb-2.5 pt-0.5">
               <div className="border-t border-border pt-2">
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
-                  Tools
+                  {t("settings.mcp.tools")}
                 </p>
                 <div className="flex flex-wrap gap-1">
                   {server.tools.map((tool) => {

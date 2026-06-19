@@ -50,6 +50,7 @@ import { toast } from "sonner";
 import type { DiffViewMode } from "@/features/agents/ui/agent-diff-view";
 import { getSyncActionKind } from "../../utils/sync-actions";
 import { usePushAction } from "../../hooks/use-push-action";
+import { useI18n } from "../../../../lib/i18n";
 
 interface DiffStats {
 	isLoading: boolean;
@@ -156,6 +157,8 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 	displayMode = "side-peek",
 	onDisplayModeChange,
 }: DiffSidebarHeaderProps) {
+	const { t } = useI18n();
+
 	// Responsive breakpoints - progressive disclosure
 	const isCompact = sidebarWidth < 350;
 	const showViewModeToggle = sidebarWidth >= 450; // Show Split/Unified toggle
@@ -193,14 +196,15 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 		onSuccess: () => {
 			onRefresh?.();
 		},
-		onError: (error) => toast.error(`Pull failed: ${error.message}`),
+		onError: (error) => toast.error(t("changes.pullFailed", { message: error.message })),
 	});
 
 	const forcePushMutation = trpc.changes.forcePush.useMutation({
 		onSuccess: () => {
 			onRefresh?.();
 		},
-		onError: (error: { message: string }) => toast.error(`Force push failed: ${error.message}`),
+		onError: (error: { message: string }) =>
+			toast.error(t("changes.forcePushFailed", { message: error.message })),
 	});
 
 	const mergeFromDefaultMutation = trpc.changes.mergeFromDefault.useMutation({
@@ -298,6 +302,7 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 
 	interface ActionButton {
 		label: string;
+		displayLabel?: string;
 		pendingLabel?: string;
 		icon: React.ReactNode;
 		handler: () => void;
@@ -316,7 +321,7 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 				pendingLabel: "",
 				icon: <IconFetch className="size-3.5" />,
 				handler: () => {},
-				tooltip: "Loading sync status...",
+				tooltip: t("changes.loadingSyncStatus"),
 				variant: "ghost",
 				isPending: true,
 				disabled: true,
@@ -327,10 +332,11 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 		if (syncActionKind === "publish") {
 			return {
 				label: "Publish",
-				pendingLabel: "Publishing...",
+				displayLabel: t("changes.publish"),
+				pendingLabel: t("changes.publishing"),
 				icon: <Upload className="size-3.5" />,
 				handler: handlePush,
-				tooltip: "Publish branch to remote",
+				tooltip: t("changes.publishBranchToRemote"),
 				variant: "default",
 				isPending: isPushPending,
 			};
@@ -340,10 +346,11 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 		if (syncActionKind === "pull") {
 			return {
 				label: "Pull",
-				pendingLabel: "Pulling...",
+				displayLabel: t("changes.pull"),
+				pendingLabel: t("changes.pulling"),
 				icon: <ArrowDown className="size-3.5" />,
 				handler: handlePull,
-				tooltip: `Pull ${pullCount} commit${pullCount !== 1 ? "s" : ""} from remote`,
+				tooltip: t("changes.pullCommitsFromRemote", { count: pullCount }),
 				badge: `↓${pullCount}`,
 				variant: "default",
 				isPending: isPullPending,
@@ -354,10 +361,11 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 		if (syncActionKind === "push") {
 			return {
 				label: "Push",
-				pendingLabel: "Pushing...",
+				displayLabel: t("changes.push"),
+				pendingLabel: t("changes.pushing"),
 				icon: <ArrowUp className="size-3.5" />,
 				handler: handlePush,
-				tooltip: `Push ${pushCount} commit${pushCount !== 1 ? "s" : ""} to remote`,
+				tooltip: t("changes.pushCommitsToRemote", { count: pushCount }),
 				badge: `↑${pushCount}`,
 				variant: "default",
 				isPending: isPushPending,
@@ -368,9 +376,10 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 		if (pr) {
 			return {
 				label: "Open PR",
+				displayLabel: t("changes.openPullRequest", { number: pr.number }),
 				icon: <ExternalLinkIcon className="size-3.5" />,
 				handler: handleOpenPR,
-				tooltip: `Open Pull Request #${pr.number}`,
+				tooltip: t("changes.openPullRequest", { number: pr.number }),
 				variant: "ghost",
 			};
 		}
@@ -381,10 +390,11 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 			if (aheadOfDefault > 0 && !isDefaultBranch && onCreatePr) {
 				return {
 					label: "Create PR",
-					pendingLabel: "Creating...",
+					displayLabel: t("changes.createPullRequest"),
+					pendingLabel: t("changes.creating"),
 					icon: <GitPullRequest className="size-3.5" />,
 					handler: onCreatePr,
-					tooltip: `Create Pull Request (${aheadOfDefault} commit${aheadOfDefault !== 1 ? "s" : ""} ahead of ${branchData?.defaultBranch || "main"})`,
+					tooltip: t("changes.createPullRequestAhead", { count: aheadOfDefault, branch: branchData?.defaultBranch || "main" }),
 					badge: `↑${aheadOfDefault}`,
 					variant: "default",
 					isPending: isCreatingPr,
@@ -393,10 +403,11 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 			// Otherwise show Fetch
 			return {
 				label: "Fetch",
-				pendingLabel: "Fetching...",
+				displayLabel: t("changes.fetch"),
+				pendingLabel: t("changes.fetching"),
 				icon: <IconFetch className="size-3.5" />,
 				handler: handleFetch,
-				tooltip: lastFetchTime ? `Last fetched ${displayTime}` : "Check for updates",
+				tooltip: lastFetchTime ? t("changes.lastFetched", { time: displayTime }) : t("changes.checkForUpdates"),
 				variant: "ghost",
 				isPending: isFetchPending,
 			};
@@ -405,10 +416,11 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 		// 6. Fallback - Fetch
 		return {
 			label: "Fetch",
-			pendingLabel: "Fetching...",
+			displayLabel: t("changes.fetch"),
+			pendingLabel: t("changes.fetching"),
 			icon: <IconFetch className="size-3.5" />,
 			handler: handleFetch,
-			tooltip: "Check for updates",
+			tooltip: t("changes.checkForUpdates"),
 			variant: "ghost",
 			isPending: isFetchPending,
 		};
@@ -420,10 +432,11 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 	const displayAction: ActionButton = isFetchPending && !primaryAction.isPending
 		? {
 			label: "Fetching",
-			pendingLabel: "Fetching...",
+			displayLabel: t("changes.fetching"),
+			pendingLabel: t("changes.fetching"),
 			icon: <IconFetch className="size-3.5" />,
 			handler: () => {},
-			tooltip: "Fetching from remote...",
+			tooltip: t("changes.fetchingFromRemote"),
 			variant: primaryAction.variant,
 			isPending: true,
 		}
@@ -497,10 +510,10 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 						</ContextMenuTrigger>
 						<ContextMenuContent>
 							<ContextMenuItem onClick={handleOpenPR} className="text-xs">
-								Open in browser
+								{t("common.openInBrowser")}
 							</ContextMenuItem>
 							<ContextMenuItem onClick={handleCopyPRLink} className="text-xs">
-								Copy link
+								{t("common.copyLink")}
 							</ContextMenuItem>
 						</ContextMenuContent>
 					</ContextMenu>
@@ -531,10 +544,10 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 								) : (
 									<IconReview className="size-3.5" />
 								)}
-								<span>Review</span>
+								<span>{t("changes.review")}</span>
 							</Button>
 						</TooltipTrigger>
-						<TooltipContent side="bottom">Review changes with AI</TooltipContent>
+						<TooltipContent side="bottom">{t("changes.reviewChangesWithAi")}</TooltipContent>
 					</Tooltip>
 				)}
 
@@ -571,7 +584,7 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 									) : (
 										<>
 											<span className="shrink-0">{displayAction.icon}</span>
-											{displayAction.label && <span className="truncate">{displayAction.label}</span>}
+											{displayAction.label && <span className="truncate">{displayAction.displayLabel ?? displayAction.label}</span>}
 											{displayAction.badge && (
 												<span className="text-[10px] bg-primary-foreground/20 px-1.5 py-0.5 rounded font-medium ml-1 shrink-0">
 													{displayAction.badge}
@@ -617,7 +630,7 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 										) : (
 											<>
 												<span className="shrink-0">{displayAction.icon}</span>
-												{displayAction.label && <span className="truncate">{displayAction.label}</span>}
+												{displayAction.label && <span className="truncate">{displayAction.displayLabel ?? displayAction.label}</span>}
 												{displayAction.badge && (
 													<span className="text-[10px] bg-primary-foreground/20 px-1.5 py-0.5 rounded font-medium ml-1 shrink-0">
 														{displayAction.badge}
@@ -642,7 +655,7 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 										"h-6 w-6 p-0 rounded-l-none rounded-r-md focus:z-10",
 										displayAction.variant === "ghost" && "hover:bg-accent hover:text-accent-foreground shadow-none"
 									)}
-									aria-label="More git options"
+									aria-label={t("changes.moreGitOptions")}
 								>
 									<HiChevronDown className="size-3" />
 								</Button>
@@ -656,9 +669,9 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 								>
 									<HiArrowPath className={cn("mr-2 size-3.5", isFetchPending && "animate-spin")} />
 									<div className="flex-1">
-										<div>Fetch origin</div>
+										<div>{t("changes.fetchOrigin")}</div>
 										<div className="text-[10px] text-muted-foreground">
-											{lastFetchTime ? `Last fetched ${displayTime}` : "Check for updates"}
+											{lastFetchTime ? t("changes.lastFetched", { time: displayTime }) : t("changes.checkForUpdates")}
 										</div>
 									</div>
 								</DropdownMenuItem>
@@ -672,9 +685,9 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 									>
 										<IconForcePush className="mr-2 size-3.5" />
 										<div className="flex-1">
-											<div>Force push</div>
+											<div>{t("changes.forcePush")}</div>
 											<div className="text-[10px] text-muted-foreground/70">
-												Overwrite remote (dangerous)
+												{t("changes.overwriteRemoteDangerous")}
 											</div>
 										</div>
 									</DropdownMenuItem>
@@ -691,11 +704,11 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 										>
 											<GitMerge className="mr-2 size-3.5" />
 											<div className="flex-1">
-												<div>Merge from {branchData?.defaultBranch || "main"}</div>
+												<div>{t("changes.mergeFromBranch", { branch: branchData?.defaultBranch || "main" })}</div>
 												<div className="text-[10px] text-muted-foreground">
 													{behindDefault > 0
-														? `${behindDefault} commit${behindDefault !== 1 ? "s" : ""} to merge`
-														: "Already up to date"}
+														? t("changes.commitsToMerge", { count: behindDefault })
+														: t("changes.alreadyUpToDate")}
 												</div>
 											</div>
 											{behindDefault > 0 && (
@@ -711,11 +724,11 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 										>
 											<GitMerge className="mr-2 size-3.5" />
 											<div className="flex-1">
-												<div>Rebase on {branchData?.defaultBranch || "main"}</div>
+												<div>{t("changes.rebaseOnBranch", { branch: branchData?.defaultBranch || "main" })}</div>
 												<div className="text-[10px] text-muted-foreground">
 													{behindDefault > 0
-														? `Replay on top of ${behindDefault} commit${behindDefault !== 1 ? "s" : ""}`
-														: "Already up to date"}
+														? t("changes.replayOnTopOfCommits", { count: behindDefault })
+														: t("changes.alreadyUpToDate")}
 												</div>
 											</div>
 											{behindDefault > 0 && (
@@ -741,10 +754,10 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 									>
 										<GitPullRequest className="mr-2 size-3.5" />
 										<div className="flex-1">
-											<div>{isCreatingPr ? "Creating..." : "Create Pull Request"}</div>
+											<div>{isCreatingPr ? t("changes.creating") : t("changes.createPullRequest")}</div>
 											{aheadOfDefault === 0 && (
 												<div className="text-[10px] text-muted-foreground">
-													No commits to merge into {branchData?.defaultBranch || "main"}
+													{t("changes.noCommitsToMerge", { branch: branchData?.defaultBranch || "main" })}
 												</div>
 											)}
 										</div>
@@ -765,9 +778,9 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 									>
 										<GitPullRequest className="mr-2 size-3.5" />
 										<div className="flex-1">
-											<div>{isCreatingPrWithAI ? "Creating..." : "Create PR with AI"}</div>
+											<div>{isCreatingPrWithAI ? t("changes.creating") : t("changes.createPrWithAi")}</div>
 											<div className="text-[10px] text-muted-foreground">
-												Let AI create and push PR
+												{t("changes.aiCreateAndPushPr")}
 											</div>
 										</div>
 									</DropdownMenuItem>
@@ -780,7 +793,7 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 										className="text-xs"
 									>
 										<ExternalLinkIcon className="mr-2 size-3.5" />
-										<span>Open Pull Request #{pr.number}</span>
+										<span>{t("changes.openPullRequest", { number: pr.number })}</span>
 									</DropdownMenuItem>
 								)}
 
@@ -792,7 +805,7 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 										className="text-xs"
 									>
 										<GitMerge className="mr-2 size-3.5" />
-										<span>{isMergingPr ? "Merging..." : "Merge Pull Request"}</span>
+										<span>{isMergingPr ? t("changes.merging") : t("changes.mergePullRequest")}</span>
 									</DropdownMenuItem>
 								)}
 
@@ -803,7 +816,7 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 										className="text-xs text-yellow-600 dark:text-yellow-500"
 									>
 										<GitMerge className="mr-2 size-3.5" />
-										<span>Fix Merge Conflicts</span>
+										<span>{t("changes.fixMergeConflicts")}</span>
 									</DropdownMenuItem>
 								)}
 							</DropdownMenuContent>
@@ -822,7 +835,7 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 								"h-6 w-6 p-0 rounded-r-none border-0",
 								viewMode !== "split" && "hover:bg-foreground/10"
 							)}
-							title="Split view"
+							title={t("changes.splitView")}
 						>
 							<Columns2 className="size-3.5" />
 						</Button>
@@ -834,7 +847,7 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 								"h-6 w-6 p-0 rounded-l-none border-0 border-l border-input",
 								viewMode !== "unified" && "hover:bg-foreground/10"
 							)}
-							title="Unified view"
+							title={t("changes.unifiedView")}
 						>
 							<Rows2 className="size-3.5" />
 						</Button>
@@ -861,7 +874,7 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 								className="text-xs"
 							>
 								<IconReview className="mr-2 size-3.5" />
-								<span>{isReviewing ? "Reviewing..." : "Review changes"}</span>
+								<span>{isReviewing ? t("changes.reviewing") : t("changes.reviewChanges")}</span>
 							</DropdownMenuItem>
 						)}
 
@@ -877,7 +890,7 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 								className="text-xs"
 							>
 								<RefreshCw className="mr-2 size-3.5" />
-								<span>Refresh diff view</span>
+								<span>{t("changes.refreshDiffView")}</span>
 							</DropdownMenuItem>
 						)}
 
@@ -892,7 +905,7 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 								<DropdownMenuSub>
 									<DropdownMenuSubTrigger className="text-xs">
 										<Eye className="mr-2 size-3.5" />
-										<span>View</span>
+										<span>{t("changes.view")}</span>
 									</DropdownMenuSubTrigger>
 									<DropdownMenuSubContent>
 										<DropdownMenuItem
@@ -900,14 +913,14 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 											className={cn("text-xs", viewMode === "split" && "bg-muted")}
 										>
 											<Columns2 className="mr-2 size-3.5" />
-											<span>Split view</span>
+											<span>{t("changes.splitView")}</span>
 										</DropdownMenuItem>
 										<DropdownMenuItem
 											onClick={() => onViewModeChange("unified")}
 											className={cn("text-xs", viewMode === "unified" && "bg-muted")}
 										>
 											<Rows2 className="mr-2 size-3.5" />
-											<span>Unified view</span>
+											<span>{t("changes.unifiedView")}</span>
 										</DropdownMenuItem>
 									</DropdownMenuSubContent>
 								</DropdownMenuSub>
@@ -922,7 +935,7 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 								className="text-xs"
 							>
 								<ChevronsUpDown className="mr-2 size-3.5" />
-								<span>Expand all</span>
+								<span>{t("changes.expandAll")}</span>
 							</DropdownMenuItem>
 						)}
 						{onCollapseAll && (
@@ -931,7 +944,7 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 								className="text-xs"
 							>
 								<ChevronsDownUp className="mr-2 size-3.5" />
-								<span>Collapse all</span>
+								<span>{t("changes.collapseAll")}</span>
 							</DropdownMenuItem>
 						)}
 
@@ -945,7 +958,7 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 								className="text-xs"
 							>
 								<Check className="mr-2 size-3.5" />
-								<span>Mark all as viewed</span>
+								<span>{t("changes.markAllViewed")}</span>
 							</DropdownMenuItem>
 						)}
 						{onMarkAllUnviewed && viewedCount > 0 && (
@@ -954,7 +967,7 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 								className="text-xs"
 							>
 								<Square className="mr-2 size-3.5" />
-								<span>Mark all as unviewed</span>
+								<span>{t("changes.markAllUnviewed")}</span>
 							</DropdownMenuItem>
 						)}
 					</DropdownMenuContent>

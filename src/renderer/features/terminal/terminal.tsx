@@ -25,6 +25,7 @@ import { sanitizeForTitle } from "./commandBuffer"
 import { shellEscapePaths } from "./utils"
 import { TerminalSearch } from "./TerminalSearch"
 import type { TerminalProps, TerminalStreamEvent } from "./types"
+import { translateCurrentLocale } from "@/lib/i18n"
 import "xterm/css/xterm.css"
 
 export function Terminal({
@@ -311,16 +312,16 @@ export function Terminal({
 
     const cleanupContextMenu = setupContextMenuHandler(xterm, {
       onCopy: () => {
-        toast.success("Copied to clipboard")
+        toast.success(translateCurrentLocale("common.copiedToClipboard"))
       },
       onPaste: (text) => {
         commandBufferRef.current += text
       },
       onCopyError: () => {
-        toast.error("Failed to copy to clipboard")
+        toast.error(translateCurrentLocale("terminal.copyFailed"))
       },
       onPasteError: () => {
-        toast.error("Failed to paste from clipboard")
+        toast.error(translateCurrentLocale("terminal.pasteFailed"))
       },
     })
 

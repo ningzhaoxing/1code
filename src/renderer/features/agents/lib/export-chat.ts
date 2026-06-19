@@ -1,6 +1,7 @@
 import { trpcClient } from "../../../lib/trpc"
 import { remoteApi } from "../../../lib/remote-api"
 import { toast } from "sonner"
+import { translateCurrentLocale as t } from "../../../lib/i18n"
 
 const MAX_HISTORY_CHARS = 50_000
 
@@ -120,7 +121,7 @@ export async function exportChat({ chatId, subChatId, format, isRemote = false }
         : chat.subChats[0]
 
       if (!subChat) {
-        throw new Error("No chat data found")
+        throw new Error(t("chat.export.noChatData"))
       }
 
       const messages = (subChat.messages || []) as Message[]
@@ -145,13 +146,13 @@ export async function exportChat({ chatId, subChatId, format, isRemote = false }
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
 
-    toast.success("Export complete", {
-      description: `Saved as ${exportData.filename}`,
+    toast.success(t("chat.export.complete"), {
+      description: t("chat.export.savedAs", { filename: exportData.filename }),
     })
   } catch (error) {
     console.error("[exportChat] Error:", error)
-    toast.error("Export failed", {
-      description: error instanceof Error ? error.message : "Unable to export chat",
+    toast.error(t("chat.export.failed"), {
+      description: error instanceof Error ? error.message : t("chat.export.unableToExport"),
     })
   }
 }
@@ -171,7 +172,7 @@ export async function copyChat({ chatId, subChatId, format, isRemote = false }: 
         : chat.subChats[0]
 
       if (!subChat) {
-        throw new Error("No chat data found")
+        throw new Error(t("chat.export.noChatData"))
       }
 
       const messages = (subChat.messages || []) as Message[]
@@ -193,15 +194,15 @@ export async function copyChat({ chatId, subChatId, format, isRemote = false }: 
       if (window.desktopApi?.clipboardWrite) {
         await window.desktopApi.clipboardWrite(exportData.content)
       } else {
-        throw new Error("Clipboard not available")
+        throw new Error(t("chat.export.clipboardUnavailable"))
       }
     }
 
-    toast.success("Copied to clipboard")
+    toast.success(t("common.copiedToClipboard"))
   } catch (error) {
     console.error("[copyChat] Error:", error)
-    toast.error("Copy failed", {
-      description: error instanceof Error ? error.message : "Unable to copy chat",
+    toast.error(t("chat.export.copyFailed"), {
+      description: error instanceof Error ? error.message : t("chat.export.unableToCopy"),
     })
   }
 }

@@ -14,6 +14,7 @@ import { KeyboardIcon } from "../../../components/ui/icons"
 import { DiscordIcon } from "../../../icons"
 import { useSetAtom } from "jotai"
 import { agentsSettingsDialogOpenAtom, agentsSettingsDialogActiveTabAtom } from "../../../lib/atoms"
+import { useI18n } from "../../../lib/i18n"
 
 interface ReleaseHighlight {
   version: string
@@ -60,6 +61,7 @@ export function AgentsHelpPopover({
   onOpenChange: controlledOnOpenChange,
   isMobile = false,
 }: AgentsHelpPopoverProps) {
+  const { t } = useI18n()
   const [internalOpen, setInternalOpen] = useState(false)
   const setSettingsDialogOpen = useSetAtom(agentsSettingsDialogOpenAtom)
   const setSettingsActiveTab = useSetAtom(agentsSettingsDialogActiveTabAtom)
@@ -128,7 +130,7 @@ export function AgentsHelpPopover({
             className="gap-2"
           >
             <KeyboardIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span className="flex-1">Shortcuts</span>
+            <span className="flex-1">{t("common.shortcuts")}</span>
           </DropdownMenuItem>
         )}
 
@@ -136,7 +138,7 @@ export function AgentsHelpPopover({
           <>
             <DropdownMenuSeparator />
             <div className="mx-1 px-1.5 pt-1.5 pb-0.5 text-xs text-muted-foreground">
-              What's new
+              {t("help.whatsNew")}
             </div>
             {highlights.map((item, i) => (
               <DropdownMenuItem
@@ -160,7 +162,7 @@ export function AgentsHelpPopover({
                 <div className="w-1.5 h-1.5 rounded-full bg-foreground shrink-0" />
                 <div className="w-px flex-1 border-l border-dashed border-muted-foreground/30" />
               </div>
-              <span className="flex-1 text-xs pl-2 py-1.5">Full changelog</span>
+              <span className="flex-1 text-xs pl-2 py-1.5">{t("help.fullChangelog")}</span>
               <ArrowUpRight className="h-3 w-3 text-muted-foreground shrink-0 self-center" />
             </DropdownMenuItem>
           </>

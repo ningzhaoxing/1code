@@ -4,6 +4,7 @@ import { useState } from "react";
 import { cn } from "../../../../lib/utils";
 import { IconSpinner } from "../../../../components/ui/icons";
 import { useCommitActions } from "./use-commit-actions";
+import { useI18n } from "../../../../lib/i18n";
 
 interface CommitInputProps {
 	worktreePath: string;
@@ -29,6 +30,7 @@ export function CommitInput({
 	selectedFilePaths,
 	chatId,
 }: CommitInputProps) {
+	const { t } = useI18n();
 	const [summary, setSummary] = useState("");
 	const [description, setDescription] = useState("");
 	const { commit, isPending, isGenerating } = useCommitActions({
@@ -66,18 +68,18 @@ export function CommitInput({
 	// Build dynamic commit label
 	const getCommitLabel = () => {
 		if (stagedCount && stagedCount > 0 && currentBranch) {
-			return `Commit ${stagedCount} to ${currentBranch}`;
+			return t("changes.commitCountToBranch", { count: stagedCount, branch: currentBranch });
 		}
 		if (currentBranch) {
-			return `Commit to ${currentBranch}`;
+			return t("changes.commitToBranch", { branch: currentBranch });
 		}
-		return "Commit";
+		return t("changes.commit");
 	};
 
 	const getTooltip = () => {
-		if (!hasStagedChanges) return "No staged changes";
-		if (!summary.trim()) return "AI will generate commit message";
-		return "Commit staged changes";
+		if (!hasStagedChanges) return t("changes.noStagedChanges");
+		if (!summary.trim()) return t("changes.aiWillGenerateCommitMessage");
+		return t("changes.commitStagedChanges");
 	};
 
 	return (
@@ -85,7 +87,7 @@ export function CommitInput({
 			{/* Summary input - single line */}
 			<input
 				type="text"
-				placeholder="Commit message"
+				placeholder={t("changes.commitMessage")}
 				value={summary}
 				onChange={(e) => setSummary(e.target.value)}
 				className={cn(
@@ -104,7 +106,7 @@ export function CommitInput({
 
 			{/* Description textarea - multiline */}
 			<textarea
-				placeholder="Description"
+				placeholder={t("changes.commitDescription")}
 				value={description}
 				onChange={(e) => setDescription(e.target.value)}
 				className={cn(
@@ -135,7 +137,9 @@ export function CommitInput({
 						{isPending ? (
 							<>
 								<IconSpinner className="h-3 w-3 mr-1.5 animate-spin" />
-								<span className="truncate">{isGenerating ? "Generating..." : "Committing..."}</span>
+								<span className="truncate">
+									{isGenerating ? t("changes.generating") : t("changes.committing")}
+								</span>
 							</>
 						) : (
 							<span className="truncate">{getCommitLabel()}</span>

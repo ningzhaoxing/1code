@@ -810,8 +810,12 @@ export function createWindow(options?: { chatId?: string; subChatId?: string }):
       const url = new URL(devServerUrl)
       buildParams(url.searchParams)
       window.loadURL(url.toString())
-      // Only open devtools for first window in development
-      if (!app.isPackaged && windowId === "main") {
+      // Only open devtools for first window in development unless disabled locally.
+      if (
+        !app.isPackaged &&
+        windowId === "main" &&
+        import.meta.env.MAIN_VITE_DISABLE_DEVTOOLS !== "1"
+      ) {
         window.webContents.openDevTools()
       }
     } else {

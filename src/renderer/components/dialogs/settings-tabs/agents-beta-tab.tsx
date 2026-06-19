@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "../../ui/select"
 import { Switch } from "../../ui/switch"
+import { useI18n } from "../../../lib/i18n"
 
 // Hook to detect narrow screen
 function useIsNarrowScreen(): boolean {
@@ -65,6 +66,7 @@ export function AgentsBetaTab() {
   const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "available" | "not-available" | "error">("idle")
   const [updateVersion, setUpdateVersion] = useState<string | null>(null)
   const [currentVersion, setCurrentVersion] = useState<string | null>(null)
+  const { t } = useI18n()
 
   // Get current version on mount and sync update channel state
   useEffect(() => {
@@ -117,9 +119,11 @@ export function AgentsBetaTab() {
       {/* Header - hidden on narrow screens since it's in the navigation bar */}
       {!isNarrowScreen && (
         <div className="flex flex-col space-y-1.5 text-center sm:text-left">
-          <h3 className="text-sm font-semibold text-foreground">Beta Features</h3>
+          <h3 className="text-sm font-semibold text-foreground">
+            {t("settings.beta.title")}
+          </h3>
           <p className="text-xs text-muted-foreground">
-            Enable experimental features. These may be unstable or change without notice.
+            {t("settings.beta.description")}
           </p>
         </div>
       )}
@@ -130,10 +134,10 @@ export function AgentsBetaTab() {
         <div className="flex items-center justify-between p-4">
           <div className="flex flex-col space-y-1">
             <span className="text-sm font-medium text-foreground">
-              Rollback
+              {t("settings.beta.rollback.title")}
             </span>
             <span className="text-xs text-muted-foreground">
-              Allow rolling back to previous messages and restoring files.
+              {t("settings.beta.rollback.description")}
             </span>
           </div>
           <Switch
@@ -146,10 +150,10 @@ export function AgentsBetaTab() {
         <div className="flex items-center justify-between p-4 border-t border-border">
           <div className="flex flex-col space-y-1">
             <span className="text-sm font-medium text-foreground">
-              Offline Mode
+              {t("settings.beta.offlineMode.title")}
             </span>
             <span className="text-xs text-muted-foreground">
-              Enable offline mode UI and Ollama integration.
+              {t("settings.beta.offlineMode.description")}
             </span>
           </div>
           <Switch
@@ -162,12 +166,12 @@ export function AgentsBetaTab() {
         <div className="flex items-center justify-between p-4 border-t border-border">
           <div className="flex flex-col space-y-1">
             <span className={cn("text-sm font-medium", canEnableAutomations ? "text-foreground" : "text-muted-foreground")}>
-              Automations & Inbox
+              {t("settings.beta.automations.title")}
             </span>
             <span className="text-xs text-muted-foreground">
               {canEnableAutomations
-                ? "Automate workflows with GitHub and Linear triggers, and manage inbox notifications."
-                : "Requires a paid plan. Upgrade to enable automations and inbox."}
+                ? t("settings.beta.automations.enabled")
+                : t("settings.beta.automations.disabled")}
             </span>
           </div>
           <Switch
@@ -187,7 +191,9 @@ export function AgentsBetaTab() {
       {showOfflineFeatures && (
         <div className="space-y-2">
           <div className="pb-2">
-            <h4 className="text-sm font-medium text-foreground">Offline Mode Settings</h4>
+            <h4 className="text-sm font-medium text-foreground">
+              {t("settings.beta.offlineSettings.title")}
+            </h4>
           </div>
 
           <div className="bg-background rounded-lg border border-border overflow-hidden">
@@ -196,24 +202,34 @@ export function AgentsBetaTab() {
               <div className="flex items-center justify-between gap-4">
                 <div className="flex-1">
                   <span className="text-sm font-medium text-foreground">
-                    Ollama Status
+                    {t("settings.beta.ollamaStatus.title")}
                   </span>
                   <p className="text-xs text-muted-foreground">
                     {ollamaStatus?.ollama.available
-                      ? `Running - ${ollamaStatus.ollama.models.length} model${ollamaStatus.ollama.models.length !== 1 ? 's' : ''} installed`
-                      : 'Not running or not installed'}
+                      ? t("settings.beta.ollamaStatus.running", {
+                          count: ollamaStatus.ollama.models.length,
+                          modelWord:
+                            ollamaStatus.ollama.models.length !== 1
+                              ? t("settings.beta.model.wordPlural")
+                              : t("settings.beta.model.wordSingular"),
+                        })
+                      : t("settings.beta.ollamaStatus.notRunning")}
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5">
                   {ollamaStatus?.ollama.available ? (
                     <>
                       <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                      <span className="text-sm text-emerald-500">Available</span>
+                      <span className="text-sm text-emerald-500">
+                        {t("settings.beta.ollamaStatus.available")}
+                      </span>
                     </>
                   ) : (
                     <>
                       <span className="h-2 w-2 rounded-full bg-muted-foreground/50" />
-                      <span className="text-sm text-muted-foreground">Unavailable</span>
+                      <span className="text-sm text-muted-foreground">
+                        {t("settings.beta.ollamaStatus.unavailable")}
+                      </span>
                     </>
                   )}
                 </div>
@@ -224,10 +240,10 @@ export function AgentsBetaTab() {
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <span className="text-sm font-medium text-foreground">
-                      Model
+                      {t("settings.beta.model.title")}
                     </span>
                     <p className="text-xs text-muted-foreground">
-                      Select which model to use for offline mode
+                      {t("settings.beta.model.description")}
                     </p>
                   </div>
                   <Select
@@ -235,7 +251,7 @@ export function AgentsBetaTab() {
                     onValueChange={(value) => setSelectedOllamaModel(value)}
                   >
                     <SelectTrigger className="w-auto shrink-0">
-                      <SelectValue placeholder="Select model" />
+                      <SelectValue placeholder={t("settings.beta.model.select")} />
                     </SelectTrigger>
                     <SelectContent>
                       {ollamaStatus.ollama.models.map((model) => {
@@ -245,7 +261,9 @@ export function AgentsBetaTab() {
                             <span className="truncate">
                               {model}
                               {isRecommended && (
-                                <span className="text-muted-foreground ml-1 text-xs">(recommended)</span>
+                                <span className="text-muted-foreground ml-1 text-xs">
+                                  ({t("settings.beta.model.recommended")})
+                                </span>
                               )}
                             </span>
                           </SelectItem>
@@ -260,10 +278,10 @@ export function AgentsBetaTab() {
               <div className="flex items-center justify-between gap-4">
                 <div className="flex-1">
                   <span className="text-sm font-medium text-foreground">
-                    Auto Offline Mode
+                    {t("settings.beta.autoOffline.title")}
                   </span>
                   <p className="text-xs text-muted-foreground">
-                    Automatically use Ollama when internet is unavailable
+                    {t("settings.beta.autoOffline.description")}
                   </p>
                 </div>
                 <Switch
@@ -274,10 +292,12 @@ export function AgentsBetaTab() {
 
               {/* Installation instructions - always show */}
               <div className="text-xs text-muted-foreground bg-muted p-3 rounded space-y-2">
-                <p className="font-medium">Setup Instructions:</p>
+                <p className="font-medium">{t("settings.beta.setup.title")}</p>
                 <ol className="list-decimal list-inside space-y-1 ml-2">
                   <li>
-                    Install Ollama {MINIMUM_OLLAMA_VERSION}+ from{" "}
+                    {t("settings.beta.setup.install", {
+                      version: MINIMUM_OLLAMA_VERSION,
+                    })}{" "}
                     <a
                       href="https://ollama.com"
                       target="_blank"
@@ -289,14 +309,14 @@ export function AgentsBetaTab() {
                     </a>
                   </li>
                   <li>
-                    Pull the recommended model:{" "}
+                    {t("settings.beta.setup.pull")}{" "}
                     <code className="relative inline-flex items-center gap-1 bg-background pl-1.5 pr-0.5 py-0.5 rounded-md">
                       <span>ollama pull {RECOMMENDED_MODEL}</span>
                       <button
                         type="button"
                         onClick={handleCopy}
                         className="p-1 hover:bg-muted rounded transition-colors"
-                        title={copied ? "Copied!" : "Copy command"}
+                        title={copied ? t("settings.beta.copy.copied") : t("settings.beta.copy.command")}
                       >
                         <div className="relative w-3 h-3">
                           <Copy
@@ -315,7 +335,7 @@ export function AgentsBetaTab() {
                       </button>
                     </code>
                   </li>
-                  <li>Ollama will run automatically in the background</li>
+                  <li>{t("settings.beta.setup.background")}</li>
                 </ol>
               </div>
             </div>
@@ -326,9 +346,11 @@ export function AgentsBetaTab() {
       {/* Updates Section */}
       <div className="space-y-2">
         <div className="pb-2">
-          <h4 className="text-sm font-medium text-foreground">Updates</h4>
+          <h4 className="text-sm font-medium text-foreground">
+            {t("settings.beta.updates.title")}
+          </h4>
           <p className="text-xs text-muted-foreground mt-1">
-            Check for new versions manually (bypasses CDN cache)
+            {t("settings.beta.updates.description")}
           </p>
         </div>
 
@@ -336,10 +358,10 @@ export function AgentsBetaTab() {
           <div className="flex items-center justify-between p-4">
             <div className="flex flex-col space-y-1">
               <span className="text-sm font-medium text-foreground">
-                Early Access
+                {t("settings.beta.earlyAccess.title")}
               </span>
               <span className="text-xs text-muted-foreground">
-                Receive beta versions before they're released to everyone. Beta versions may be less stable.
+                {t("settings.beta.earlyAccess.description")}
               </span>
             </div>
             <Switch
@@ -355,14 +377,19 @@ export function AgentsBetaTab() {
             <div className="flex items-center justify-between">
               <div className="flex flex-col space-y-1">
                 <span className="text-sm font-medium text-foreground">
-                  {currentVersion ? `Current: v${currentVersion}` : "Version"}
+                  {currentVersion
+                    ? t("settings.beta.version.current", { version: currentVersion })
+                    : t("settings.beta.version.label")}
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  {updateStatus === "checking" && "Checking for updates..."}
-                  {updateStatus === "available" && `Update available: v${updateVersion}`}
-                  {updateStatus === "not-available" && "You're on the latest version"}
-                  {updateStatus === "error" && "Failed to check (dev mode?)"}
-                  {updateStatus === "idle" && "Click to check for updates"}
+                  {updateStatus === "checking" && t("settings.beta.updateStatus.checking")}
+                  {updateStatus === "available" &&
+                    t("settings.beta.updateStatus.available", {
+                      version: updateVersion ?? "",
+                    })}
+                  {updateStatus === "not-available" && t("settings.beta.updateStatus.latest")}
+                  {updateStatus === "error" && t("settings.beta.updateStatus.error")}
+                  {updateStatus === "idle" && t("settings.beta.updateStatus.idle")}
                 </span>
               </div>
               <Button
@@ -372,7 +399,9 @@ export function AgentsBetaTab() {
                 disabled={updateStatus === "checking"}
               >
                 <RefreshCw className={cn("h-4 w-4 mr-2", updateStatus === "checking" && "animate-spin")} />
-                {updateStatus === "checking" ? "Checking..." : "Check Now"}
+                {updateStatus === "checking"
+                  ? t("settings.beta.updateStatus.checkingButton")
+                  : t("settings.beta.updateStatus.checkNow")}
               </Button>
             </div>
           </div>

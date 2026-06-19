@@ -5,6 +5,7 @@ import { GitCommit } from "lucide-react"
 import { IconSpinner, DiffIcon } from "@/components/ui/icons"
 import { cn } from "@/lib/utils"
 import { getFileIconByExtension } from "@/features/agents/mentions/agents-file-mention"
+import { useI18n } from "@/lib/i18n"
 
 /** Parsed diff file type */
 interface ParsedDiffFile {
@@ -55,6 +56,7 @@ export function DiffSection({
   isCommitting = false,
   isExpanded = false,
 }: DiffSectionProps) {
+  const { t } = useI18n()
   const hasChanges = diffStats && diffStats.fileCount > 0
   const files = parsedFileDiffs || []
 
@@ -159,7 +161,10 @@ export function DiffSection({
                   className="text-xs text-muted-foreground hover:text-foreground py-1 px-1.5 w-full text-left font-mono"
                   onClick={() => setIsDiffSidebarOpen(true)}
                 >
-                  +{remainingCount} more file{remainingCount !== 1 ? "s" : ""}...
+                  {t("files.moreFiles", {
+                    count: remainingCount,
+                    item: t(remainingCount === 1 ? "files.fileSingular" : "files.filePlural"),
+                  })}
                 </button>
               )}
             </div>
@@ -193,14 +198,14 @@ export function DiffSection({
               onClick={() => setIsDiffSidebarOpen(true)}
             >
               <DiffIcon className="h-3 w-3 mr-1.5" />
-              View All
+              {t("changes.viewAll")}
             </Button>
           </div>
         </div>
       ) : (
         <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
           <DiffIcon className="h-3.5 w-3.5" />
-          <span>No changes</span>
+          <span>{t("changes.noChanges")}</span>
         </div>
       )}
     </div>

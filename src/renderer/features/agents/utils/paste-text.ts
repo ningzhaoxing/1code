@@ -1,4 +1,5 @@
 import { toast } from "sonner"
+import { translateCurrentLocale } from "@/lib/i18n"
 
 // Threshold for auto-converting large pasted text to a file (5KB)
 // Text larger than this will be saved as a file attachment instead of pasted inline
@@ -41,19 +42,19 @@ export function insertTextAtCursor(text: string, editableElement: Element): void
 
     if (availableSpace === 0) {
       // No space left at all
-      toast.warning("Cannot paste: input is full", {
-        description: "Please clear some text or attach content as a file instead.",
+      toast.warning(translateCurrentLocale("paste.inputFull"), {
+        description: translateCurrentLocale("paste.clearOrAttach"),
       })
       return
     } else if (text.length > VERY_LARGE_THRESHOLD) {
       const originalMB = (text.length / 1_000_000).toFixed(1)
-      toast.warning(`Text truncated`, {
-        description: `Original text was ${originalMB}MB. Please attach as a file instead.`,
+      toast.warning(translateCurrentLocale("paste.textTruncated"), {
+        description: translateCurrentLocale("paste.originalTextWasMb", { size: originalMB }),
       })
     } else {
       const truncatedKB = Math.round(effectiveLimit / 1024)
-      toast.warning(`Text truncated to ${truncatedKB}KB`, {
-        description: `Original text was ${originalKB}KB. Consider attaching as a file instead.`,
+      toast.warning(translateCurrentLocale("paste.textTruncatedTo", { size: truncatedKB }), {
+        description: translateCurrentLocale("paste.originalTextWasKb", { size: originalKB }),
       })
     }
   }

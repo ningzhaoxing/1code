@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils"
 import { trpc } from "@/lib/trpc"
 import { preferredEditorAtom } from "@/lib/atoms"
 import { useResolvedHotkeyDisplay } from "@/lib/hotkeys"
+import { useI18n } from "@/lib/i18n"
 import { APP_META } from "../../../../shared/external-apps"
 import { ChatMarkdownRenderer } from "@/components/chat-markdown-renderer"
 import { CopyButton } from "../../agents/ui/message-action-buttons"
@@ -55,6 +56,7 @@ export function MarkdownViewer({
   projectPath,
   onClose,
 }: MarkdownViewerProps) {
+  const { t } = useI18n()
   const fileName = getFileName(filePath)
   const { resolvedTheme } = useTheme()
   const monacoTheme = getMonacoTheme(resolvedTheme || "dark")
@@ -132,7 +134,7 @@ export function MarkdownViewer({
         <div className="flex-1 flex items-center justify-center">
           <div className="flex flex-col items-center gap-3 text-muted-foreground">
             <Loader2 className="h-8 w-8 animate-spin" />
-            <span className="text-sm">Loading file...</span>
+            <span className="text-sm">{t("files.loadingFile")}</span>
           </div>
         </div>
       </div>
@@ -225,6 +227,7 @@ function Header({
   onClose: () => void
   content?: string
 }) {
+  const { t } = useI18n()
   const Icon = getFileIconByExtension(filePath)
   const [displayMode, setDisplayMode] = useAtom(fileViewerDisplayModeAtom)
   const preferredEditor = useAtomValue(preferredEditorAtom)
@@ -314,7 +317,7 @@ function Header({
               onClick={handleOpenInEditor}
               className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer rounded-md px-1.5 py-1 hover:bg-accent hover:text-accent-foreground transition-colors"
             >
-              <span className="hidden @[400px]:inline">Open in</span>
+              <span className="hidden @[400px]:inline">{t("info.openIn")}</span>
               {EDITOR_ICONS[preferredEditor] && (
                 <img
                   src={EDITOR_ICONS[preferredEditor]}
@@ -325,7 +328,7 @@ function Header({
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom" showArrow={false}>
-            Open in {editorMeta.label}
+            {t("info.openInApp", { app: editorMeta.label })}
             {openInEditorHotkey && <Kbd className="normal-case font-sans">{openInEditorHotkey}</Kbd>}
           </TooltipContent>
         </Tooltip>
@@ -339,7 +342,7 @@ function Header({
                 size="icon"
                 onClick={onToggleView}
                 className="h-6 w-6 p-0 hover:bg-foreground/10 text-muted-foreground hover:text-foreground"
-                aria-label={showPreview ? "Show source" : "Show rendered"}
+                aria-label={showPreview ? t("files.showSource") : t("files.showRendered")}
               >
                 <div className="relative w-4 h-4">
                   <MarkdownIcon
@@ -386,13 +389,13 @@ function Header({
                 size="icon"
                 onClick={handleDownload}
                 className="h-6 w-6 p-0 hover:bg-foreground/10 text-muted-foreground hover:text-foreground"
-                aria-label="Download markdown"
+                aria-label={t("files.downloadMarkdown")}
               >
                 <Download className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom" showArrow={false}>
-              Download Markdown
+              {t("files.downloadMarkdown")}
             </TooltipContent>
           </Tooltip>
         )}

@@ -12,6 +12,7 @@ import { cn } from "../../../lib/utils"
 import type { AgentQueueItem } from "../lib/queue-utils"
 import { RenderFileMentions } from "../mentions/render-file-mentions"
 import { getWindowId } from "../../../contexts/WindowContext"
+import { useI18n } from "../../../lib/i18n"
 
 // Window-scoped key so each window has its own queue expanded state
 const getQueueExpandedKey = () => `${getWindowId()}:agent-queue-expanded`
@@ -26,6 +27,7 @@ const QueueItemRow = memo(function QueueItemRow({
   onRemove?: (itemId: string) => void
   onSendNow?: (itemId: string) => void
 }) {
+  const { t } = useI18n()
   const handleRemove = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation()
@@ -93,7 +95,7 @@ const QueueItemRow = memo(function QueueItemRow({
                 <ArrowUp className="w-3.5 h-3.5" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="top">Send now</TooltipContent>
+            <TooltipContent side="top">{t("chat.send.sendNow")}</TooltipContent>
           </Tooltip>
         )}
         {onRemove && (
@@ -106,7 +108,7 @@ const QueueItemRow = memo(function QueueItemRow({
                 <X className="w-3.5 h-3.5" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="top">Remove</TooltipContent>
+            <TooltipContent side="top">{t("chat.queue.remove")}</TooltipContent>
           </Tooltip>
         )}
       </div>

@@ -18,6 +18,7 @@ import {
   agentsSettingsDialogOpenAtom,
   selectedAgentChatIdAtom,
 } from "../../../lib/atoms"
+import { useI18n } from "../../../lib/i18n"
 
 function useIsNarrowScreen(): boolean {
   const [isNarrow, setIsNarrow] = useState(false)
@@ -36,6 +37,7 @@ function useIsNarrowScreen(): boolean {
 }
 
 export function AgentsWorktreesTab() {
+  const { t } = useI18n()
   const isNarrowScreen = useIsNarrowScreen()
 
   // Get projects list
@@ -54,11 +56,11 @@ export function AgentsWorktreesTab() {
   // Save mutation
   const saveMutation = trpc.worktreeConfig.save.useMutation({
     onSuccess: () => {
-      toast.success("Worktree config saved")
+      toast.success(t("settings.worktrees.toast.configSaved"))
       refetchConfig()
     },
     onError: (err) => {
-      toast.error(`Failed to save: ${err.message}`)
+      toast.error(t("settings.worktrees.toast.saveFailed", { message: err.message }))
     },
   })
 

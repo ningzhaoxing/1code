@@ -15,8 +15,9 @@ import { toast } from "sonner"
 import { cn } from "../../../../lib/utils"
 import { Eye, EyeOff, Trash2 } from "lucide-react"
 import { DeleteServerConfirm } from "./delete-server-confirm"
-import { StatusDot, getStatusText } from "./mcp-server-row"
+import { StatusDot } from "./mcp-server-row"
 import type { McpServer, ScopeType } from "./types"
+import { useI18n } from "../../../../lib/i18n"
 
 interface EditMcpServerDialogProps {
   open: boolean
@@ -37,6 +38,7 @@ export function EditMcpServerDialog({
   onServerUpdated,
   onServerDeleted,
 }: EditMcpServerDialogProps) {
+  const { t } = useI18n()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [bearerToken, setBearerToken] = useState("")
   const [showToken, setShowToken] = useState(false)
@@ -57,6 +59,22 @@ export function EditMcpServerDialog({
 
   const isConnected = server.status === "connected"
   const hasTools = server.tools.length > 0
+  const statusText = (() => {
+    switch (server.status) {
+      case "connected":
+        return t("settings.mcp.status.connected")
+      case "failed":
+        return t("settings.mcp.status.failed")
+      case "needs-auth":
+        return t("settings.mcp.status.needsAuth")
+      case "pending":
+        return t("settings.mcp.status.connecting")
+      case "disabled":
+        return t("settings.mcp.status.disabled")
+      default:
+        return server.status
+    }
+  })()
 
   const handleToggleEnabled = async (enabled: boolean) => {
     try {
@@ -66,11 +84,13 @@ export function EditMcpServerDialog({
         projectPath,
         disabled: !enabled,
       })
-      toast.success(enabled ? "Server enabled" : "Server disabled")
+      toast.success(
+        enabled ? t("settings.common.enabled") : t("settings.common.disabled"),
+      )
       onServerUpdated?.()
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Failed to update server"
+        error instanceof Error ? error.message : t("settings.common.save")
       toast.error(message)
     }
   }
@@ -85,12 +105,12 @@ export function EditMcpServerDialog({
         projectPath,
         token: bearerToken.trim(),
       })
-      toast.success("Bearer token saved")
+      toast.success(t("settings.common.save"))
       setBearerToken("")
       onServerUpdated?.()
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Failed to save token"
+        error instanceof Error ? error.message : t("settings.common.save")
       toast.error(message)
     } finally {
       setIsSavingToken(false)
@@ -105,14 +125,14 @@ export function EditMcpServerDialog({
         projectPath: projectPath ?? "__global__",
       })
       if (result.success) {
-        toast.success("Authentication started, check your browser")
+        toast.success(t("settings.mcp.auth.startOauthFlow"))
         onServerUpdated?.()
       } else {
-        toast.error(result.error || "OAuth failed")
+        toast.error(result.error || t("settings.mcp.auth.oauth"))
       }
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Authentication failed"
+        error instanceof Error ? error.message : t("settings.mcp.auth")
       toast.error(message)
     } finally {
       setIsStartingOAuth(false)
@@ -126,12 +146,12 @@ export function EditMcpServerDialog({
         scope,
         projectPath,
       })
-      toast.success("Server removed", { description: server.name })
+      toast.success(t("settings.mcp.deleteServer"), { description: server.name })
       onOpenChange(false)
       onServerDeleted?.()
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Failed to remove server"
+        error instanceof Error ? error.message : t("settings.mcp.deleteServer")
       toast.error(message)
     }
   }
@@ -146,7 +166,7 @@ export function EditMcpServerDialog({
               {server.name}
             </DialogTitle>
             <DialogDescription>
-              {getStatusText(server.status)}
+              {statusText}
               {server.serverInfo?.version && ` - v${server.serverInfo.version}`}
             </DialogDescription>
           </DialogHeader>
@@ -155,9 +175,9 @@ export function EditMcpServerDialog({
             {/* Enable/Disable */}
             <div className="flex items-center justify-between">
               <div>
-                <Label>Enabled</Label>
+                <Label>{t("settings.common.enabled")}</Label>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Disable to prevent this server from connecting
+                  {t("settings.mcp.enabled.description")}
                 </p>
               </div>
               <Switch
@@ -169,7 +189,7 @@ export function EditMcpServerDialog({
             {/* Error */}
             {server.error && (
               <div>
-                <Label className="text-red-500">Error</Label>
+                <Label className="text-red-500">{t("settings.mcp.error")}</Label>
                 <div className="mt-1.5 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2">
                   <p className="text-xs text-red-400 font-mono break-all">
                     {server.error}
@@ -180,7 +200,7 @@ export function EditMcpServerDialog({
 
             {/* Authentication */}
             <div className="space-y-3">
-              <Label>Authentication</Label>
+              <Label>{t("settings.mcp.auth")}</Label>
               <div className="space-y-2">
                 <Button
                   variant="outline"
@@ -189,7 +209,9 @@ export function EditMcpServerDialog({
                   onClick={handleStartOAuth}
                   disabled={isStartingOAuth}
                 >
-                  {isStartingOAuth ? "Starting OAuth..." : "Start OAuth Flow"}
+                  {isStartingOAuth
+                    ? t("settings.mcp.auth.startingOauth")
+                    : t("settings.mcp.auth.startOauthFlow")}
                 </Button>
 
                 <div className="relative">
@@ -197,7 +219,7 @@ export function EditMcpServerDialog({
                     type={showToken ? "text" : "password"}
                     value={bearerToken}
                     onChange={(e) => setBearerToken(e.target.value)}
-                    placeholder="Set bearer token..."
+                    placeholder={t("settings.mcp.auth.setBearerToken")}
                     className="font-mono pr-20"
                   />
                   <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
@@ -219,7 +241,7 @@ export function EditMcpServerDialog({
                       onClick={handleSetBearerToken}
                       disabled={!bearerToken.trim() || isSavingToken}
                     >
-                      {isSavingToken ? "..." : "Set"}
+                      {isSavingToken ? "..." : t("settings.mcp.auth.set")}
                     </Button>
                   </div>
                 </div>
@@ -229,7 +251,9 @@ export function EditMcpServerDialog({
             {/* Tools list */}
             {hasTools && (
               <div>
-                <Label>Tools ({server.tools.length})</Label>
+                <Label>
+                  {t("settings.mcp.tools")} ({server.tools.length})
+                </Label>
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   {server.tools.map((tool) => {
                     const toolName = typeof tool === "string" ? tool : tool.name
@@ -255,7 +279,7 @@ export function EditMcpServerDialog({
                 onClick={() => setShowDeleteConfirm(true)}
               >
                 <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                Delete Server
+                {t("settings.mcp.deleteServer")}
               </Button>
             </div>
           </div>

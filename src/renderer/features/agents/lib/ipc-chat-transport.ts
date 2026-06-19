@@ -15,6 +15,7 @@ import {
   sessionInfoAtom,
   showOfflineModeFeaturesAtom,
 } from "../../../lib/atoms"
+import { translateCurrentLocale as t, type TranslationKey } from "../../../lib/i18n"
 import { appStore } from "../../../lib/jotai-store"
 import { trpcClient } from "../../../lib/trpc"
 import {
@@ -120,6 +121,68 @@ const ERROR_TOAST_CONFIG: Record<
   // SDK_ERROR and other unknown errors use chunk.errorText for description
 }
 
+const ERROR_TOAST_TRANSLATION_KEYS: Record<
+  string,
+  {
+    title: TranslationKey
+    description: TranslationKey
+    actionLabel?: TranslationKey
+  }
+> = {
+  AUTH_FAILED_SDK: {
+    title: "chat.transport.notLoggedIn",
+    description: "chat.transport.runClaudeLogin",
+    actionLabel: "chat.transport.copyCommand",
+  },
+  INVALID_API_KEY_SDK: {
+    title: "chat.transport.invalidApiKey",
+    description: "chat.transport.invalidClaudeApiKey",
+  },
+  INVALID_API_KEY: {
+    title: "chat.transport.invalidApiKey",
+    description: "chat.transport.invalidClaudeApiKey",
+  },
+  RATE_LIMIT_SDK: {
+    title: "chat.transport.sessionLimitReached",
+    description: "chat.transport.claudeUsageLimit",
+    actionLabel: "chat.transport.viewUsage",
+  },
+  RATE_LIMIT: {
+    title: "chat.transport.sessionLimitReached",
+    description: "chat.transport.claudeUsageLimit",
+    actionLabel: "chat.transport.viewUsage",
+  },
+  OVERLOADED_SDK: {
+    title: "chat.transport.claudeBusy",
+    description: "chat.transport.claudeBusyDescription",
+  },
+  PROCESS_CRASH: {
+    title: "chat.transport.claudeCrashed",
+    description: "chat.transport.claudeCrashedDescription",
+  },
+  SESSION_EXPIRED: {
+    title: "chat.transport.sessionExpired",
+    description: "chat.transport.sessionExpiredDescription",
+  },
+  EXECUTABLE_NOT_FOUND: {
+    title: "chat.transport.claudeCliNotFound",
+    description: "chat.transport.claudeCliInstall",
+    actionLabel: "chat.transport.copyCommand",
+  },
+  NETWORK_ERROR: {
+    title: "chat.transport.networkError",
+    description: "chat.transport.networkErrorDescription",
+  },
+  AUTH_FAILURE: {
+    title: "chat.transport.authenticationFailed",
+    description: "chat.transport.authExpiredDescription",
+  },
+  USAGE_POLICY_VIOLATION: {
+    title: "chat.transport.anthropicHiccup",
+    description: "chat.transport.anthropicHiccupDescription",
+  },
+}
+
 type UIMessageChunk = any // Inferred from subscription
 
 type IPCChatTransportConfig = {
@@ -219,8 +282,8 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
         modelPrompt = buildSecurityMiningModelPrompt(prompt, record.filePath)
       } catch (error) {
         console.error("[security-mining-record] Failed to prepare record:", error)
-        toast.error("Failed to prepare vulnerability record", {
-          description: error instanceof Error ? error.message : "Unknown error",
+        toast.error(t("chat.transport.prepareRecordFailed"), {
+          description: error instanceof Error ? error.message : t("common.unknownError"),
         })
       }
     }
@@ -395,8 +458,8 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
 
               // Handle retry notification - show friendly toast instead of scary error
               if (chunk.type === "retry-notification") {
-                toast.info("Retrying request", {
-                  description: chunk.message || "Request was unsuccessful, trying again...",
+                toast.info(t("chat.transport.retryingRequest"), {
+                  description: chunk.message || t("chat.transport.retryingRequestDescription"),
                   duration: 4000,
                 })
                 return // don't enqueue retry-notification as a stream chunk
@@ -451,7 +514,10 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
 
                 // Show toast based on error category
                 const config = ERROR_TOAST_CONFIG[category]
-                const title = config?.title || "Claude error"
+                const translation = ERROR_TOAST_TRANSLATION_KEYS[category]
+                const title = translation
+                  ? t(translation.title)
+                  : config?.title || t("chat.transport.claudeError")
                 // For auth/API key failures, prefer original backend error to aid debugging
                 const preferOriginalError =
                   category === "AUTH_FAILURE" ||
@@ -459,8 +525,8 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
                   category === "INVALID_API_KEY"
                 // Use config description if set, otherwise fall back to errorText
                 const rawDescription = preferOriginalError
-                  ? chunk.errorText || config?.description || "An unexpected error occurred"
-                  : config?.description || chunk.errorText || "An unexpected error occurred"
+                  ? chunk.errorText || (translation ? t(translation.description) : config?.description) || t("chat.transport.unexpectedError")
+                  : (translation ? t(translation.description) : config?.description) || chunk.errorText || t("chat.transport.unexpectedError")
                 // Truncate long descriptions for toast (keep first 300 chars)
                 const description = rawDescription.length > 300
                   ? rawDescription.slice(0, 300) + "..."
@@ -470,10 +536,10 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
                   description,
                   duration: 12000,
                   action: {
-                    label: "Copy Error",
+                    label: t("chat.transport.copyError"),
                     onClick: () => {
                       navigator.clipboard.writeText(errorDetails)
-                      toast.success("Error details copied to clipboard")
+                      toast.success(t("chat.transport.errorDetailsCopied"))
                     },
                   },
                 })

@@ -11,6 +11,7 @@ import {
 } from "../../../ui/select"
 import { cn } from "../../../../lib/utils"
 import { trpc } from "../../../../lib/trpc"
+import { useI18n } from "../../../../lib/i18n"
 import type {
   McpServerFormData,
   TransportType,
@@ -33,9 +34,10 @@ export function McpServerForm({
   onSubmit,
   onCancel,
   isSubmitting = false,
-  submitLabel = "Add",
+  submitLabel,
   isEditing = false,
 }: McpServerFormProps) {
+  const { t } = useI18n()
   const [name, setName] = useState(initialData?.name ?? "")
   const [scope, setScope] = useState<ScopeType>(initialData?.scope ?? "global")
   const [projectPath, setProjectPath] = useState(initialData?.projectPath ?? "")
@@ -129,7 +131,7 @@ export function McpServerForm({
     <div className="space-y-4">
       {/* Server Name */}
       <div className="space-y-1.5">
-        <Label>Server Name</Label>
+        <Label>{t("settings.mcp.form.serverName")}</Label>
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -140,14 +142,14 @@ export function McpServerForm({
         />
         {!isEditing && (
           <p className="text-[11px] text-muted-foreground">
-            Alphanumeric, dashes, and underscores only
+            {t("settings.mcp.form.nameHint")}
           </p>
         )}
       </div>
 
       {/* Scope */}
       <div className="space-y-1.5">
-        <Label>Scope</Label>
+        <Label>{t("settings.mcp.form.scope")}</Label>
         <div className="flex gap-2">
           <button
             type="button"
@@ -159,7 +161,7 @@ export function McpServerForm({
                 : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/20",
             )}
           >
-            Global
+            {t("settings.mcp.form.global")}
           </button>
           <button
             type="button"
@@ -171,7 +173,7 @@ export function McpServerForm({
                 : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/20",
             )}
           >
-            Project
+            {t("settings.mcp.form.project")}
           </button>
         </div>
       </div>
@@ -179,10 +181,10 @@ export function McpServerForm({
       {/* Project Selector */}
       {scope === "project" && (
         <div className="space-y-1.5">
-          <Label>Project</Label>
+          <Label>{t("settings.common.project")}</Label>
           <Select value={projectPath} onValueChange={setProjectPath}>
             <SelectTrigger>
-              <SelectValue placeholder="Select a project..." />
+              <SelectValue placeholder={t("settings.mcp.form.selectProject")} />
             </SelectTrigger>
             <SelectContent>
               {projectsList?.map((project) => (
@@ -197,7 +199,7 @@ export function McpServerForm({
 
       {/* Transport */}
       <div className="space-y-1.5">
-        <Label>Transport</Label>
+        <Label>{t("settings.mcp.form.transport")}</Label>
         <div className="flex gap-2">
           <button
             type="button"
@@ -209,7 +211,7 @@ export function McpServerForm({
                 : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/20",
             )}
           >
-            Stdio
+            {t("settings.mcp.form.transport.stdio")}
           </button>
           <button
             type="button"
@@ -221,7 +223,7 @@ export function McpServerForm({
                 : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/20",
             )}
           >
-            HTTP
+            {t("settings.mcp.form.transport.http")}
           </button>
         </div>
       </div>
@@ -230,7 +232,7 @@ export function McpServerForm({
       {transport === "stdio" && (
         <>
           <div className="space-y-1.5">
-            <Label>Command</Label>
+            <Label>{t("settings.mcp.form.command")}</Label>
             <Input
               value={command}
               onChange={(e) => setCommand(e.target.value)}
@@ -239,7 +241,7 @@ export function McpServerForm({
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Arguments</Label>
+            <Label>{t("settings.mcp.form.arguments")}</Label>
             <textarea
               value={argsText}
               onChange={(e) => setArgsText(e.target.value)}
@@ -248,11 +250,11 @@ export function McpServerForm({
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono placeholder:text-muted-foreground/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
             />
             <p className="text-[11px] text-muted-foreground">
-              One argument per line
+              {t("settings.mcp.form.arguments.onePerLine")}
             </p>
           </div>
           <div className="space-y-1.5">
-            <Label>Environment Variables</Label>
+            <Label>{t("settings.mcp.form.env")}</Label>
             <textarea
               value={envText}
               onChange={(e) => setEnvText(e.target.value)}
@@ -261,7 +263,7 @@ export function McpServerForm({
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono placeholder:text-muted-foreground/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
             />
             <p className="text-[11px] text-muted-foreground">
-              KEY=value format, one per line
+              {t("settings.mcp.form.env.description")}
             </p>
           </div>
         </>
@@ -271,7 +273,7 @@ export function McpServerForm({
       {transport === "http" && (
         <>
           <div className="space-y-1.5">
-            <Label>URL</Label>
+            <Label>{t("settings.mcp.connection.url")}</Label>
             <Input
               value={url}
               onChange={(e) => setUrl(e.target.value)}
@@ -281,7 +283,7 @@ export function McpServerForm({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Authentication</Label>
+            <Label>{t("settings.mcp.auth")}</Label>
             <div className="flex gap-2">
               {(["none", "oauth", "bearer"] as AuthType[]).map((type) => (
                 <button
@@ -295,7 +297,11 @@ export function McpServerForm({
                       : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/20",
                   )}
                 >
-                  {type === "none" ? "None" : type === "oauth" ? "OAuth" : "Bearer Token"}
+                  {type === "none"
+                    ? t("settings.mcp.auth.none")
+                    : type === "oauth"
+                      ? t("settings.mcp.auth.oauth")
+                      : t("settings.mcp.auth.bearerToken")}
                 </button>
               ))}
             </div>
@@ -303,13 +309,13 @@ export function McpServerForm({
 
           {authType === "bearer" && (
             <div className="space-y-1.5">
-              <Label>Bearer Token</Label>
+              <Label>{t("settings.mcp.auth.bearerToken")}</Label>
               <div className="relative">
                 <Input
                   type={showToken ? "text" : "password"}
                   value={bearerToken}
                   onChange={(e) => setBearerToken(e.target.value)}
-                  placeholder="Enter bearer token..."
+                  placeholder={t("settings.mcp.auth.setBearerToken")}
                   className="font-mono pr-10"
                 />
                 <button
@@ -332,14 +338,14 @@ export function McpServerForm({
       {/* Actions */}
       <div className="flex justify-end gap-2 pt-2">
         <Button variant="ghost" size="sm" onClick={onCancel}>
-          Cancel
+          {t("settings.common.cancel")}
         </Button>
         <Button
           size="sm"
           onClick={handleSubmit}
           disabled={!canSubmit || isSubmitting}
         >
-          {isSubmitting ? "Saving..." : submitLabel}
+          {isSubmitting ? t("settings.common.saving") : submitLabel ?? t("settings.mcp.form.add")}
         </Button>
       </div>
     </div>

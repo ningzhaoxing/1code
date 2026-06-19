@@ -27,6 +27,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "../../../components/ui/popover"
+import { useI18n } from "../../../lib/i18n"
 import { cn } from "../../../lib/utils"
 
 // GitHub avatar with loading placeholder
@@ -122,6 +123,7 @@ const ArchiveChatItem = memo(function ArchiveChatItem({
   onRestore,
   setRef,
 }: ArchiveChatItemProps) {
+  const { t } = useI18n()
   const branch = chat.branch
   // For local chats, use projectsMap; for remote chats, use chat properties directly
   const project = chat.projectId ? projectsMap.get(chat.projectId) : null
@@ -135,7 +137,7 @@ const ArchiveChatItem = memo(function ArchiveChatItem({
     ? repoName
       ? `${repoName} • ${branch}`
       : branch
-    : repoName || "Local project"
+    : repoName || t("chat.localProject")
 
   const handleClick = useCallback(() => {
     onSelect(chat.id)
@@ -184,14 +186,14 @@ const ArchiveChatItem = memo(function ArchiveChatItem({
             <span className="truncate block text-sm leading-tight flex-1">
               {chat.name || (
                 <span className="text-muted-foreground/50">
-                  New workspace
+                  {t("workspace.new.placeholder")}
                 </span>
               )}
             </span>
             <button
               onClick={handleRestore}
               className="flex-shrink-0 text-muted-foreground hover:text-foreground active:text-foreground transition-[color,transform] duration-150 ease-out active:scale-[0.97]"
-              aria-label="Restore chat"
+              aria-label={t("chat.archive.restoreChat")}
             >
               <UnarchiveIcon className="h-3 w-3" />
             </button>
@@ -229,6 +231,7 @@ interface ArchivePopoverProps {
 }
 
 export const ArchivePopover = memo(function ArchivePopover({ trigger }: ArchivePopoverProps) {
+  const { t } = useI18n()
   const [open, setOpen] = useAtom(archivePopoverOpenAtom)
   const [searchQuery, setSearchQuery] = useAtom(archiveSearchQueryAtom)
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -519,7 +522,7 @@ export const ArchivePopover = memo(function ArchivePopover({ trigger }: ArchiveP
             <SearchIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             <Input
               ref={searchInputRef}
-              placeholder="Search..."
+              placeholder={t("chat.search.genericPlaceholder")}
               value={searchQuery}
               onChange={handleSearchChange}
               className="h-auto p-0 border-0 bg-transparent text-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
@@ -531,13 +534,13 @@ export const ArchivePopover = memo(function ArchivePopover({ trigger }: ArchiveP
         <div className="flex-1 overflow-y-auto py-1">
           {isLoading ? (
             <div className="flex items-center justify-center p-8 text-muted-foreground text-sm">
-              Loading...
+              {t("common.loading")}
             </div>
           ) : filteredChats.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <ArchiveIcon className="h-6 w-6 mb-2 text-muted-foreground opacity-40" />
               <p className="text-xs text-muted-foreground opacity-40 pb-10">
-                No archived agents
+                {t("chat.archive.noArchivedAgents")}
               </p>
             </div>
           ) : (

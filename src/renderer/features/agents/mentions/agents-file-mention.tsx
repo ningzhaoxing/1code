@@ -34,6 +34,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "../../../components/ui/tooltip"
+import { useI18n } from "../../../lib/i18n"
 
 // Custom folder icon matching design
 function FolderOpenIcon({ className }: { className?: string }) {
@@ -710,6 +711,7 @@ export const AgentsFileMention = memo(function AgentsFileMention({
   showingAgentsList = false,
   showingToolsList = false,
 }: AgentsFileMentionProps) {
+  const { t } = useI18n()
   const dropdownRef = useRef<HTMLDivElement>(null)
   const [selectedIndex, setSelectedIndex] = useState(0)
   const placementRef = useRef<"above" | "below" | null>(null)
@@ -1196,14 +1198,14 @@ export const AgentsFileMention = memo(function AgentsFileMention({
         {isLoading && options.length === 0 && (
           <div className="flex items-center gap-1.5 h-7 px-1.5 mx-1 text-xs text-muted-foreground">
             <IconSpinner className="h-3.5 w-3.5" />
-            <span>Loading files...</span>
+            <span>{t("chat.files.loading")}</span>
           </div>
         )}
 
         {/* Error state */}
         {error && (
           <div className="h-7 px-1.5 mx-1 flex items-center text-xs text-muted-foreground">
-            Error loading files
+            {t("files.errorLoadingFiles")}
           </div>
         )}
 
@@ -1211,8 +1213,8 @@ export const AgentsFileMention = memo(function AgentsFileMention({
         {!isLoading && !isFetching && !error && options.length === 0 && (
           <div className="h-7 px-1.5 mx-1 flex items-center text-xs text-muted-foreground">
             {debouncedSearchText
-              ? `No files matching "${debouncedSearchText}"`
-              : "No files found"}
+              ? t("files.noFilesMatching", { query: debouncedSearchText })
+              : t("files.noFilesFound")}
           </div>
         )}
 
@@ -1335,4 +1337,3 @@ export const AgentsFileMention = memo(function AgentsFileMention({
     document.body
   )
 })
-

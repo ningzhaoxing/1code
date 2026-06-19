@@ -12,6 +12,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { PlanIcon, DiffIcon, OriginalMCPIcon } from "@/components/ui/icons"
 import { cn } from "@/lib/utils"
+import { useI18n, type TranslationKey } from "@/lib/i18n"
 import {
   WIDGET_REGISTRY,
   widgetVisibilityAtomFamily,
@@ -56,6 +57,7 @@ export function WidgetSettingsPopup({ workspaceId, isRemoteChat = false }: Widge
   )
   const [visibleWidgets, setVisibleWidgets] = useAtom(visibilityAtom)
   const [widgetOrder, setWidgetOrder] = useAtom(orderAtom)
+  const { t } = useI18n()
 
   // Drag state
   const [draggedWidget, setDraggedWidget] = useState<WidgetId | null>(null)
@@ -161,7 +163,7 @@ export function WidgetSettingsPopup({ workspaceId, isRemoteChat = false }: Widge
           size="sm"
           className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-foreground/10 transition-colors rounded-md"
         >
-          Edit widgets
+          {t("details.widget.editWidgets")}
         </Button>
       </PopoverTrigger>
       <PopoverContent
@@ -171,7 +173,7 @@ export function WidgetSettingsPopup({ workspaceId, isRemoteChat = false }: Widge
       >
         <div className="space-y-1">
           <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-            Widgets
+            {t("details.widget.widgets")}
           </div>
           {orderedWidgets.map((widget) => {
             const isVisible = visibleWidgets.includes(widget.id)
@@ -208,7 +210,9 @@ export function WidgetSettingsPopup({ workspaceId, isRemoteChat = false }: Widge
                   className="h-4 w-4 pointer-events-none"
                 />
                 <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <span className="text-sm flex-1">{widget.label}</span>
+                <span className="text-sm flex-1">
+                  {t(`details.widget.${widget.id}` as TranslationKey)}
+                </span>
               </div>
             )
           })}

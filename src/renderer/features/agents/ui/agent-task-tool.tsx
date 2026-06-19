@@ -11,6 +11,7 @@ import { AgentToolInterrupted } from "./agent-tool-interrupted"
 import { areTaskToolPropsEqual } from "./agent-tool-utils"
 import { TextShimmer } from "../../../components/ui/text-shimmer"
 import { cn } from "../../../lib/utils"
+import { useI18n } from "../../../lib/i18n"
 
 interface AgentTaskToolProps {
   part: any
@@ -42,6 +43,7 @@ export const AgentTaskTool = memo(function AgentTaskTool({
   const projectPath = selectedProject?.path
   const { isPending, isInterrupted } = getToolStatus(part, chatStatus)
   const onOpenFile = useFileOpen()
+  const { t } = useI18n()
 
   // Default: collapsed
   const [isExpanded, setIsExpanded] = useState(false)
@@ -115,12 +117,12 @@ export const AgentTaskTool = memo(function AgentTaskTool({
 
   // Get title text based on status
   const getTitle = () => {
-    return isPending ? "Running Subagent" : "Completed Subagent"
+    return isPending ? t("chat.tool.runningSubagent") : t("chat.tool.completedSubagent")
   }
 
   // Show interrupted state if task was interrupted without completing
   if (isInterrupted && !part.output) {
-    return <AgentToolInterrupted toolName="Subagent" subtitle={subtitle} />
+    return <AgentToolInterrupted toolName={t("chat.tool.subagent")} subtitle={subtitle} />
   }
 
   return (

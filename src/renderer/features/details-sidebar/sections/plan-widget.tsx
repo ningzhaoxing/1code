@@ -10,6 +10,7 @@ import { ChatMarkdownRenderer } from "@/components/chat-markdown-renderer"
 import { trpc } from "@/lib/trpc"
 import { planContentCacheAtomFamily } from "../atoms"
 import type { AgentMode } from "../../agents/atoms"
+import { useI18n } from "@/lib/i18n"
 
 interface PlanWidgetProps {
   /** Chat ID for cache */
@@ -43,6 +44,8 @@ export const PlanWidget = memo(function PlanWidget({
   onApprovePlan,
   onExpandPlan,
 }: PlanWidgetProps) {
+  const { t } = useI18n()
+
   // Use activeSubChatId for fetching if available
   const effectiveChatId = activeSubChatId || chatId
 
@@ -142,7 +145,9 @@ export const PlanWidget = memo(function PlanWidget({
         {/* Header - same as original WidgetCard but with expand button added */}
         <div className="flex items-center gap-2 px-2 h-8 select-none group bg-muted/30">
           <PlanIcon className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-          <span className="text-xs font-medium text-foreground flex-1">Plan</span>
+          <span className="text-xs font-medium text-foreground flex-1">
+            {t("details.widget.plan")}
+          </span>
 
           {/* Original buttons: View plan + Approve */}
           <div className="flex items-center">
@@ -155,7 +160,7 @@ export const PlanWidget = memo(function PlanWidget({
               }}
               className="h-5 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
             >
-              View plan
+              {t("plan.view")}
             </Button>
             {mode === "plan" && onApprovePlan && (
               <Button
@@ -166,7 +171,7 @@ export const PlanWidget = memo(function PlanWidget({
                 }}
                 className="h-5 px-2 mx-0.5 text-[10px] font-medium rounded transition-transform duration-150 active:scale-[0.97]"
               >
-                Approve
+                {t("plan.approve")}
                 <Kbd className="ml-1 text-primary-foreground/70">⌘↵</Kbd>
               </Button>
             )}
@@ -177,7 +182,7 @@ export const PlanWidget = memo(function PlanWidget({
               size="icon"
               onClick={handleToggleExpand}
               className="h-5 w-5 p-0 hover:bg-foreground/10 text-muted-foreground hover:text-foreground rounded-md transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] flex-shrink-0"
-              aria-label={isExpanded ? "Collapse plan" : "Expand plan"}
+              aria-label={isExpanded ? t("plan.collapse") : t("plan.expand")}
             >
               <div className="relative w-3.5 h-3.5">
                 <ExpandIcon
@@ -205,11 +210,11 @@ export const PlanWidget = memo(function PlanWidget({
             </div>
           ) : showError ? (
             <div className="px-3 py-4 text-center">
-              <p className="text-xs text-muted-foreground">Failed to load plan</p>
+              <p className="text-xs text-muted-foreground">{t("plan.loadFailed")}</p>
             </div>
           ) : !displayContent ? (
             <div className="px-3 py-4 text-center">
-              <p className="text-xs text-muted-foreground">No plan content</p>
+              <p className="text-xs text-muted-foreground">{t("plan.noContent")}</p>
             </div>
           ) : (
             <div className="relative">

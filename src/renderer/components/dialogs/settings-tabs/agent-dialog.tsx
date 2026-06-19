@@ -5,6 +5,7 @@ import { createPortal } from "react-dom"
 import { trpc } from "../../../lib/trpc"
 import { cn } from "../../../lib/utils"
 import { ToolSelector } from "./tool-selector"
+import { useI18n } from "../../../lib/i18n"
 
 interface FileAgent {
   name: string
@@ -27,6 +28,7 @@ interface AgentDialogProps {
 type ToolMode = "all" | "allowlist" | "denylist"
 
 export function AgentDialog({ open, onOpenChange, agent, onSuccess }: AgentDialogProps) {
+  const { t } = useI18n()
   const [mounted, setMounted] = useState(false)
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null)
 
@@ -175,7 +177,9 @@ export function AgentDialog({ open, onOpenChange, agent, onSuccess }: AgentDialo
               {/* Header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-border">
                 <h2 className="text-lg font-semibold text-foreground">
-                  {isEditing ? "Edit Agent" : "Create Agent"}
+                  {isEditing
+                    ? t("settings.agents.dialog.editTitle")
+                    : t("settings.agents.dialog.createTitle")}
                 </h2>
                 <button
                   onClick={() => onOpenChange(false)}
@@ -190,7 +194,7 @@ export function AgentDialog({ open, onOpenChange, agent, onSuccess }: AgentDialo
                 {/* Name */}
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-foreground">
-                    Name <span className="text-red-500">*</span>
+                    {t("settings.common.name")} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -200,51 +204,49 @@ export function AgentDialog({ open, onOpenChange, agent, onSuccess }: AgentDialo
                     className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Will be converted to kebab-case (e.g., "code-reviewer")
+                    {t("settings.agents.dialog.nameHint")}
                   </p>
                 </div>
 
                 {/* Description */}
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-foreground">
-                    Description <span className="text-red-500">*</span>
+                    {t("settings.common.description")} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Reviews code for quality and best practices"
+                    placeholder={t("settings.agents.dialog.descriptionPlaceholder")}
                     className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Tells Claude when to use this agent
+                    {t("settings.agents.dialog.descriptionHint")}
                   </p>
                 </div>
 
                 {/* Prompt */}
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-foreground">
-                    System Prompt <span className="text-red-500">*</span>
+                    {t("settings.agents.systemPrompt")} <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="You are an expert code reviewer. When invoked:
-
-1. Analyze the code structure
-2. Check for security issues
-3. Suggest improvements"
+                    placeholder={t("settings.agents.dialog.promptPlaceholder")}
                     rows={8}
                     className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none font-mono"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Instructions for the agent when it's invoked
+                    {t("settings.agents.dialog.promptHint")}
                   </p>
                 </div>
 
                 {/* Model */}
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-foreground">Model</label>
+                  <label className="text-sm font-medium text-foreground">
+                    {t("settings.common.model")}
+                  </label>
                   <div className="flex flex-wrap gap-2">
                     {(["inherit", "sonnet", "opus", "haiku"] as const).map((m) => (
                       <button
@@ -258,7 +260,9 @@ export function AgentDialog({ open, onOpenChange, agent, onSuccess }: AgentDialo
                             : "border-border bg-background text-muted-foreground hover:border-foreground/20"
                         )}
                       >
-                        {m === "inherit" ? "Inherit (default)" : m.charAt(0).toUpperCase() + m.slice(1)}
+                        {m === "inherit"
+                          ? t("settings.agents.dialog.inheritDefault")
+                          : m.charAt(0).toUpperCase() + m.slice(1)}
                       </button>
                     ))}
                   </div>
@@ -266,7 +270,9 @@ export function AgentDialog({ open, onOpenChange, agent, onSuccess }: AgentDialo
 
                 {/* Tools */}
                 <div className="space-y-3">
-                  <label className="text-sm font-medium text-foreground">Tools</label>
+                  <label className="text-sm font-medium text-foreground">
+                    {t("settings.mcp.tools")}
+                  </label>
                   <div className="flex flex-wrap gap-2">
                     {(["all", "allowlist", "denylist"] as const).map((mode) => (
                       <button
@@ -283,9 +289,9 @@ export function AgentDialog({ open, onOpenChange, agent, onSuccess }: AgentDialo
                             : "border-border bg-background text-muted-foreground hover:border-foreground/20"
                         )}
                       >
-                        {mode === "all" && "All Tools"}
-                        {mode === "allowlist" && "Only Selected"}
-                        {mode === "denylist" && "Except Selected"}
+                        {mode === "all" && t("settings.agents.dialog.allTools")}
+                        {mode === "allowlist" && t("settings.agents.dialog.onlySelected")}
+                        {mode === "denylist" && t("settings.agents.dialog.exceptSelected")}
                       </button>
                     ))}
                   </div>
@@ -302,7 +308,9 @@ export function AgentDialog({ open, onOpenChange, agent, onSuccess }: AgentDialo
                 {/* Source (only for new agents) */}
                 {!isEditing && (
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-foreground">Location</label>
+                    <label className="text-sm font-medium text-foreground">
+                      {t("settings.agents.dialog.location")}
+                    </label>
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
@@ -314,7 +322,7 @@ export function AgentDialog({ open, onOpenChange, agent, onSuccess }: AgentDialo
                             : "border-border bg-background text-muted-foreground hover:border-foreground/20"
                         )}
                       >
-                        User (~/.claude/agents/)
+                        {t("settings.agents.dialog.userLocation")}
                       </button>
                       <button
                         type="button"
@@ -326,11 +334,11 @@ export function AgentDialog({ open, onOpenChange, agent, onSuccess }: AgentDialo
                             : "border-border bg-background text-muted-foreground hover:border-foreground/20"
                         )}
                       >
-                        Project (.claude/agents/)
+                        {t("settings.agents.dialog.projectLocation")}
                       </button>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      User agents are available globally, project agents only in the current project
+                      {t("settings.agents.dialog.locationHint")}
                     </p>
                   </div>
                 )}
@@ -343,7 +351,7 @@ export function AgentDialog({ open, onOpenChange, agent, onSuccess }: AgentDialo
                   onClick={() => onOpenChange(false)}
                   className="px-4 py-2 text-sm font-medium rounded-md border border-border bg-background text-foreground hover:bg-foreground/5 transition-colors"
                 >
-                  Cancel
+                  {t("settings.common.cancel")}
                 </button>
                 <button
                   onClick={handleSubmit}
@@ -355,7 +363,11 @@ export function AgentDialog({ open, onOpenChange, agent, onSuccess }: AgentDialo
                       : "bg-foreground/50 text-background/70 cursor-not-allowed"
                   )}
                 >
-                  {isLoading ? "Saving..." : isEditing ? "Save Changes" : "Create Agent"}
+                  {isLoading
+                    ? t("settings.common.saving")
+                    : isEditing
+                      ? t("settings.agents.dialog.saveChanges")
+                      : t("settings.agents.dialog.createAction")}
                 </button>
               </div>
             </motion.div>

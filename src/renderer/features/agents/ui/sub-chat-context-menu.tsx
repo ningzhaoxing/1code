@@ -12,18 +12,9 @@ import { isMac } from "../../../lib/utils"
 import { isDesktopApp } from "../../../lib/utils/platform"
 import type { SubChatMeta } from "../stores/sub-chat-store"
 import { useResolvedHotkeyDisplay } from "../../../lib/hotkeys"
+import { useI18n } from "../../../lib/i18n"
 import { exportChat, copyChat, type ExportFormat } from "../lib/export-chat"
 import { toast } from "sonner"
-
-const openInNewWindow = async (chatId: string, subChatId: string) => {
-  const result = await window.desktopApi?.newWindow({ chatId, subChatId })
-  if (result?.blocked) {
-    toast.info("This workspace is already open in another window", {
-      description: "Switching to the existing window.",
-      duration: 3000,
-    })
-  }
-}
 
 // Platform-aware keyboard shortcut for close tab
 // Uses custom hotkey from settings if configured
@@ -95,6 +86,7 @@ export function SubChatContextMenu({
   onRemoveFromSplit,
   splitPaneCount = 0,
 }: SubChatContextMenuProps) {
+  const { t } = useI18n()
   const closeTabShortcut = useCloseTabShortcut()
 
   const handleExport = useCallback((format: ExportFormat) => {
@@ -107,55 +99,66 @@ export function SubChatContextMenu({
     copyChat({ chatId, subChatId: subChat.id, format })
   }, [chatId, subChat.id])
 
+  const handleOpenInNewWindow = useCallback(async () => {
+    if (!chatId) return
+    const result = await window.desktopApi?.newWindow({ chatId, subChatId: subChat.id })
+    if (result?.blocked) {
+      toast.info(t("workspace.alreadyOpen"), {
+        description: t("workspace.switchingExistingWindow"),
+        duration: 3000,
+      })
+    }
+  }, [chatId, subChat.id, t])
+
   return (
     <ContextMenuContent className="w-48">
       <ContextMenuItem onClick={() => onTogglePin(subChat.id)}>
-        {isPinned ? "Unpin chat" : "Pin chat"}
+        {isPinned ? t("chat.context.unpin") : t("chat.context.pin")}
       </ContextMenuItem>
       <ContextMenuItem onClick={() => onRename(subChat)}>
-        Rename chat
+        {t("chat.context.rename")}
       </ContextMenuItem>
       {chatId && (
         <ContextMenuSub>
-          <ContextMenuSubTrigger>Export chat</ContextMenuSubTrigger>
+          <ContextMenuSubTrigger>{t("chat.context.export")}</ContextMenuSubTrigger>
           <ContextMenuSubContent sideOffset={6} alignOffset={-4}>
             <ContextMenuItem onClick={() => handleExport("markdown")}>
-              Download as Markdown
+              {t("chat.context.downloadMarkdown")}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => handleExport("json")}>
-              Download as JSON
+              {t("chat.context.downloadJson")}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => handleExport("text")}>
-              Download as Text
+              {t("chat.context.downloadText")}
             </ContextMenuItem>
             <ContextMenuSeparator />
             <ContextMenuItem onClick={() => handleCopy("markdown")}>
-              Copy as Markdown
+              {t("chat.context.copyMarkdown")}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => handleCopy("json")}>
-              Copy as JSON
+              {t("chat.context.copyJson")}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => handleCopy("text")}>
-              Copy as Text
+              {t("chat.context.copyText")}
             </ContextMenuItem>
           </ContextMenuSubContent>
         </ContextMenuSub>
       )}
       {isDesktopApp() && chatId && (
-        <ContextMenuItem onClick={() => openInNewWindow(chatId, subChat.id)}>
-          Open in new window
+        <ContextMenuItem onClick={handleOpenInNewWindow}>
+          {t("chat.context.openInNewWindow")}
         </ContextMenuItem>
       )}
       {isSplitTab ? (
         <>
           {splitPaneCount > 2 && onRemoveFromSplit && (
             <ContextMenuItem onClick={() => onRemoveFromSplit(subChat.id)}>
-              Remove from split
+              {t("chat.context.removeFromSplit")}
             </ContextMenuItem>
           )}
           {onCloseSplit && (
             <ContextMenuItem onClick={onCloseSplit}>
-              Separate chats
+              {t("chat.context.separateChats")}
             </ContextMenuItem>
           )}
         </>
@@ -164,7 +167,7 @@ export function SubChatContextMenu({
           onClick={() => onOpenInSplit(subChat.id)}
           disabled={isActiveTab || isOnlyChat || splitPaneCount >= 4}
         >
-          Add as split
+          {t("chat.context.addAsSplit")}
         </ContextMenuItem>
       ) : null}
       <ContextMenuSeparator />
@@ -176,20 +179,20 @@ export function SubChatContextMenu({
             className="justify-between"
             disabled={isOnlyChat}
           >
-            Close chat
+            {t("chat.context.closeChat")}
             {!isOnlyChat && <Kbd>{closeTabShortcut}</Kbd>}
           </ContextMenuItem>
           <ContextMenuItem
             onClick={() => onCloseOtherTabs?.(subChat.id)}
             disabled={!canCloseOtherTabs}
           >
-            Close other chats
+            {t("chat.context.closeOtherChats")}
           </ContextMenuItem>
           <ContextMenuItem
             onClick={() => onCloseTabsToRight?.(subChat.id, visualIndex)}
             disabled={!hasTabsToRight}
           >
-            Close chats to the right
+            {t("chat.context.closeChatsToRight")}
           </ContextMenuItem>
         </>
       ) : (
@@ -199,7 +202,7 @@ export function SubChatContextMenu({
             className="justify-between"
             disabled={isOnlyChat}
           >
-            Archive chat
+            {t("chat.context.archiveChat")}
             {!isOnlyChat && <Kbd>{closeTabShortcut}</Kbd>}
           </ContextMenuItem>
           <ContextMenuItem
@@ -209,13 +212,13 @@ export function SubChatContextMenu({
               currentIndex >= (totalCount || 0) - 1
             }
           >
-            Archive chats below
+            {t("chat.context.archiveChatsBelow")}
           </ContextMenuItem>
           <ContextMenuItem
             onClick={() => onArchiveOthers(subChat.id)}
             disabled={isOnlyChat}
           >
-            Archive other chats
+            {t("chat.context.archiveOtherChats")}
           </ContextMenuItem>
         </>
       )}

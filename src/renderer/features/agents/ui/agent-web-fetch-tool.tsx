@@ -11,6 +11,7 @@ import { TextShimmer } from "../../../components/ui/text-shimmer"
 import { getToolStatus } from "./agent-tool-registry"
 import { AgentToolInterrupted } from "./agent-tool-interrupted"
 import { areToolPropsEqual } from "./agent-tool-utils"
+import { useI18n } from "../../../lib/i18n"
 import { cn } from "../../../lib/utils"
 
 interface AgentWebFetchToolProps {
@@ -22,6 +23,7 @@ export const AgentWebFetchTool = memo(function AgentWebFetchTool({
   part,
   chatStatus,
 }: AgentWebFetchToolProps) {
+  const { t } = useI18n()
   const [isExpanded, setIsExpanded] = useState(false)
   const { isPending, isError, isInterrupted } = getToolStatus(part, chatStatus)
 
@@ -72,10 +74,10 @@ export const AgentWebFetchTool = memo(function AgentWebFetchTool({
               duration={1.2}
               className="text-xs text-muted-foreground"
             >
-              Fetching
+              {t("chat.tool.fetching")}
             </TextShimmer>
           ) : (
-            <span className="text-xs text-muted-foreground">Fetched</span>
+            <span className="text-xs text-muted-foreground">{t("chat.tool.fetched")}</span>
           )}
           
           <span className="truncate text-foreground">{hostname}</span>
@@ -88,7 +90,7 @@ export const AgentWebFetchTool = memo(function AgentWebFetchTool({
               <IconSpinner className="w-3 h-3" />
             ) : isError || !isSuccess ? (
               <span className="text-destructive">
-                {statusCode ? `Error ${statusCode}` : "Failed"}
+                {statusCode ? `Error ${statusCode}` : t("common.failed")}
               </span>
             ) : (
               <span className="text-muted-foreground">
@@ -128,4 +130,3 @@ export const AgentWebFetchTool = memo(function AgentWebFetchTool({
     </div>
   )
 }, areToolPropsEqual)
-

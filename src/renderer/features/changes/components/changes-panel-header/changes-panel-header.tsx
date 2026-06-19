@@ -14,6 +14,7 @@ import { trpc } from "../../../../lib/trpc";
 import { cn } from "../../../../lib/utils";
 import { usePRStatus } from "../../../../hooks/usePRStatus";
 import { PRIcon } from "../pr-icon";
+import { useI18n } from "../../../../lib/i18n";
 
 type LayoutMode = "compact" | "standard" | "wide" | "full";
 
@@ -39,6 +40,7 @@ export function ChangesPanelHeader({
 	currentBranch,
 	layoutMode,
 }: ChangesPanelHeaderProps) {
+	const { t } = useI18n();
 	const [lastFetchTime, setLastFetchTime] = useState<Date | null>(null);
 	const [isRefreshing, setIsRefreshing] = useState(false);
 	const [displayTime, setDisplayTime] = useState<string>("");
@@ -129,13 +131,13 @@ export function ChangesPanelHeader({
 							>
 								<LuGitBranch className={cn("size-3.5 shrink-0", isCompact && "size-3")} />
 								<span className="truncate max-w-[120px]">
-									{currentBranch || "No branch"}
+									{currentBranch || t("changes.noBranch")}
 								</span>
 								<HiChevronDown className={cn("size-3 shrink-0 opacity-50", isCompact && "size-2.5")} />
 							</Button>
 						</DropdownMenuTrigger>
 					</TooltipTrigger>
-					<TooltipContent side="bottom">Switch branch</TooltipContent>
+					<TooltipContent side="bottom">{t("changes.switchBranch")}</TooltipContent>
 				</Tooltip>
 				<DropdownMenuContent align="start" className="w-48">
 					{branches.map((branchInfo) => (

@@ -53,7 +53,6 @@ const selectedTeamIdAtom = atom<string | null>(null)
 import {
   agentsSettingsDialogOpenAtom,
   agentsSettingsDialogActiveTabAtom,
-  anthropicOnboardingCompletedAtom,
   apiKeyOnboardingCompletedAtom,
   codexOnboardingCompletedAtom,
   customClaudeConfigAtom,
@@ -84,6 +83,7 @@ import {
   getAudioFormat,
 } from "../../../lib/hooks/use-voice-recording"
 import { getResolvedHotkey } from "../../../lib/hotkeys"
+import { useI18n } from "../../../lib/i18n"
 import {
   AgentsFileMention,
   AgentsMentionsEditor,
@@ -178,6 +178,7 @@ export function NewChatForm({
   isMobileFullscreen = false,
   onBackToChats,
 }: NewChatFormProps = {}) {
+  const { t } = useI18n()
   // UNCONTROLLED: just track if editor has content for send button
   const [hasContent, setHasContent] = useState(false)
   const [selectedTeamId] = useAtom(selectedTeamIdAtom)
@@ -239,16 +240,17 @@ export function NewChatForm({
     normalizeCustomClaudeConfig(customClaudeConfig)
   const hasCustomClaudeConfig = Boolean(normalizedCustomClaudeConfig)
   // Connection status for providers
-  const anthropicOnboardingCompleted = useAtomValue(anthropicOnboardingCompletedAtom)
   const apiKeyOnboardingCompleted = useAtomValue(apiKeyOnboardingCompletedAtom)
   const codexOnboardingCompleted = useAtomValue(codexOnboardingCompletedAtom)
   const { data: claudeCodeIntegration } =
     trpc.claudeCode.getIntegration.useQuery()
+  const { data: codexIntegration } = trpc.codex.getIntegration.useQuery()
   const isClaudeConnected =
     Boolean(claudeCodeIntegration?.isConnected) ||
-    anthropicOnboardingCompleted ||
     apiKeyOnboardingCompleted ||
     hasCustomClaudeConfig
+  const isCodexConnected =
+    codexOnboardingCompleted || Boolean(codexIntegration?.isConnected)
   const setSettingsDialogOpen = useSetAtom(agentsSettingsDialogOpenAtom)
   const setSettingsActiveTab = useSetAtom(agentsSettingsDialogActiveTabAtom)
   const setJustCreatedIds = useSetAtom(justCreatedIdsAtom)
@@ -1612,7 +1614,7 @@ export function NewChatForm({
               size="icon"
               onClick={onBackToChats}
               className="h-7 w-7 p-0 hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] flex-shrink-0 rounded-md"
-              aria-label="All projects"
+              aria-label={t("workspace.allProjects")}
             >
               <AlignJustify className="h-4 w-4" />
             </Button>
@@ -1646,7 +1648,7 @@ export function NewChatForm({
                 disabled={openFolder.isPending}
                 className="h-8 px-3 bg-primary text-primary-foreground rounded-lg text-sm font-medium transition-[background-color,transform] duration-150 hover:bg-primary/90 active:scale-[0.97] shadow-[0_0_0_0.5px_rgb(23,23,23),inset_0_0_0_1px_rgba(255,255,255,0.14)] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {openFolder.isPending ? "Opening..." : "Select repo"}
+                {openFolder.isPending ? t("workspace.opening") : t("workspace.selectRepo")}
               </button>
             </div>
           ) : (
@@ -1682,7 +1684,7 @@ export function NewChatForm({
                       onContentChange={handleContentChange}
                       onSubmit={handleSend}
                       onShiftTab={toggleMode}
-                      placeholder="Plan, @ for context, / for commands"
+                      placeholder={t("chat.input.placeholder")}
                       className={cn(
                         "bg-transparent max-h-[240px] overflow-y-auto p-1",
                         isMobileFullscreen ? "min-h-[56px]" : "min-h-[44px]",
@@ -1852,9 +1854,9 @@ export function NewChatForm({
                                 className="relative rounded-[12px] bg-popover px-2.5 py-1.5 text-xs text-popover-foreground dark max-w-[150px]"
                               >
                                 <span>
-                                  {modeTooltip.mode === "agent"
-                                    ? "Apply changes directly without a plan"
-                                    : "Create a plan before making changes"}
+                              {modeTooltip.mode === "agent"
+                                    ? t("chat.mode.agentTooltip")
+                                    : t("chat.mode.planTooltip")}
                                 </span>
                               </div>
                             </div>,
@@ -1920,7 +1922,7 @@ export function NewChatForm({
                             },
                             selectedThinking: selectedCodexThinking,
                             onSelectThinking: setLastSelectedCodexThinking,
-                            isConnected: codexOnboardingCompleted,
+                            isConnected: isCodexConnected,
                           }}
                         />
                       </div>
@@ -2021,7 +2023,7 @@ export function NewChatForm({
                           <SearchIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
                           <input
                             type="text"
-                            placeholder="Search branches..."
+                            placeholder={t("workspace.searchBranches")}
                             value={branchSearch}
                             onChange={(e) => setBranchSearch(e.target.value)}
                             className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"

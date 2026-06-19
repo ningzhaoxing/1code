@@ -24,6 +24,7 @@ import {
   SparklesIcon,
   WriteFileIcon,
 } from "../../../components/ui/icons"
+import { translateCurrentLocale } from "../../../lib/i18n"
 
 export type ToolVariant = "simple" | "collapsible"
 
@@ -133,9 +134,11 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
       const isPending =
         part.state !== "output-available" && part.state !== "output-error"
       const isInputStreaming = part.state === "input-streaming"
-      if (isInputStreaming) return "Preparing agent"
-      const subagentType = part.input?.subagent_type || "Agent"
-      return isPending ? `Running ${subagentType}` : `${subagentType} completed`
+      if (isInputStreaming) return translateCurrentLocale("chat.tool.preparingAgent")
+      const subagentType = part.input?.subagent_type || translateCurrentLocale("chat.tool.agent")
+      return isPending
+        ? translateCurrentLocale("chat.tool.runningAgent", { agent: subagentType })
+        : translateCurrentLocale("chat.tool.agentCompleted", { agent: subagentType })
     },
     subtitle: (part) => {
       // Don't show subtitle while input is still streaming
@@ -154,8 +157,8 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
       const isPending =
         part.state !== "output-available" && part.state !== "output-error"
       const isInputStreaming = part.state === "input-streaming"
-      if (isInputStreaming) return "Preparing search"
-      if (isPending) return "Grepping"
+      if (isInputStreaming) return translateCurrentLocale("chat.tool.preparingSearch")
+      if (isPending) return translateCurrentLocale("chat.tool.grepping")
 
       // Handle different output modes:
       // - "files_with_matches" mode: numFiles > 0, filenames is populated
@@ -166,10 +169,14 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
 
       if (mode === "content") {
         // In content mode, numFiles is always 0, use numLines instead
-        return numLines > 0 ? `Found ${numLines} matches` : "No matches"
+        return numLines > 0
+          ? translateCurrentLocale("chat.tool.foundMatchCount", { count: numLines })
+          : translateCurrentLocale("chat.tool.noMatches")
       }
 
-      return numFiles > 0 ? `Grepped ${numFiles} files` : "No matches"
+      return numFiles > 0
+        ? translateCurrentLocale("chat.tool.greppedFileCount", { count: numFiles })
+        : translateCurrentLocale("chat.tool.noMatches")
     },
     subtitle: (part) => {
       // Don't show subtitle while input is still streaming
@@ -180,7 +187,7 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
       if (path) {
         // Show "pattern in path" with shortened path
         const displayPath = getDisplayPath(path)
-        const combined = `${pattern} in ${displayPath}`
+        const combined = translateCurrentLocale("chat.tool.inPath", { target: pattern, path: displayPath })
         return combined.length > 40 ? combined.slice(0, 37) + "..." : combined
       }
 
@@ -195,11 +202,13 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
       const isPending =
         part.state !== "output-available" && part.state !== "output-error"
       const isInputStreaming = part.state === "input-streaming"
-      if (isInputStreaming) return "Preparing search"
-      if (isPending) return "Exploring files"
+      if (isInputStreaming) return translateCurrentLocale("chat.tool.preparingSearch")
+      if (isPending) return translateCurrentLocale("chat.tool.exploringFiles")
 
       const numFiles = part.output?.numFiles || 0
-      return numFiles > 0 ? `Found ${numFiles} files` : "No files found"
+      return numFiles > 0
+        ? translateCurrentLocale("chat.tool.foundFileCount", { count: numFiles })
+        : translateCurrentLocale("chat.tool.noFilesFound")
     },
     subtitle: (part) => {
       // Don't show subtitle while input is still streaming
@@ -210,7 +219,7 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
       if (targetDir) {
         // Show "pattern in targetDir" with shortened path
         const displayTargetDir = getDisplayPath(targetDir)
-        const combined = `${pattern} in ${displayTargetDir}`
+        const combined = translateCurrentLocale("chat.tool.inPath", { target: pattern, path: displayTargetDir })
         return combined.length > 40 ? combined.slice(0, 37) + "..." : combined
       }
 
@@ -225,8 +234,10 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
       const isPending =
         part.state !== "output-available" && part.state !== "output-error"
       const isInputStreaming = part.state === "input-streaming"
-      if (isInputStreaming) return "Preparing to read"
-      return isPending ? "Reading" : "Read"
+      if (isInputStreaming) return translateCurrentLocale("chat.tool.preparingToRead")
+      return isPending
+        ? translateCurrentLocale("chat.tool.reading")
+        : translateCurrentLocale("chat.tool.read")
     },
     subtitle: (part) => {
       // Don't show subtitle while input is still streaming
@@ -247,10 +258,10 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
     icon: IconEditFile,
     title: (part) => {
       const isInputStreaming = part.state === "input-streaming"
-      if (isInputStreaming) return "Preparing edit"
+      if (isInputStreaming) return translateCurrentLocale("chat.tool.preparingEdit")
       const filePath = part.input?.file_path || ""
-      if (!filePath) return "Edit" // Show "Edit" if no file path yet during streaming
-      return filePath.split("/").pop() || "Edit"
+      if (!filePath) return translateCurrentLocale("chat.tool.edit") // Show "Edit" if no file path yet during streaming
+      return filePath.split("/").pop() || translateCurrentLocale("chat.tool.edit")
     },
     subtitle: (part) => {
       // Don't show subtitle while input is still streaming
@@ -283,7 +294,7 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
   // Cloning indicator - shown while sandbox is being created
   "tool-cloning": {
     icon: GitBranch,
-    title: () => "Cloning repo",
+    title: () => translateCurrentLocale("chat.tool.cloningRepo"),
     variant: "simple",
   },
 
@@ -292,17 +303,17 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
     icon: PlanningIcon,
     title: () => {
       const messages = [
-        "Crafting...",
-        "Whirring...",
-        "Imagining...",
-        "Cooking...",
-        "Sussing...",
-        "Unravelling...",
-        "Creating...",
-        "Spinning...",
-        "Computing...",
-        "Synthesizing...",
-        "Manifesting...",
+        translateCurrentLocale("chat.tool.crafting"),
+        translateCurrentLocale("chat.tool.whirring"),
+        translateCurrentLocale("chat.tool.imagining"),
+        translateCurrentLocale("chat.tool.cooking"),
+        translateCurrentLocale("chat.tool.sussing"),
+        translateCurrentLocale("chat.tool.unravelling"),
+        translateCurrentLocale("chat.tool.creating"),
+        translateCurrentLocale("chat.tool.spinning"),
+        translateCurrentLocale("chat.tool.computing"),
+        translateCurrentLocale("chat.tool.synthesizing"),
+        translateCurrentLocale("chat.tool.manifesting"),
       ]
       return messages[Math.floor(Math.random() * messages.length)]
     },
@@ -313,8 +324,8 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
     icon: WriteFileIcon,
     title: (part) => {
       const isInputStreaming = part.state === "input-streaming"
-      if (isInputStreaming) return "Preparing to create"
-      return "Create"
+      if (isInputStreaming) return translateCurrentLocale("chat.tool.preparingToCreate")
+      return translateCurrentLocale("chat.tool.create")
     },
     subtitle: (part) => {
       // Don't show subtitle while input is still streaming
@@ -332,8 +343,10 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
       const isPending =
         part.state !== "output-available" && part.state !== "output-error"
       const isInputStreaming = part.state === "input-streaming"
-      if (isInputStreaming) return "Generating command"
-      return isPending ? "Running command" : "Ran command"
+      if (isInputStreaming) return translateCurrentLocale("chat.tool.generatingCommand")
+      return isPending
+        ? translateCurrentLocale("chat.tool.runningCommandShort")
+        : translateCurrentLocale("chat.tool.ranCommandShort")
     },
     subtitle: (part) => {
       // Don't show subtitle while input is still streaming
@@ -357,8 +370,10 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
       const isPending =
         part.state !== "output-available" && part.state !== "output-error"
       const isInputStreaming = part.state === "input-streaming"
-      if (isInputStreaming) return "Preparing fetch"
-      return isPending ? "Fetching" : "Fetched"
+      if (isInputStreaming) return translateCurrentLocale("chat.tool.preparingFetch")
+      return isPending
+        ? translateCurrentLocale("chat.tool.fetchingShort")
+        : translateCurrentLocale("chat.tool.fetchedShort")
     },
     subtitle: (part) => {
       // Don't show subtitle while input is still streaming
@@ -379,8 +394,10 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
       const isPending =
         part.state !== "output-available" && part.state !== "output-error"
       const isInputStreaming = part.state === "input-streaming"
-      if (isInputStreaming) return "Preparing search"
-      return isPending ? "Searching web" : "Searched web"
+      if (isInputStreaming) return translateCurrentLocale("chat.tool.preparingSearch")
+      return isPending
+        ? translateCurrentLocale("chat.tool.searchingWeb")
+        : translateCurrentLocale("chat.tool.searchedWeb")
     },
     subtitle: (part) => {
       // Don't show subtitle while input is still streaming
@@ -399,14 +416,21 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
         part.state !== "output-available" && part.state !== "output-error"
       const action = part.input?.action || "update"
       if (isPending) {
-        return action === "add" ? "Adding todo" : "Updating todos"
+        return action === "add"
+          ? translateCurrentLocale("chat.tool.addingTodo")
+          : translateCurrentLocale("chat.tool.updatingTodos")
       }
-      return action === "add" ? "Added todo" : "Updated todos"
+      return action === "add"
+        ? translateCurrentLocale("chat.tool.addedTodo")
+        : translateCurrentLocale("chat.tool.updatedTodos")
     },
     subtitle: (part) => {
       const todos = part.input?.todos || []
       if (todos.length === 0) return ""
-      return `${todos.length} ${todos.length === 1 ? "item" : "items"}`
+      return translateCurrentLocale("chat.tool.itemCount", {
+        count: todos.length,
+        item: translateCurrentLocale(todos.length === 1 ? "chat.tool.itemSingular" : "chat.tool.itemPlural"),
+      })
     },
     variant: "simple",
   },
@@ -417,7 +441,9 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
     title: (part) => {
       const isPending =
         part.state !== "output-available" && part.state !== "output-error"
-      return isPending ? "Creating task" : "Created task"
+      return isPending
+        ? translateCurrentLocale("chat.tool.creatingTask")
+        : translateCurrentLocale("chat.tool.createdTask")
     },
     subtitle: (part) => {
       const subject = part.input?.subject || ""
@@ -434,15 +460,15 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
       const isPending =
         part.state !== "output-available" && part.state !== "output-error"
       if (isPending) {
-        if (status === "in_progress") return "Starting task"
-        if (status === "completed") return "Completing task"
-        if (status === "deleted") return "Deleting task"
-        return "Updating task"
+        if (status === "in_progress") return translateCurrentLocale("chat.tool.startingTask")
+        if (status === "completed") return translateCurrentLocale("chat.tool.completingTask")
+        if (status === "deleted") return translateCurrentLocale("chat.tool.deletingTask")
+        return translateCurrentLocale("chat.tool.updatingTask")
       }
-      if (status === "in_progress") return "Started task"
-      if (status === "completed") return "Completed task"
-      if (status === "deleted") return "Deleted task"
-      return "Updated task"
+      if (status === "in_progress") return translateCurrentLocale("chat.tool.startedTask")
+      if (status === "completed") return translateCurrentLocale("chat.tool.completedTask")
+      if (status === "deleted") return translateCurrentLocale("chat.tool.deletedTask")
+      return translateCurrentLocale("chat.tool.updatedTask")
     },
     subtitle: (part) => {
       const subject = part.input?.subject
@@ -460,7 +486,9 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
     title: (part) => {
       const isPending =
         part.state !== "output-available" && part.state !== "output-error"
-      return isPending ? "Getting task" : "Got task"
+      return isPending
+        ? translateCurrentLocale("chat.tool.gettingTask")
+        : translateCurrentLocale("chat.tool.gotTask")
     },
     subtitle: (part) => {
       const subject = part.output?.task?.subject
@@ -479,8 +507,10 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
       const isPending =
         part.state !== "output-available" && part.state !== "output-error"
       const count = part.output?.tasks?.length
-      if (isPending) return "Listing tasks"
-      return count !== undefined ? `Listed ${count} tasks` : "Listed tasks"
+      if (isPending) return translateCurrentLocale("chat.tool.listingTasks")
+      return count !== undefined
+        ? translateCurrentLocale("chat.tool.listedTaskCount", { count })
+        : translateCurrentLocale("chat.tool.listedTasks")
     },
     subtitle: () => "",
     variant: "simple",
@@ -494,15 +524,17 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
       const action = part.input?.action || "create"
       const status = part.input?.plan?.status
       if (isPending) {
-        if (action === "create") return "Creating plan"
-        if (action === "approve") return "Approving plan"
-        if (action === "complete") return "Completing plan"
-        return "Updating plan"
+        if (action === "create") return translateCurrentLocale("chat.tool.creatingPlan")
+        if (action === "approve") return translateCurrentLocale("chat.tool.approvingPlan")
+        if (action === "complete") return translateCurrentLocale("chat.tool.completingPlan")
+        return translateCurrentLocale("chat.tool.updatingPlan")
       }
-      if (status === "awaiting_approval") return "Plan ready for review"
-      if (status === "approved") return "Plan approved"
-      if (status === "completed") return "Plan completed"
-      return action === "create" ? "Created plan" : "Updated plan"
+      if (status === "awaiting_approval") return translateCurrentLocale("chat.tool.planReadyForReview")
+      if (status === "approved") return translateCurrentLocale("chat.tool.planApproved")
+      if (status === "completed") return translateCurrentLocale("chat.tool.planCompleted")
+      return action === "create"
+        ? translateCurrentLocale("chat.tool.createdPlan")
+        : translateCurrentLocale("chat.tool.updatedPlan")
     },
     subtitle: (part) => {
       const plan = part.input?.plan
@@ -515,7 +547,7 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
           : plan.title
       }
       return steps.length > 0 
-        ? `${completed}/${steps.length} steps`
+        ? translateCurrentLocale("chat.tool.stepCount", { count: `${completed}/${steps.length}` })
         : ""
     },
     variant: "simple",
@@ -525,7 +557,9 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
     icon: LogOut,
     title: (part) => {
       const {isPending} = getToolStatus(part)
-      return isPending ? "Finishing plan" : "Plan complete"
+      return isPending
+        ? translateCurrentLocale("chat.tool.finishingPlan")
+        : translateCurrentLocale("chat.tool.planComplete")
     },
     subtitle: () => "",
     variant: "simple",
@@ -537,7 +571,9 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
     title: (part) => {
       const isPending =
         part.state !== "output-available" && part.state !== "output-error"
-      return isPending ? "Editing notebook" : "Edited notebook"
+      return isPending
+        ? translateCurrentLocale("chat.tool.editingNotebook")
+        : translateCurrentLocale("chat.tool.editedNotebook")
     },
     subtitle: (part) => {
       const filePath = part.input?.file_path || ""
@@ -553,7 +589,9 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
     title: (part) => {
       const isPending =
         part.state !== "output-available" && part.state !== "output-error"
-      return isPending ? "Getting output" : "Got output"
+      return isPending
+        ? translateCurrentLocale("chat.tool.gettingOutput")
+        : translateCurrentLocale("chat.tool.gotOutput")
     },
     subtitle: (part) => {
       const pid = part.input?.pid
@@ -567,7 +605,9 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
     title: (part) => {
       const isPending =
         part.state !== "output-available" && part.state !== "output-error"
-      return isPending ? "Stopping shell" : "Stopped shell"
+      return isPending
+        ? translateCurrentLocale("chat.tool.stoppingShell")
+        : translateCurrentLocale("chat.tool.stoppedShell")
     },
     subtitle: (part) => {
       const pid = part.input?.pid
@@ -587,7 +627,9 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
         part.state !== "output-available" &&
         part.state !== "output-error" &&
         part.state !== "result"
-      return isPending ? "Compacting..." : "Compacted"
+      return isPending
+        ? translateCurrentLocale("chat.tool.compacting")
+        : translateCurrentLocale("chat.tool.compacted")
     },
     variant: "simple",
   },
@@ -598,7 +640,9 @@ export const AgentToolRegistry: Record<string, ToolMeta> = {
     title: (part) => {
       const isPending =
         part.state !== "output-available" && part.state !== "output-error"
-      return isPending ? "Thinking..." : "Thought"
+      return isPending
+        ? translateCurrentLocale("chat.tool.thinking")
+        : translateCurrentLocale("chat.tool.thought")
     },
     subtitle: (part) => {
       const text = part.input?.text || ""

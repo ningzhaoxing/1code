@@ -228,7 +228,7 @@ export const AgentUserMessageBubble = memo(function AgentUserMessageBubble({
               ref={contentRef}
               onClick={() => showGradient && !hasCurrentSearchHighlight && setIsExpanded(true)}
               className={cn(
-                "relative bg-input-background border px-3 py-2 rounded-xl whitespace-pre-wrap text-sm transition-all duration-200 max-h-[100px]",
+                "relative bg-input-background border px-3 py-2 rounded-md whitespace-pre-wrap text-sm transition-all duration-200 max-h-[100px]",
                 // When searching in this message, allow scroll; otherwise hide overflow
                 hasCurrentSearchHighlight ? "overflow-y-auto" : "overflow-hidden",
                 // Cursor and hover only when can expand (not during search)
@@ -241,12 +241,12 @@ export const AgentUserMessageBubble = memo(function AgentUserMessageBubble({
               <RenderFileMentions text={cleanedText} />
               {/* Show gradient only when collapsed and not searching in this message */}
               {showGradient && !hasCurrentSearchHighlight && (
-                <div className="absolute bottom-0 left-0 right-0 h-10 pointer-events-none bg-gradient-to-t from-[hsl(var(--input-background))] to-transparent rounded-b-xl" />
+                <div className="absolute bottom-0 left-0 right-0 h-10 pointer-events-none bg-gradient-to-t from-[hsl(var(--input-background))] to-transparent rounded-b-md" />
               )}
             </div>
           ) : (imageParts.length > 0 || textMentions.length > 0) && !skipTextMentionBlocks ? (
             // Show "Using X" summary when no text but have attachments rendered inline
-            <div className="bg-input-background border px-3 py-2 rounded-xl text-sm text-muted-foreground italic">
+            <div className="bg-input-background border px-3 py-2 rounded-md text-sm text-muted-foreground italic">
               {(() => {
                 const parts: string[] = []
 

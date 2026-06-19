@@ -21,6 +21,7 @@ import {
 import { PopoverTrigger } from "../../../components/ui/popover"
 import { SearchCombobox } from "../../../components/ui/search-combobox"
 import { formatTimeAgo } from "../utils/format-time-ago"
+import { useI18n } from "../../../lib/i18n"
 
 interface DiffStats {
   fileCount: number
@@ -63,11 +64,16 @@ export function MobileChatHeader({
   onOpenLocally,
   showOpenLocally = false,
 }: MobileChatHeaderProps) {
+  const { t } = useI18n()
   const activeSubChatId = useAgentSubChatStore((state) => state.activeSubChatId)
   const allSubChats = useAgentSubChatStore((state) => state.allSubChats)
   const loadingSubChatsAtomValue = useAtomValue(loadingSubChatsAtom)
 
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
+  const getDisplayName = useCallback(
+    (name?: string | null) => (name && name !== "New Chat" ? name : t("chat.new")),
+    [t],
+  )
 
   // Find active sub-chat metadata
   const activeSubChat = useMemo(() => {
@@ -123,7 +129,7 @@ export function MobileChatHeader({
           size="icon"
           onClick={onBackToChats}
           className="h-7 w-7 p-0 hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] flex-shrink-0 rounded-md"
-          aria-label="All projects"
+          aria-label={t("workspace.allProjects")}
           style={{
             // @ts-expect-error - WebKit-specific property
             WebkitAppRegion: "no-drag",
@@ -139,13 +145,13 @@ export function MobileChatHeader({
         onOpenChange={setIsHistoryOpen}
         items={sortedSubChats}
         onSelect={handleSelectFromHistory}
-        placeholder="Search chats..."
-        emptyMessage="No results"
+        placeholder={t("chat.search.placeholder")}
+        emptyMessage={t("common.noResults")}
         align="start"
         side="bottom"
         sideOffset={8}
         getItemValue={(subChat) =>
-          `${subChat.name || "New Chat"} ${subChat.id}`
+          `${getDisplayName(subChat.name)} ${subChat.id}`
         }
         renderItem={(subChat) => {
           const timeAgo = formatTimeAgo(
@@ -160,7 +166,7 @@ export function MobileChatHeader({
               )}
             >
               <span className="text-sm truncate">
-                {subChat.name || "New Chat"}
+                {getDisplayName(subChat.name)}
               </span>
               <span className="text-sm text-muted-foreground whitespace-nowrap">
                 {timeAgo}
@@ -195,7 +201,7 @@ export function MobileChatHeader({
 
               {/* Name */}
               <span className="truncate text-left">
-                {activeSubChat?.name || "New Chat"}
+                {getDisplayName(activeSubChat?.name)}
               </span>
 
               {/* Chevron */}
@@ -225,7 +231,7 @@ export function MobileChatHeader({
             className="h-7 px-2.5 gap-1.5 text-xs font-medium"
           >
             <FolderDown className="h-3.5 w-3.5" />
-            Open Locally
+            {t("workspace.openLocally")}
           </Button>
         )}
 
@@ -234,6 +240,7 @@ export function MobileChatHeader({
           variant="ghost"
           size="icon"
           onClick={onCreateNew}
+          aria-label={t("chat.new")}
           className="h-7 w-7 p-0 hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] rounded-md"
         >
           <Plus className="h-4 w-4" />
@@ -245,6 +252,7 @@ export function MobileChatHeader({
             variant="ghost"
             size="icon"
             onClick={onOpenTerminal}
+            aria-label={t("chat.toolbar.openTerminal")}
             className="h-7 w-7 p-0 hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] rounded-md"
           >
             <CustomTerminalIcon className="h-4 w-4" />
@@ -258,6 +266,7 @@ export function MobileChatHeader({
             size="icon"
             onClick={onOpenDiff}
             disabled={!diffStats?.hasChanges || diffStats?.isLoading}
+            aria-label={t("chat.toolbar.openDiff")}
             className={cn(
               "h-7 w-7 p-0 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] rounded-md",
               diffStats?.hasChanges && !diffStats?.isLoading
@@ -279,6 +288,7 @@ export function MobileChatHeader({
             variant="ghost"
             size="icon"
             onClick={onOpenPreview}
+            aria-label={t("chat.toolbar.openPreview")}
             className="h-7 w-7 p-0 hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] rounded-md"
           >
             <Play className="h-4 w-4" />
@@ -293,7 +303,7 @@ export function MobileChatHeader({
             className="h-7 px-2 gap-1.5 hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] rounded-md flex items-center"
           >
             <IconTextUndo className="h-4 w-4" />
-            <span className="text-xs">Restore</span>
+            <span className="text-xs">{t("workspace.restore")}</span>
           </Button>
         )}
       </div>

@@ -10,6 +10,7 @@ import { X } from "lucide-react"
 import { useAtom } from "jotai"
 import { Button } from "../../../components/ui/button"
 import { agentsDebugModeAtom } from "../atoms"
+import { useI18n } from "../../../lib/i18n"
 
 const EASING_CURVE = [0.55, 0.055, 0.675, 0.19] as const
 
@@ -18,6 +19,7 @@ const ONBOARDING_STORAGE_KEY = "agents-onboarding-seen"
 // Self-contained onboarding dialog that checks localStorage
 // Shows only the welcome screen - full onboarding is at /agents/onboarding
 export function AgentsOnboardingDialog() {
+  const { t } = useI18n()
   const [mounted, setMounted] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const openAtRef = useRef<number>(0)
@@ -119,7 +121,7 @@ export function AgentsOnboardingDialog() {
                   className="absolute appearance-none outline-none select-none top-4 right-4 rounded-full cursor-pointer flex items-center justify-center ring-offset-background focus:ring-ring bg-secondary h-8 w-8 text-foreground/70 hover:text-foreground focus:outline-hidden disabled:pointer-events-none active:scale-95 transition-all duration-200 ease-in-out z-[60] focus:outline-none focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                 >
                   <X className="h-4 w-4" />
-                  <span className="sr-only">Close</span>
+                  <span className="sr-only">{t("common.close")}</span>
                 </button>
 
                   <div className="flex flex-col">

@@ -40,7 +40,6 @@ import {
 import {
   agentsSettingsDialogActiveTabAtom,
   agentsSettingsDialogOpenAtom,
-  anthropicOnboardingCompletedAtom,
   apiKeyOnboardingCompletedAtom,
   codexOnboardingCompletedAtom,
   customClaudeConfigAtom,
@@ -102,6 +101,7 @@ import {
 } from "../../../lib/hooks/use-voice-recording"
 import { getResolvedHotkey } from "../../../lib/hotkeys"
 import { customHotkeysAtom } from "../../../lib/atoms"
+import { useI18n } from "../../../lib/i18n"
 import { toast } from "sonner"
 
 // Hook to get available models (including offline models if Ollama is available and debug enabled)
@@ -410,6 +410,7 @@ export const ChatInputArea = memo(function ChatInputArea({
   onContinueWithProvider,
   isActive = true,
 }: ChatInputAreaProps) {
+  const { t } = useI18n()
   // Local state - changes here don't re-render parent
   const [hasContent, setHasContent] = useState(false)
   const [isFocused, setIsFocused] = useState(false)
@@ -500,11 +501,11 @@ export const ChatInputArea = memo(function ChatInputArea({
   const hiddenModels = useAtomValue(hiddenModelsAtom)
 
   // Connection status for providers
-  const anthropicOnboardingCompleted = useAtomValue(anthropicOnboardingCompletedAtom)
   const apiKeyOnboardingCompleted = useAtomValue(apiKeyOnboardingCompletedAtom)
   const codexOnboardingCompleted = useAtomValue(codexOnboardingCompletedAtom)
   const { data: claudeCodeIntegration } =
     trpc.claudeCode.getIntegration.useQuery()
+  const { data: codexIntegration } = trpc.codex.getIntegration.useQuery()
   const codexUiModels = useMemo(
     () => {
       return CODEX_MODELS.filter((model) => !hiddenModels.includes(model.id))
@@ -574,9 +575,10 @@ export const ChatInputArea = memo(function ChatInputArea({
   const hasCustomClaudeConfig = Boolean(normalizedCustomClaudeConfig)
   const isClaudeConnected =
     Boolean(claudeCodeIntegration?.isConnected) ||
-    anthropicOnboardingCompleted ||
     apiKeyOnboardingCompleted ||
     hasCustomClaudeConfig
+  const isCodexConnected =
+    codexOnboardingCompleted || Boolean(codexIntegration?.isConnected)
 
   // Determine current Ollama model (selected or recommended)
   const currentOllamaModel = selectedOllamaModel || availableModels.recommendedModel || availableModels.ollamaModels[0]
@@ -798,17 +800,17 @@ export const ChatInputArea = memo(function ChatInputArea({
         editorRef.current?.setValue(newValue)
         editorRef.current?.focus()
       } else {
-        toast.info("No speech detected")
+        toast.info(t("chat.input.noSpeechDetected"))
       }
     } catch (err) {
       console.error("[VoiceInput] Transcription failed:", err)
-      toast.error("Voice transcription failed")
+      toast.error(t("chat.input.voiceFailed"))
     } finally {
       if (voiceMountedRef.current) {
         setIsTranscribing(false)
       }
     }
-  }, [isVoiceRecording, stopVoiceRecording, transcribeMutation, editorRef])
+  }, [isVoiceRecording, stopVoiceRecording, transcribeMutation, editorRef, t])
 
   const handleVoiceMouseLeave = useCallback(() => {
     if (isVoiceRecording) {
@@ -1238,7 +1240,7 @@ export const ChatInputArea = memo(function ChatInputArea({
         })
         observer.observe(el)
       }}
-      className="px-2 pb-2 shadow-sm shadow-background relative z-10"
+      className="px-2 pb-2 relative z-10"
     >
       <div className="w-full max-w-2xl mx-auto">
         <div
@@ -1253,7 +1255,7 @@ export const ChatInputArea = memo(function ChatInputArea({
           >
             <PromptInput
               className={cn(
-                "border bg-input-background relative z-10 p-2 rounded-xl transition-[border-color,box-shadow] duration-150",
+                "border bg-input-background relative z-10 p-2 rounded-md transition-[border-color,box-shadow] duration-150",
                 isDragOver && "ring-2 ring-primary/50 border-primary/50",
                 isFocused && !isDragOver && "ring-2 ring-primary/50",
               )}
@@ -1356,7 +1358,7 @@ export const ChatInputArea = memo(function ChatInputArea({
                   onSubmit={onSubmitWithQuestionAnswer || handleEditorSubmit}
                   onForceSubmit={onForceSend}
                   onShiftTab={toggleMode}
-                  placeholder={isStreaming ? "Add to the queue" : "Plan, @ for context, / for commands"}
+                  placeholder={isStreaming ? t("chat.input.queuePlaceholder") : t("chat.input.placeholder")}
                   className={cn(
                     "bg-transparent max-h-[200px] overflow-y-auto p-1",
                     isMobile && "min-h-[56px]",
@@ -1527,8 +1529,8 @@ export const ChatInputArea = memo(function ChatInputArea({
                           >
                             <span>
                               {modeTooltip.mode === "agent"
-                                ? "Apply changes directly without a plan"
-                                : "Create a plan before making changes"}
+                                ? t("chat.mode.agentTooltip")
+                                : t("chat.mode.planTooltip")}
                             </span>
                           </div>
                         </div>,
@@ -1599,7 +1601,7 @@ export const ChatInputArea = memo(function ChatInputArea({
                           setSelectedSubChatCodexThinking(thinking)
                           setLastSelectedCodexThinking(thinking)
                         },
-                        isConnected: codexOnboardingCompleted,
+                        isConnected: isCodexConnected,
                       }}
                     />
                   </div>
@@ -1644,6 +1646,8 @@ export const ChatInputArea = memo(function ChatInputArea({
                         className="h-7 w-7 rounded-sm outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={images.length >= 5 && files.length >= 10}
+                        aria-label={t("chat.input.attachFiles")}
+                        title={t("chat.input.attachFiles")}
                       >
                         <AttachIcon className="h-4 w-4" />
                       </Button>

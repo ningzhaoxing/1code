@@ -8,70 +8,105 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    /* Operator Console — Daylight (light counterpart) */
+    --background: 60 23.1% 97.5%;
+    --foreground: 105 8.7% 9%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 105 8.7% 9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 228 100% 50%;
-    /* #0034FF - same for all themes */
+    --popover-foreground: 105 8.7% 9%;
+    /* Primary = amber (working / chrome / active) */
+    --primary: 36 90.2% 40%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --input-background: 240 4.8% 95.9%;
-    --ring: 228 100% 50%;
-    /* Same as primary - blue focus ring */
-    --selection: 228 100% 50% / 0.25;
-    /* Text selection background - primary at 25% */
-    --radius: 0.5rem;
-    /* Plan Mode Colors */
-    --plan-mode: 33 83% 67%;
-    --plan-mode-foreground: 0 0% 8%;
-    /* Timeline/Content background */
-    --tl-background: 0 0% 98%;
+    --secondary: 51 18.9% 92.7%;
+    --secondary-foreground: 108 5.7% 17.1%;
+    --muted: 51 18.9% 92.7%;
+    --muted-foreground: 112 4.1% 38%;
+    --accent: 53 19% 91.8%;
+    --accent-foreground: 108 5.7% 17.1%;
+    --destructive: 2 62.7% 46.3%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 54 11.9% 83.5%;
+    --input: 54 11.9% 83.5%;
+    --input-background: 51 22.6% 93.9%;
+    --ring: 36 90.2% 40%;
+    /* Text selection — amber wash */
+    --selection: 36 79.1% 56.9% / 0.3;
+    /* Sharper, machined corners */
+    --radius: 0.25rem;
+    /* Plan Mode (read-only) — teal, kept distinct from amber primary */
+    --plan-mode: 174 51.3% 37.1%;
+    --plan-mode-foreground: 0 0% 100%;
+    --tl-background: 50 23.1% 94.9%;
+    /* ===== Security semantic layer ===== */
+    /* Finding state machine: lead -> candidate -> validated -> dismissed -> needs-human */
+    --state-lead: 112 4.1% 38%;
+    --state-candidate: 40 87.8% 32.2%;
+    --state-validated: 156 83.5% 26.1%;
+    --state-dismissed: 93 3.9% 54.3%;
+    --state-needs-human: 290 60.7% 42.9%;
+    /* Severity */
+    --sev-critical: 358 73.5% 41.4%;
+    --sev-high: 27 94% 39.2%;
+    --sev-medium: 40 87.8% 32.2%;
+    --sev-low: 214 55.3% 38.6%;
+    /* Reachability flags (可达/可控/可复现) */
+    --reach-on: 156 83.5% 26.1%;
+    --reach-off: 93 3.9% 54.3%;
+    /* Tool execution */
+    --tool-running: 36 87.6% 37.8%;
+    --tool-success: 156 83.5% 26.1%;
+    --tool-fail: 2 62.7% 46.3%;
+    /* Approval gate — amber = hold, armed = red */
+    --approval: 36 87.6% 37.8%;
+    --approval-armed: 2 62.7% 46.3%;
   }
 
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 240 4.8% 95.9%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 9%;
-    /* #171717 */
-    --popover-foreground: 0 0% 98%;
-    --primary: 228 100% 50%;
-    /* #0034FF - same for all themes */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 5.9% 10%;
-    --muted-foreground: 240 4.4% 58%;
-    --accent: 240 5.9% 10%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    /* #30302E - matches Claude input color */
-    --input-background: 60 2% 18%;
-    --ring: 228 100% 50%;
-    /* Same as primary - blue focus ring */
-    --selection: 228 100% 50% / 0.3;
-    /* Text selection background - primary at 30% */
-    /* Plan Mode Colors */
-    --plan-mode: 33 83% 67%;
-    --plan-mode-foreground: 0 0% 8%;
-    /* Timeline/Content background - matches Claude input color #30302E */
-    --tl-background: 60 2% 18%;
+    /* Operator Console — Console (dark, primary / hero mode) */
+    --background: 150 15.4% 5.1%;
+    --foreground: 135 11.4% 86.3%;
+    --card: 144 15.2% 6.5%;
+    --card-foreground: 135 11.4% 86.3%;
+    --popover: 140 13% 9%;
+    --popover-foreground: 140 12.5% 90.6%;
+    /* Primary = amber (working / chrome / active) */
+    --primary: 36 79.1% 56.9%;
+    --primary-foreground: 39 87.5% 6.3%;
+    --secondary: 128 14.3% 11%;
+    --secondary-foreground: 135 11.4% 86.3%;
+    --muted: 140 12.5% 9.4%;
+    --muted-foreground: 137 5.7% 52.2%;
+    --accent: 135 13.3% 11.8%;
+    --accent-foreground: 140 12.5% 90.6%;
+    --destructive: 358 75.1% 59%;
+    --destructive-foreground: 0 81% 95.9%;
+    --border: 140 11.4% 15.5%;
+    --input: 140 11.4% 15.5%;
+    --input-background: 144 13.5% 7.3%;
+    --ring: 36 79.1% 56.9%;
+    --selection: 36 79.1% 56.9% / 0.3;
+    /* Plan Mode (read-only) — teal */
+    --plan-mode: 175 39.2% 52.9%;
+    --plan-mode-foreground: 169 47.8% 4.5%;
+    --tl-background: 144 15.2% 6.5%;
+    /* ===== Security semantic layer ===== */
+    --state-lead: 137 5.7% 52.2%;
+    --state-candidate: 40 74.2% 52.9%;
+    --state-validated: 152 57.1% 48.4%;
+    --state-dismissed: 150 6.3% 37.6%;
+    --state-needs-human: 283 68.2% 69.2%;
+    --sev-critical: 358 75.1% 59%;
+    --sev-high: 31 92.1% 49.4%;
+    --sev-medium: 40 74.2% 52.9%;
+    --sev-low: 206 54.7% 58.4%;
+    --reach-on: 152 57.1% 48.4%;
+    --reach-off: 150 6.3% 37.6%;
+    --tool-running: 36 79.1% 56.9%;
+    --tool-success: 152 57.1% 48.4%;
+    --tool-fail: 358 75.1% 59%;
+    --approval: 36 79.1% 56.9%;
+    --approval-armed: 358 75.1% 59%;
   }
 }
 

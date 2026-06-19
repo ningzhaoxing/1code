@@ -30,6 +30,7 @@ import {
   type McpServerConfig,
 } from "../../claude-config"
 import { anthropicAccounts, anthropicSettings, chats, claudeCodeCredentials, getDatabase, projects as projectsTable, subChats } from "../../db"
+import { getExistingClaudeToken } from "../../claude-token"
 import { createRollbackStash } from "../../git/stash"
 import {
   ensureMcpTokensFresh,
@@ -224,6 +225,13 @@ function getClaudeCodeToken(): string | null {
     )
 
     if (!cred?.oauthToken) {
+      const systemToken = getExistingClaudeToken()?.trim()
+      if (systemToken) {
+        console.log("[claude-auth] Using system Claude Code token")
+        console.log("[claude-auth] ============================================")
+        return systemToken
+      }
+
       console.log("[claude-auth] No Claude Code credentials found")
       console.log("[claude-auth] ============================================")
       return null

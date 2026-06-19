@@ -17,6 +17,7 @@ import {
   WIDGET_REGISTRY,
   type WidgetId,
 } from "./atoms"
+import { useI18n, type TranslationKey } from "@/lib/i18n"
 import { InfoSection } from "./sections/info-section"
 import { PlanSection } from "./sections/plan-section"
 import { TerminalSection } from "./sections/terminal-section"
@@ -57,6 +58,7 @@ export function ExpandedWidgetSidebar({
     [chatId],
   )
   const [expandedWidget, setExpandedWidget] = useAtom(expandedWidgetAtom)
+  const { t } = useI18n()
 
   // Get widget config
   const widgetConfig = useMemo(
@@ -149,7 +151,9 @@ export function ExpandedWidgetSidebar({
             {widgetConfig && (
               <>
                 <widgetConfig.icon className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">{widgetConfig.label}</span>
+                <span className="text-sm font-medium">
+                  {t(`details.widget.${widgetConfig.id}` as TranslationKey)}
+                </span>
               </>
             )}
           </div>
@@ -160,13 +164,13 @@ export function ExpandedWidgetSidebar({
                 size="icon"
                 onClick={closeSidebar}
                 className="h-6 w-6 p-0 hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] text-muted-foreground hover:text-foreground flex-shrink-0 rounded-md"
-                aria-label="Close"
+                aria-label={t("common.close")}
               >
                 <X className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              Close
+              {t("common.close")}
               <Kbd>Esc</Kbd>
             </TooltipContent>
           </Tooltip>

@@ -7,6 +7,7 @@ import { useCallback, useRef, useEffect } from "react"
 import { useAtomValue } from "jotai"
 import { isDesktopApp } from "../../../lib/utils/platform"
 import { desktopNotificationsEnabledAtom, notifyWhenFocusedAtom } from "../../../lib/atoms"
+import { useI18n } from "../../../lib/i18n"
 
 // throttle interval to prevent notification spam (ms)
 const NOTIFICATION_THROTTLE_MS = 3000
@@ -29,6 +30,7 @@ export interface NotificationOptions {
 }
 
 export function useDesktopNotifications() {
+  const { t } = useI18n()
   const notificationsEnabled = useAtomValue(desktopNotificationsEnabledAtom)
   const notifyWhenFocused = useAtomValue(notifyWhenFocusedAtom)
 
@@ -104,37 +106,43 @@ export function useDesktopNotifications() {
       return
     }
 
-    const title = "Agent Complete"
-    const body = chatName ? `Finished working on "${chatName}"` : "Agent has completed its task"
+    const title = t("chat.notification.agentComplete.title")
+    const body = chatName
+      ? t("chat.notification.agentComplete.body", { name: chatName })
+      : t("chat.notification.agentComplete.bodyFallback")
     showNotification(title, body, { priority: "complete" })
-  }, [showNotification, notifyWhenFocused])
+  }, [showNotification, notifyWhenFocused, t])
 
   const notifyAgentError = useCallback((errorMessage: string) => {
     // always notify on errors, even if window is focused
-    const title = "Agent Error"
+    const title = t("chat.notification.agentError.title")
     const body = errorMessage.length > 100 ? errorMessage.slice(0, 100) + "..." : errorMessage
     showNotification(title, body, { priority: "error" })
-  }, [showNotification])
+  }, [showNotification, t])
 
   const notifyAgentNeedsInput = useCallback((chatName: string) => {
     if (!notifyWhenFocused && document.hasFocus()) {
       return
     }
 
-    const title = "Input Required"
-    const body = chatName ? `"${chatName}" is waiting for your input` : "Agent is waiting for your input"
+    const title = t("chat.notification.inputRequired.title")
+    const body = chatName
+      ? t("chat.notification.inputRequired.body", { name: chatName })
+      : t("chat.notification.inputRequired.bodyFallback")
     showNotification(title, body, { priority: "input" })
-  }, [showNotification, notifyWhenFocused])
+  }, [showNotification, notifyWhenFocused, t])
 
   const notifyPlanReady = useCallback((chatName: string) => {
     if (!notifyWhenFocused && document.hasFocus()) {
       return
     }
 
-    const title = "Plan Ready"
-    const body = chatName ? `"${chatName}" has a plan ready for approval` : "A plan is ready for your approval"
+    const title = t("chat.notification.planReady.title")
+    const body = chatName
+      ? t("chat.notification.planReady.body", { name: chatName })
+      : t("chat.notification.planReady.bodyFallback")
     showNotification(title, body, { priority: "plan" })
-  }, [showNotification, notifyWhenFocused])
+  }, [showNotification, notifyWhenFocused, t])
 
   const requestPermission = useCallback(async (): Promise<NotificationPermission> => {
     if (isDesktopApp()) {

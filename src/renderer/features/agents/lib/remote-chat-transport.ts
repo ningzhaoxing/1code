@@ -1,5 +1,6 @@
 import type { ChatTransport, UIMessage } from "ai"
 import { toast } from "sonner"
+import { translateCurrentLocale as t } from "../../../lib/i18n"
 
 // Cache the API base URL (fetched once from main process)
 let cachedApiBase: string | null = null
@@ -43,8 +44,8 @@ export class RemoteChatTransport implements ChatTransport<UIMessage> {
   }): Promise<ReadableStream<UIMessageChunk>> {
     if (!window.desktopApi?.streamFetch) {
       console.error("[RemoteTransport] Desktop API not available")
-      toast.error("Desktop API not available", {
-        description: "Please restart the application",
+      toast.error(t("chat.transport.desktopApiUnavailable"), {
+        description: t("chat.transport.restartApplication"),
       })
       throw new Error("Desktop API not available")
     }
@@ -104,20 +105,20 @@ export class RemoteChatTransport implements ChatTransport<UIMessage> {
       console.error(`[RemoteTransport] ERROR`, { subId, status: result.status, error: result.error })
 
       if (result.status === 401) {
-        toast.error("Authentication failed", {
-          description: "Please sign in again",
+        toast.error(t("chat.transport.authenticationFailed"), {
+          description: t("chat.transport.signInAgain"),
         })
         throw new Error("Authentication required")
       }
 
       if (result.status === 403) {
-        toast.error("Usage limit reached", {
-          description: "You've hit your sandbox usage limit",
+        toast.error(t("chat.transport.usageLimitReached"), {
+          description: t("chat.transport.sandboxUsageLimit"),
         })
         throw new Error("Usage limit reached")
       }
 
-      toast.error("Request failed", {
+      toast.error(t("chat.transport.requestFailed"), {
         description: result.error || `Server returned ${result.status}`,
       })
       throw new Error(`Remote chat failed: ${result.status}`)

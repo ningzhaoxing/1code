@@ -16,6 +16,7 @@ import {
 } from "../../../components/ui/tooltip"
 import { OriginalMCPIcon } from "../../../components/ui/icons"
 import { sessionInfoAtom, type MCPServerStatus } from "../../../lib/atoms"
+import { useI18n } from "../../../lib/i18n"
 import { cn } from "../../../lib/utils"
 import { trpc } from "../../../lib/trpc"
 
@@ -35,6 +36,7 @@ interface McpServersIndicatorProps {
 export const McpServersIndicator = memo(function McpServersIndicator({
   projectPath,
 }: McpServersIndicatorProps) {
+  const { t } = useI18n()
   const [sessionInfo, setSessionInfo] = useAtom(sessionInfoAtom)
 
   // Fetch MCP config on mount if we have projectPath and no session info yet
@@ -121,35 +123,35 @@ export const McpServersIndicator = memo(function McpServersIndicator({
         return (
           <span
             className="w-2 h-2 rounded-full bg-green-500"
-            aria-label="Connected"
+            aria-label={t("chat.mcp.connected")}
           />
         )
       case "failed":
         return (
           <span
             className="w-2 h-2 rounded-full bg-red-500"
-            aria-label="Connection failed"
+            aria-label={t("chat.mcp.connectionFailed")}
           />
         )
       case "needs-auth":
         return (
           <span
             className="w-2 h-2 rounded-full bg-yellow-500"
-            aria-label="Needs authentication"
+            aria-label={t("chat.mcp.needsAuthentication")}
           />
         )
       case "pending":
         return (
           <Loader2
             className="w-3 h-3 text-muted-foreground animate-spin"
-            aria-label="Connecting"
+            aria-label={t("chat.mcp.connecting")}
           />
         )
       default:
         return (
           <span
             className="w-2 h-2 rounded-full bg-muted-foreground/50"
-            aria-label="Unknown status"
+            aria-label={t("chat.mcp.unknownStatus")}
           />
         )
     }
@@ -158,13 +160,13 @@ export const McpServersIndicator = memo(function McpServersIndicator({
   const getStatusText = (status: MCPServerStatus) => {
     switch (status) {
       case "connected":
-        return "Connected"
+        return t("chat.mcp.connected")
       case "failed":
-        return "Connection failed"
+        return t("chat.mcp.connectionFailed")
       case "needs-auth":
-        return "Needs authentication"
+        return t("chat.mcp.needsAuthentication")
       case "pending":
-        return "Connecting..."
+        return t("chat.mcp.connecting")
       default:
         return status
     }
@@ -217,7 +219,7 @@ export const McpServersIndicator = memo(function McpServersIndicator({
               variant="ghost"
               size="sm"
               className="h-6 px-2 gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-md"
-              aria-label="MCP Servers"
+              aria-label={t("chat.mcp.servers")}
               aria-haspopup="dialog"
               aria-expanded={isOpen}
             >
@@ -227,7 +229,12 @@ export const McpServersIndicator = memo(function McpServersIndicator({
           </PopoverTrigger>
         </TooltipTrigger>
         <TooltipContent>
-          {connectedCount} MCP server{connectedCount !== 1 ? "s" : ""} connected
+          {t("chat.mcp.connectedCount", {
+            count: connectedCount,
+            item: connectedCount === 1
+              ? t("chat.mcp.serverSingular")
+              : t("chat.mcp.serverPlural"),
+          })}
         </TooltipContent>
       </Tooltip>
 
@@ -237,14 +244,14 @@ export const McpServersIndicator = memo(function McpServersIndicator({
         onOpenAutoFocus={(e) => e.preventDefault()}
         onKeyDown={handleKeyDown}
         role="dialog"
-        aria-label="MCP Servers"
+        aria-label={t("chat.mcp.servers")}
       >
         <div className="px-3 py-2 border-b">
           <h4 className="font-medium text-sm" id="mcp-servers-title">
-            MCP Servers
+            {t("chat.mcp.servers")}
           </h4>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Model Context Protocol servers
+            {t("chat.mcp.description")}
           </p>
         </div>
 
@@ -357,10 +364,10 @@ export const McpServersIndicator = memo(function McpServersIndicator({
                   className="px-3 py-1.5 text-sm flex items-center gap-2"
                   role="listitem"
                 >
-                  <span
-                    className="w-2 h-2 rounded-full bg-green-500"
-                    aria-label="Active"
-                  />
+	                  <span
+	                    className="w-2 h-2 rounded-full bg-green-500"
+	                    aria-label={t("chat.mcp.active")}
+	                  />
                   <span className="truncate">{plugin.name}</span>
                 </div>
               ))}

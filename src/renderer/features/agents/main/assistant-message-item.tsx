@@ -49,6 +49,7 @@ import { useFileOpen } from "../mentions"
 import { GitActivityBadges } from "../ui/git-activity-badges"
 import { ForkContext } from "./isolated-message-group"
 import { MemoizedTextPart } from "./memoized-text-part"
+import { useI18n } from "../../../lib/i18n"
 
 // Map first word of an ACP tool title to a canonical Claude Code tool type.
 // Codex tool calls arrive with type = "tool-Read README.md", "tool-Run echo ---",
@@ -494,6 +495,7 @@ export const AssistantMessageItem = memo(function AssistantMessageItem({
   const projectPath = selectedProject?.path
   const onOpenFile = useFileOpen()
   const onFork = useContext(ForkContext)
+  const { t } = useI18n()
   const isDev = import.meta.env.DEV
   // Normalize ACP/codex tool parts into canonical types (e.g. "tool-Read README.md" → "tool-Read").
   // Note: no useMemo — AI SDK mutates parts in-place, so the array reference
@@ -669,7 +671,7 @@ export const AssistantMessageItem = memo(function AssistantMessageItem({
             part={{
               type: "tool-Task",
               toolCallId: parentId,
-              input: { subagent_type: "unknown-agent", description: "Incomplete task" },
+              input: { subagent_type: "unknown-agent", description: t("chat.task.incomplete") },
             }}
             nestedTools={group.parts}
             chatStatus={status}
@@ -749,10 +751,10 @@ export const AssistantMessageItem = memo(function AssistantMessageItem({
               <span className="text-xs text-muted-foreground">
                 {isOpStreaming ? (
                   <TextShimmer as="span" duration={1.2}>
-                    {isWrite ? "Creating plan..." : "Updating plan..."}
+                    {isWrite ? t("chat.tool.creatingPlanEllipsis") : t("chat.tool.updatingPlanEllipsis")}
                   </TextShimmer>
                 ) : (
-                  isWrite ? "Created plan" : "Updated plan"
+                  isWrite ? t("chat.tool.createdPlan") : t("chat.tool.updatedPlan")
                 )}
               </span>
             </div>
@@ -989,7 +991,7 @@ export const AssistantMessageItem = memo(function AssistantMessageItem({
 
       {isDev && showMessageJson && (
         <div className="px-2 mt-2">
-          <MessageJsonDisplay message={message} label="Assistant" />
+          <MessageJsonDisplay message={message} label={t("chat.role.assistant")} />
         </div>
       )}
     </div>

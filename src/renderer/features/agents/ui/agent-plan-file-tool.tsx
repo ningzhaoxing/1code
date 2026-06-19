@@ -9,6 +9,7 @@ import { Kbd } from "../../../components/ui/kbd"
 import { TextShimmer } from "../../../components/ui/text-shimmer"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../../components/ui/tooltip"
 import { cn } from "../../../lib/utils"
+import { useI18n } from "../../../lib/i18n"
 import {
   currentPlanPathAtomFamily,
   pendingBuildPlanSubChatIdAtom,
@@ -48,6 +49,7 @@ export const AgentPlanFileTool = memo(function AgentPlanFileTool({
   const [isExpanded, setIsExpanded] = useState(false)
   const [copied, setCopied] = useState(false)
   const { isPending } = getToolStatus(part, chatStatus)
+  const { t } = useI18n()
   const isWrite = part.type === "tool-Write"
   // Get mode from per-subChat atomFamily
   const subChatModeAtom = useMemo(() => subChatModeAtomFamily(subChatId), [subChatId])
@@ -171,10 +173,10 @@ export const AgentPlanFileTool = memo(function AgentPlanFileTool({
         <span className="text-xs text-muted-foreground">
           {shouldShowShimmer ? (
             <TextShimmer as="span" duration={1.2}>
-              {isEdit ? "Updating plan..." : "Creating plan..."}
+              {isEdit ? t("chat.tool.updatingPlanEllipsis") : t("chat.tool.creatingPlanEllipsis")}
             </TextShimmer>
           ) : (
-            "Plan"
+            t("chat.tool.plan")
           )}
         </span>
       </div>
@@ -192,10 +194,10 @@ export const AgentPlanFileTool = memo(function AgentPlanFileTool({
           <PlanIcon className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
           {shouldShowShimmer ? (
             <TextShimmer as="span" duration={1.2} className="truncate">
-              {isEdit ? "Updating plan..." : "Creating plan..."}
+              {isEdit ? t("chat.tool.updatingPlanEllipsis") : t("chat.tool.creatingPlanEllipsis")}
             </TextShimmer>
           ) : (
-            <span className="truncate text-foreground font-medium">Plan</span>
+            <span className="truncate text-foreground font-medium">{t("chat.tool.plan")}</span>
           )}
         </div>
 

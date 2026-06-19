@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import { useAtomValue } from "jotai";
 import { selectedProjectAtom } from "../../../agents/atoms";
+import { translateCurrentLocale } from "../../../../lib/i18n";
 
 export interface CommitInfo {
 	hash: string;
@@ -177,14 +178,14 @@ const HistoryCommitItem = memo(function HistoryCommitItem({
 
 	const handleCopySha = useCallback(() => {
 		navigator.clipboard.writeText(commit.hash);
-		toast.success("Copied SHA to clipboard");
+		toast.success(translateCurrentLocale("changes.copiedSha"));
 	}, [commit.hash]);
 
 	const handleOpenOnRemote = useCallback(() => {
 		const owner = selectedProject?.gitOwner;
 		const repo = selectedProject?.gitRepo;
 		if (!owner || !repo) {
-			toast.error("Could not determine remote repository");
+			toast.error(translateCurrentLocale("changes.remoteRepoUnknown"));
 			return;
 		}
 		window.desktopApi.openExternal(

@@ -42,6 +42,7 @@ import {
 import { Kbd } from "../../../components/ui/kbd"
 import { getShortcutKey } from "../../../lib/utils/platform"
 import { useResolvedHotkeyDisplay } from "../../../lib/hotkeys"
+import { useI18n } from "../../../lib/i18n"
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -85,7 +86,12 @@ const SearchHistoryPopover = memo(forwardRef<SearchHistoryPopoverRef, SearchHist
   allSubChatsLength,
   onSelect,
 }, ref) {
+  const { t } = useI18n()
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
+  const getDisplayName = useCallback(
+    (name?: string | null) => (name && name !== "New Chat" ? name : t("chat.new")),
+    [t],
+  )
 
   // Expose open function to parent
   useImperativeHandle(ref, () => ({
@@ -122,14 +128,14 @@ const SearchHistoryPopover = memo(forwardRef<SearchHistoryPopoverRef, SearchHist
           )}
         </div>
         <span className="text-sm truncate flex-1">
-          {subChat.name || "New Chat"}
+          {getDisplayName(subChat.name)}
         </span>
         <span className="text-sm text-muted-foreground whitespace-nowrap">
           {timeAgo}
         </span>
       </div>
     )
-  }, [loadingSubChats, subChatUnseenChanges, pendingQuestionsMap, pendingPlanApprovals])
+  }, [getDisplayName, loadingSubChats, subChatUnseenChanges, pendingQuestionsMap, pendingPlanApprovals])
 
   return (
     <SearchCombobox
@@ -137,9 +143,9 @@ const SearchHistoryPopover = memo(forwardRef<SearchHistoryPopoverRef, SearchHist
       onOpenChange={setIsHistoryOpen}
       items={sortedSubChats}
       onSelect={onSelect}
-      placeholder="Search chats..."
-      emptyMessage="No results"
-      getItemValue={(subChat) => `${subChat.name || "New Chat"} ${subChat.id}`}
+      placeholder={t("chat.search.placeholder")}
+      emptyMessage={t("common.noResults")}
+      getItemValue={(subChat) => `${getDisplayName(subChat.name)} ${subChat.id}`}
       renderItem={renderItem}
       trigger={
         <Tooltip>
@@ -156,7 +162,7 @@ const SearchHistoryPopover = memo(forwardRef<SearchHistoryPopoverRef, SearchHist
             </PopoverTrigger>
           </TooltipTrigger>
           <TooltipContent side="bottom">
-            Search chats
+            {t("chat.search.tooltip")}
             <Kbd>/</Kbd>
           </TooltipContent>
         </Tooltip>
@@ -196,6 +202,7 @@ export function SubChatSelector({
   isTerminalOpen = false,
   chatId,
 }: SubChatSelectorProps) {
+  const { t } = useI18n()
   // Use shallow comparison to prevent re-renders when arrays have same content
   const {
     activeSubChatId,
@@ -275,6 +282,10 @@ export function SubChatSelector({
   const rightGradientRef = useRef<HTMLDivElement>(null)
   const truncatedTabsRef = useRef<Set<string>>(new Set())
   const searchHistoryPopoverRef = useRef<SearchHistoryPopoverRef>(null)
+  const getDisplayName = useCallback(
+    (name?: string | null) => (name && name !== "New Chat" ? name : t("chat.new")),
+    [t],
+  )
 
   const allSubChatsById = useMemo(() => {
     const map = new Map<string, SubChatMeta>()
@@ -397,9 +408,9 @@ export function SubChatSelector({
     onError: (error) => {
       // Show helpful error message (like Canvas)
       if (error.data?.code === "NOT_FOUND") {
-        toast.error("Send a message first before renaming this chat")
+        toast.error(t("chat.rename.sendFirst"))
       } else {
-        toast.error("Failed to rename chat")
+        toast.error(t("chat.rename.failed"))
       }
     },
   })
@@ -446,7 +457,7 @@ export function SubChatSelector({
         // Revert on error (like Canvas)
         useAgentSubChatStore
           .getState()
-          .updateSubChatName(subChat.id, oldName || "New Chat")
+          .updateSubChatName(subChat.id, oldName || t("chat.new"))
       } finally {
         setEditLoading(false)
       }
@@ -645,14 +656,14 @@ export function SubChatSelector({
           size="icon"
           onClick={onBackToChats}
           className="h-6 w-6 p-0 hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] flex-shrink-0 rounded-md"
-          aria-label="Back to chats"
+          aria-label={t("chat.backToChats")}
           style={{
             // @ts-expect-error - WebKit-specific property
             WebkitAppRegion: "no-drag",
           }}
         >
           <AlignJustify className="h-4 w-4" />
-          <span className="sr-only">Back to chats</span>
+          <span className="sr-only">{t("chat.backToChats")}</span>
         </Button>
       )}
 
@@ -673,7 +684,7 @@ export function SubChatSelector({
               <IconOpenSidebarRight className="h-4 w-4 scale-x-[-1]" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="bottom">Open chats pane</TooltipContent>
+          <TooltipContent side="bottom">{t("chat.openPane")}</TooltipContent>
         </Tooltip>
       )}
 
@@ -834,7 +845,7 @@ export function SubChatSelector({
                             }}
                             className="relative z-0 text-left flex-1 min-w-0 pr-1 overflow-hidden block whitespace-nowrap"
                           >
-                            {subChat.name || "New Chat"}
+                            {getDisplayName(subChat.name)}
                           </span>
                         )}
 
@@ -874,8 +885,8 @@ export function SubChatSelector({
                                 className="relative z-20 hover:text-foreground rounded p-0.5 transition-[color,transform] duration-150 ease-out active:scale-[0.97] cursor-pointer"
                                 title={
                                   isActive && archiveAgentHotkey
-                                    ? `Close tab (${archiveAgentHotkey})`
-                                    : "Close tab"
+                                    ? `${t("chat.context.closeChat")} (${archiveAgentHotkey})`
+                                    : t("chat.context.closeChat")
                                 }
                               >
                                 <X className="h-3 w-3" />
@@ -980,11 +991,11 @@ export function SubChatSelector({
                 className="h-6 w-6 p-0 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] flex-shrink-0 rounded-md flex items-center justify-center hover:bg-foreground/10"
               >
                 <DiffIcon className="h-4 w-4" />
-                <span className="sr-only">Open diff</span>
+                <span className="sr-only">{t("chat.toolbar.openDiff")}</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              <span>View changes</span>
+              <span>{t("chat.toolbar.viewChanges")}</span>
               {openDiffHotkey && <Kbd>{openDiffHotkey}</Kbd>}
             </TooltipContent>
           </Tooltip>
@@ -1009,11 +1020,11 @@ export function SubChatSelector({
                 className="h-6 w-6 p-0 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] flex-shrink-0 rounded-md flex items-center justify-center hover:bg-foreground/10"
               >
                 <TerminalSquare className="h-4 w-4" />
-                <span className="sr-only">Open terminal</span>
+                <span className="sr-only">{t("chat.toolbar.openTerminal")}</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              <span>Open terminal</span>
+              <span>{t("chat.toolbar.openTerminal")}</span>
               {toggleTerminalHotkey && <Kbd>{toggleTerminalHotkey}</Kbd>}
             </TooltipContent>
           </Tooltip>
@@ -1036,7 +1047,7 @@ export function SubChatSelector({
             className="h-7 w-7 p-0 hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] flex-shrink-0 flex items-center justify-center"
           >
             <DiffIcon className="h-4 w-4" />
-            <span className="sr-only">Open diff</span>
+            <span className="sr-only">{t("chat.toolbar.openDiff")}</span>
           </Button>
         </div>
       )}
@@ -1057,7 +1068,7 @@ export function SubChatSelector({
             className="h-7 w-7 p-0 hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] flex-shrink-0 flex items-center justify-center"
           >
             <Play className="h-4 w-4" />
-            <span className="sr-only">Open preview</span>
+            <span className="sr-only">{t("chat.toolbar.openPreview")}</span>
           </Button>
         </div>
       )}

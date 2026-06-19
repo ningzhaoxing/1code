@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import { useSetAtom } from "jotai"
 import { selectedAgentChatIdAtom, desktopViewAtom } from "../atoms"
 import { chatSourceModeAtom } from "../../../lib/atoms"
+import { useI18n } from "../../../lib/i18n"
 import type { RemoteChat } from "../../../lib/remote-api"
 
 interface Project {
@@ -15,6 +16,7 @@ interface Project {
 }
 
 export function useAutoImport() {
+  const { t } = useI18n()
   const setSelectedChatId = useSetAtom(selectedAgentChatIdAtom)
   const setChatSourceMode = useSetAtom(chatSourceModeAtom)
   const setDesktopView = useSetAtom(desktopViewAtom)
@@ -22,7 +24,7 @@ export function useAutoImport() {
 
   const importMutation = trpc.sandboxImport.importSandboxChat.useMutation({
     onSuccess: (result) => {
-      toast.success("Opened locally")
+      toast.success(t("workspace.openedLocally"))
 
       // Invalidate list queries so sidebar updates
       utils.chats.list.invalidate()
@@ -34,7 +36,7 @@ export function useAutoImport() {
       setDesktopView(null)
     },
     onError: (error) => {
-      toast.error(`Import failed: ${error.message}`)
+      toast.error(t("workspace.importFailed", { message: error.message }))
     },
   })
 
@@ -75,7 +77,7 @@ export function useAutoImport() {
   const autoImport = useCallback(
     (remoteChat: RemoteChat, project: Project) => {
       if (!remoteChat.sandbox_id) {
-        toast.error("This chat has no sandbox to import")
+        toast.error(t("chat.import.noSandbox"))
         return
       }
       importMutation.mutate({
@@ -85,7 +87,7 @@ export function useAutoImport() {
         chatName: remoteChat.name,
       })
     },
-    [importMutation]
+    [importMutation, t]
   )
 
   return {

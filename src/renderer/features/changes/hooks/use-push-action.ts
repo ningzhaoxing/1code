@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { toast } from "sonner";
 import { trpc } from "../../../lib/trpc";
+import { translateCurrentLocale } from "../../../lib/i18n";
 
 interface UsePushActionOptions {
 	worktreePath?: string | null;
@@ -17,12 +18,13 @@ export function usePushAction({
 		onSuccess: () => {
 			onSuccess?.();
 		},
-		onError: (error) => toast.error(`Push failed: ${error.message}`),
+		onError: (error) =>
+			toast.error(translateCurrentLocale("changes.pushFailed", { message: error.message })),
 	});
 
 	const push = useCallback(() => {
 		if (!worktreePath) {
-			toast.error("Worktree path is required");
+			toast.error(translateCurrentLocale("changes.worktreePathRequired"));
 			return;
 		}
 		pushMutation.mutate({ worktreePath, setUpstream: !hasUpstream });

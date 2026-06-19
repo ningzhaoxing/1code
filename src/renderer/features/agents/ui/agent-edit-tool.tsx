@@ -22,6 +22,7 @@ import { getFileIconByExtension } from "../mentions/agents-file-mention"
 import { useFileOpen } from "../mentions"
 import { agentsDiffSidebarOpenAtom, agentsFocusedDiffFileAtom, selectedProjectAtom } from "../atoms"
 import { cn } from "../../../lib/utils"
+import { useI18n } from "../../../lib/i18n"
 
 interface AgentEditToolProps {
   part: any
@@ -222,6 +223,7 @@ export const AgentEditTool = memo(function AgentEditTool({
   const [isOutputExpanded, setIsOutputExpanded] = useState(false)
   const { isPending, isInterrupted } = getToolStatus(part, chatStatus)
   const codeTheme = useCodeTheme()
+  const { t } = useI18n()
 
   // Atoms for opening diff sidebar and focusing on file
   const setDiffSidebarOpen = useSetAtom(agentsDiffSidebarOpenAtom)
@@ -457,17 +459,17 @@ export const AgentEditTool = memo(function AgentEditTool({
   // Header title based on mode and state (used only in minimal view)
   const headerAction = useMemo(() => {
     if (isWriteMode) {
-      return isInputStreaming ? "Creating" : "Created"
+      return isInputStreaming ? t("chat.tool.creating") : t("chat.tool.created")
     }
-    return isInputStreaming ? "Editing" : "Edited"
-  }, [isWriteMode, isInputStreaming])
+    return isInputStreaming ? t("chat.tool.editing") : t("chat.tool.edited")
+  }, [isWriteMode, isInputStreaming, t])
 
   // Show minimal view (no background/border) until we have the full file path
   // This prevents showing a large empty component while path is being streamed
   if (!filePath) {
     // If interrupted without file path, show interrupted state
     if (isInterrupted) {
-      return <AgentToolInterrupted toolName={isWriteMode ? "Write" : "Edit"} />
+      return <AgentToolInterrupted toolName={isWriteMode ? t("chat.tool.write") : t("chat.tool.edit")} />
     }
     return (
       <div className="flex items-center gap-1.5 px-2 py-0.5">

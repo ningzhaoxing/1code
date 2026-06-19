@@ -9,6 +9,7 @@ import { areToolPropsEqual } from "./agent-tool-utils"
 import { cn } from "../../../lib/utils"
 import { highlightCode } from "../../../lib/themes/shiki-theme-loader"
 import { useCodeTheme } from "../../../lib/hooks/use-code-theme"
+import { translateCurrentLocale } from "../../../lib/i18n"
 
 interface AgentMcpToolCallProps {
   part: any
@@ -19,37 +20,12 @@ interface AgentMcpToolCallProps {
 // Priority arg keys to show in subtitle
 const PRIORITY_ARGS = ["query", "question", "email", "name", "id", "customer", "url", "issue", "body", "summary", "title"]
 
-const ACTIVE_VERBS: Record<string, string> = {
-  List: "Listing", Get: "Getting", Create: "Creating", Update: "Updating",
-  Delete: "Deleting", Search: "Searching", Fetch: "Fetching", Retrieve: "Retrieving",
-  Send: "Sending", Generate: "Generating", Add: "Adding", Remove: "Removing",
-  Modify: "Modifying", Draft: "Drafting", Manage: "Managing", Query: "Querying",
-  Start: "Starting", Set: "Setting", Check: "Checking", Find: "Finding",
-}
-
-const COMPLETED_VERBS: Record<string, string> = {
-  List: "Listed", Get: "Got", Create: "Created", Update: "Updated",
-  Delete: "Deleted", Search: "Searched", Fetch: "Fetched", Retrieve: "Retrieved",
-  Send: "Sent", Generate: "Generated", Add: "Added", Remove: "Removed",
-  Modify: "Modified", Draft: "Drafted", Manage: "Managed", Query: "Queried",
-  Start: "Started", Set: "Set", Check: "Checked", Find: "Found",
-}
-
 function getActiveTitle(info: McpToolInfo): string {
-  const words = info.displayName.split(" ")
-  const verb = words[0]
-  const rest = words.slice(1).join(" ")
-  const active = ACTIVE_VERBS[verb]
-  if (active) return rest ? `${active} ${rest}` : active
-  return info.displayName
+  return translateCurrentLocale("chat.tool.mcpRunning", { name: info.displayName })
 }
 
 function getCompletedTitle(info: McpToolInfo): string {
-  const words = info.displayName.split(" ")
-  const verb = words[0]
-  const rest = words.slice(1).join(" ")
-  const completed = COMPLETED_VERBS[verb]
-  return completed ? (rest ? `${completed} ${rest}` : completed) : info.displayName
+  return translateCurrentLocale("chat.tool.mcpCompleted", { name: info.displayName })
 }
 
 function getResultCount(output: any): string | null {
@@ -57,7 +33,10 @@ function getResultCount(output: any): string | null {
 
   if (Array.isArray(output)) {
     const n = output.length
-    return `${n} ${n === 1 ? "result" : "results"}`
+    return translateCurrentLocale("chat.tool.resultCount", {
+      count: n,
+      item: translateCurrentLocale(n === 1 ? "chat.tool.resultSingular" : "chat.tool.resultPlural"),
+    })
   }
 
   if (typeof output === "object") {
@@ -69,7 +48,10 @@ function getResultCount(output: any): string | null {
     }
     if (longest) {
       const n = longest.length
-      return `${n} ${n === 1 ? "result" : "results"}`
+      return translateCurrentLocale("chat.tool.resultCount", {
+        count: n,
+        item: translateCurrentLocale(n === 1 ? "chat.tool.resultSingular" : "chat.tool.resultPlural"),
+      })
     }
   }
 
@@ -210,7 +192,7 @@ export const AgentMcpToolCall = memo(function AgentMcpToolCall({
   const unwrappedOutput = useMemo(() => unwrapMcpOutput(part.output), [part.output])
 
   const title = useMemo(() => {
-    if (part.state === "input-streaming") return `Preparing ${mcpInfo.displayName}`
+    if (part.state === "input-streaming") return translateCurrentLocale("chat.tool.mcpPreparing", { name: mcpInfo.displayName })
     if (isPending) return getActiveTitle(mcpInfo)
     return getCompletedTitle(mcpInfo)
   }, [part.state, isPending, mcpInfo])
@@ -239,7 +221,7 @@ export const AgentMcpToolCall = memo(function AgentMcpToolCall({
     return (
       <AgentToolInterrupted
         toolName={mcpInfo.displayName}
-        subtitle={`via ${mcpInfo.serverName}`}
+        subtitle={translateCurrentLocale("chat.tool.mcpVia", { server: mcpInfo.serverName })}
       />
     )
   }

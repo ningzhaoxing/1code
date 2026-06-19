@@ -77,6 +77,7 @@ import {
 import { useFileChangeListener, useGitWatcher } from "../../../lib/hooks/use-file-change-listener"
 import { useRemoteChat } from "../../../lib/hooks/use-remote-chats"
 import { useResolvedHotkeyDisplay } from "../../../lib/hotkeys"
+import { translateCurrentLocale, useI18n } from "../../../lib/i18n"
 import { appStore } from "../../../lib/jotai-store"
 import { api } from "../../../lib/mock-api"
 import { trpc, trpcClient } from "../../../lib/trpc"
@@ -812,6 +813,7 @@ const ScrollToBottomButton = memo(function ScrollToBottomButton({
   isActive?: boolean
   isSplitPane?: boolean
 }) {
+  const { t } = useI18n()
   const [isVisible, setIsVisible] = useState(false)
   const shouldMonitor = isActive || isSplitPane
 
@@ -895,13 +897,13 @@ const ScrollToBottomButton = memo(function ScrollToBottomButton({
                 // Narrow screen (container <= 48rem): button lifts above the input
                 bottom: "clamp(0.75rem, (48rem - var(--chat-container-width, 0px)) * 1000, calc(var(--chat-input-height, 4rem) + 1rem))",
               }}
-              aria-label="Scroll to bottom"
+              aria-label={t("chat.scrollToBottom")}
             >
               <ArrowDown className="h-4 w-4 text-muted-foreground" />
             </motion.button>
           </TooltipTrigger>
           <TooltipContent side="top">
-            Scroll to bottom
+            {t("chat.scrollToBottom")}
             <span className="inline-flex items-center gap-0.5">
               <Kbd>⌘</Kbd>
               <Kbd>
@@ -1337,11 +1339,11 @@ const DiffSidebarContent = memo(function DiffSidebarContent({
             {selectedCommit && (
               !commitFiles ? (
                 <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-                  Loading files...
+                  {translateCurrentLocale("chat.files.loading")}
                 </div>
               ) : commitFiles.length === 0 ? (
                 <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-                  No files changed in this commit
+                  {translateCurrentLocale("chat.files.noFilesChangedInCommit")}
                 </div>
               ) : (
                 <>
@@ -1354,7 +1356,7 @@ const DiffSidebarContent = memo(function DiffSidebarContent({
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(selectedCommit.hash)
-                          toast.success('Copied SHA to clipboard')
+                          toast.success(translateCurrentLocale("changes.copiedSha"))
                         }}
                         className="text-xs font-mono text-muted-foreground hover:text-foreground underline cursor-pointer shrink-0"
                       >
@@ -1367,12 +1369,12 @@ const DiffSidebarContent = memo(function DiffSidebarContent({
                       </div>
                     )}
                     <div className="text-xs text-muted-foreground">
-                      {selectedCommit.author} • {selectedCommit.date ? new Date(selectedCommit.date).toLocaleString() : 'Unknown date'}
+                      {selectedCommit.author} • {selectedCommit.date ? new Date(selectedCommit.date).toLocaleString() : translateCurrentLocale("changes.unknownDate")}
                     </div>
                   </div>
 
                   <div className="px-2 py-1.5 text-xs text-muted-foreground font-medium bg-muted/30 border-b border-border/50">
-                    Files in commit ({commitFiles.length})
+                    {translateCurrentLocale("changes.filesInCommit", { count: commitFiles.length })}
                   </div>
                   {commitFiles.map((file) => (
                     <CommitFileItem
@@ -1465,11 +1467,11 @@ const DiffSidebarContent = memo(function DiffSidebarContent({
           {selectedCommit && (
             !commitFiles ? (
               <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-                Loading files...
+                {translateCurrentLocale("chat.files.loading")}
               </div>
             ) : commitFiles.length === 0 ? (
               <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-                No files changed in this commit
+                {translateCurrentLocale("chat.files.noFilesChangedInCommit")}
               </div>
             ) : (
               <>
@@ -1482,7 +1484,7 @@ const DiffSidebarContent = memo(function DiffSidebarContent({
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(selectedCommit.hash)
-                        toast.success('Copied SHA to clipboard')
+                        toast.success(translateCurrentLocale("changes.copiedSha"))
                       }}
                       className="text-xs font-mono text-muted-foreground hover:text-foreground underline cursor-pointer shrink-0"
                     >
@@ -1495,12 +1497,12 @@ const DiffSidebarContent = memo(function DiffSidebarContent({
                     </div>
                   )}
                   <div className="text-xs text-muted-foreground">
-                    {selectedCommit.author} • {selectedCommit.date ? new Date(selectedCommit.date).toLocaleString() : 'Unknown date'}
+                    {selectedCommit.author} • {selectedCommit.date ? new Date(selectedCommit.date).toLocaleString() : translateCurrentLocale("changes.unknownDate")}
                   </div>
                 </div>
 
                 <div className="px-2 py-1.5 text-xs text-muted-foreground font-medium bg-muted/30 border-b border-border/50">
-                  Files in commit ({commitFiles.length})
+                  {translateCurrentLocale("changes.filesInCommit", { count: commitFiles.length })}
                 </div>
                 {commitFiles.map((file) => (
                   <CommitFileItem
@@ -1775,6 +1777,7 @@ const DiffSidebarRenderer = memo(function DiffSidebarRenderer({
   setDiffStats,
   onDiscardSuccess,
 }: DiffSidebarRendererProps) {
+  const { t } = useI18n()
   // Get callbacks and state from context
   const { handleCloseDiff, viewedCount, handleViewedCountChange } = useDiffState()
 
@@ -1853,7 +1856,7 @@ const DiffSidebarRenderer = memo(function DiffSidebarRenderer({
           >
             <IconCloseSidebarRight className="size-4 text-muted-foreground" />
           </Button>
-          <span className="text-sm text-muted-foreground ml-2">Changes</span>
+          <span className="text-sm text-muted-foreground ml-2">{t("chat.diff.changes")}</span>
         </div>
       ) : null}
 
@@ -1991,6 +1994,7 @@ const ChatViewInner = memo(function ChatViewInner({
   workspaceBranch?: string | null
   workspaceRepoName?: string | null
 }) {
+  const { t } = useI18n()
   const hasTriggeredRenameRef = useRef(false)
   const hasTriggeredAutoGenerateRef = useRef(false)
   const isVisiblePane = isActive || isSplitPane
@@ -2179,14 +2183,15 @@ const ChatViewInner = memo(function ChatViewInner({
   const subChatName = useAgentSubChatStore(
     (state) => state.allSubChats.find((sc) => sc.id === subChatId)?.name || "",
   )
+  const displayedSubChatName = subChatName && subChatName !== "New Chat" ? subChatName : ""
 
   // Mutation for renaming sub-chat
   const renameSubChatMutation = api.agents.renameSubChat.useMutation({
     onError: (error) => {
       if (error.data?.code === "NOT_FOUND") {
-        toast.error("Send a message first before renaming this chat")
+        toast.error(t("chat.rename.sendFirst"))
       } else {
-        toast.error("Failed to rename chat")
+        toast.error(t("chat.rename.failed"))
       }
     },
   })
@@ -2609,14 +2614,14 @@ const ChatViewInner = memo(function ChatViewInner({
     if (isStreamingRef.current) {
       const item = createQueueItem(generateQueueId(), message)
       addToQueue(subChatId, item)
-      toast.success("Reply queued", { description: "Will be sent when current response completes" })
+      toast.success(t("chat.toast.replyQueued"), { description: t("chat.toast.replyQueuedDescription") })
     } else {
       // Send directly
       sendMessageRef.current({
         role: "user",
         parts: [{ type: "text", text: message }],
       })
-      toast.success("Reply sent")
+      toast.success(t("chat.toast.replySent"))
     }
 
     // Clear state and selection
@@ -3152,7 +3157,7 @@ const ChatViewInner = memo(function ChatViewInner({
         })
       } catch (error) {
         console.error("[plan-approval] Failed to respond:", error)
-        toast.error("Failed to send plan approval. Please try again.")
+        toast.error(t("chat.toast.planApprovalFailed"))
       } finally {
         setPlanApprovalPending((prev) => {
           const next = { ...prev }
@@ -3293,18 +3298,18 @@ const ChatViewInner = memo(function ChatViewInner({
   const handleRollback = useCallback(
     async (userMsg: (typeof messages)[0]) => {
       if (isRollingBack) {
-        toast.error("Rollback already in progress")
+        toast.error(t("chat.toast.rollbackInProgress"))
         return
       }
       if (isStreaming) {
-        toast.error("Cannot rollback while streaming")
+        toast.error(t("chat.toast.rollbackWhileStreaming"))
         return
       }
 
       // Find the index of this user message
       const userMsgIndex = messages.findIndex((m) => m.id === userMsg.id)
       if (userMsgIndex === -1) {
-        toast.error("Cannot rollback: message not found")
+        toast.error(t("chat.toast.rollbackMessageNotFound"))
         return
       }
 
@@ -3315,7 +3320,7 @@ const ChatViewInner = memo(function ChatViewInner({
       )
 
       if (!sdkUuid) {
-        toast.error("Cannot rollback: this turn is not rollbackable")
+        toast.error(t("chat.toast.turnNotRollbackable"))
         return
       }
 
@@ -3434,7 +3439,11 @@ const ChatViewInner = memo(function ChatViewInner({
         })
 
         if (!result.success) {
-          toast.error(`Failed to rollback: ${result.error}`)
+          toast.error(
+            t("chat.toast.rollbackFailedWithMessage", {
+              message: result.error || t("common.unknownError"),
+            }),
+          )
           setIsRollingBack(false)
           return
         }
@@ -3463,7 +3472,7 @@ const ChatViewInner = memo(function ChatViewInner({
         editorRef.current?.focus()
       } catch (error) {
         console.error("[handleRollback] Error:", error)
-        toast.error("Failed to rollback")
+        toast.error(t("chat.toast.rollbackFailed"))
       } finally {
         setIsRollingBack(false)
       }
@@ -3543,7 +3552,7 @@ const ChatViewInner = memo(function ChatViewInner({
         store.setActiveSubChat(newSubChat.id)
       } catch (error) {
         console.error("[handleForkFromMessage] Error:", error)
-        toast.error("Failed to fork conversation")
+        toast.error(t("chat.toast.forkFailed"))
       } finally {
         isForkingRef.current = false
       }
@@ -4618,7 +4627,7 @@ const ChatViewInner = memo(function ChatViewInner({
         onProviderChange?.(newId, targetProvider)
       } catch (error) {
         console.error("[handleContinueWithProvider] Error:", error)
-        toast.error("Failed to continue with provider")
+        toast.error(t("chat.toast.continueProviderFailed"))
       } finally {
         isContinuingRef.current = false
       }
@@ -4661,8 +4670,8 @@ const ChatViewInner = memo(function ChatViewInner({
           )}
         >
           <ChatTitleEditor
-            name={subChatName}
-            placeholder="New Chat"
+            name={displayedSubChatName}
+            placeholder={t("chat.new")}
             onSave={handleRenameSubChat}
             isMobile={false}
             chatId={subChatId}
@@ -4876,6 +4885,7 @@ export function ChatView({
   onOpenTerminal?: () => void
   hideHeader?: boolean
 }) {
+  const { t } = useI18n()
   const [selectedTeamId] = useAtom(selectedTeamIdAtom)
 
   // Get active sub-chat ID from store for mode tracking (reactive)
@@ -5658,7 +5668,7 @@ export function ChatView({
 
   const handleOpenSecurityMiningRecord = useCallback(async () => {
     if (!activeSubChatId) {
-      toast.error("No active chat tab", { position: "top-center" })
+      toast.error(t("chat.toast.noActiveChatTab"), { position: "top-center" })
       return
     }
 
@@ -5669,15 +5679,15 @@ export function ChatView({
       })
       setFileViewerPath(record.filePath)
       toast.success(
-        record.created ? "Vulnerability record created" : "Vulnerability record opened",
+        record.created ? t("chat.toast.vulnerabilityRecordCreated") : t("chat.toast.vulnerabilityRecordOpened"),
         {
           description: record.relativePath,
           position: "top-center",
         },
       )
     } catch (error) {
-      toast.error("Failed to open vulnerability record", {
-        description: error instanceof Error ? error.message : "Unknown error",
+      toast.error(t("chat.toast.openVulnerabilityRecordFailed"), {
+        description: error instanceof Error ? error.message : t("common.unknownError"),
         position: "top-center",
       })
     }
@@ -5686,11 +5696,12 @@ export function ChatView({
     chatId,
     ensureSecurityRecordMutation,
     setFileViewerPath,
+    t,
   ])
 
   const handleGenerateSecurityMiningReport = useCallback(async () => {
     if (!activeSubChatId) {
-      toast.error("No active chat tab", { position: "top-center" })
+      toast.error(t("chat.toast.noActiveChatTab"), { position: "top-center" })
       return
     }
 
@@ -5700,13 +5711,13 @@ export function ChatView({
         subChatId: activeSubChatId,
       })
       setFileViewerPath(report.reportPath)
-      toast.success("Markdown report generated", {
+      toast.success(t("chat.toast.markdownReportGenerated"), {
         description: report.reportRelativePath,
         position: "top-center",
       })
     } catch (error) {
-      toast.error("Failed to generate Markdown report", {
-        description: error instanceof Error ? error.message : "Unknown error",
+      toast.error(t("chat.toast.generateMarkdownReportFailed"), {
+        description: error instanceof Error ? error.message : t("common.unknownError"),
         position: "top-center",
       })
     }
@@ -5714,13 +5725,14 @@ export function ChatView({
     activeSubChatId,
     chatId,
     generateSecurityReportMutation,
+    t,
     setFileViewerPath,
   ])
 
   // Direct PR creation mutation (push branch and open GitHub)
   const createPrMutation = trpc.changes.createPR.useMutation({
     onSuccess: () => {
-      toast.success("Opening GitHub to create PR...", { position: "top-center" })
+      toast.success(t("chat.toast.openingGithubPr"), { position: "top-center" })
       refetchGitStatus()
     },
     onError: (error) => {
@@ -5731,7 +5743,7 @@ export function ChatView({
   // Sync from main mutation (for resolving merge conflicts)
   const mergeFromDefaultMutation = trpc.changes.mergeFromDefault.useMutation({
     onSuccess: () => {
-      toast.success("Branch synced with main. You can now merge the PR.", { position: "top-center" })
+      toast.success(t("chat.toast.branchSynced"), { position: "top-center" })
       // Invalidate PR status to refresh mergeability
       trpcUtils.chats.getPrStatus.invalidate({ chatId })
     },
@@ -5742,22 +5754,22 @@ export function ChatView({
 
   const mergePrMutation = trpc.chats.mergePr.useMutation({
     onSuccess: () => {
-      toast.success("PR merged successfully!", { position: "top-center" })
+      toast.success(t("chat.toast.prMerged"), { position: "top-center" })
       // Invalidate PR status to update button state
       trpcUtils.chats.getPrStatus.invalidate({ chatId })
     },
     onError: (error) => {
-      const errorMsg = error.message || "Failed to merge PR"
+      const errorMsg = error.message || t("chat.toast.prMergeFailed")
 
       // Check if it's a merge conflict error
       if (errorMsg.includes("MERGE_CONFLICT")) {
         toast.error(
-          "PR has merge conflicts. Sync with main to resolve.",
+          t("chat.toast.prMergeConflict"),
           {
             position: "top-center",
             duration: 8000,
             action: worktreePath ? {
-              label: "Sync with Main",
+              label: t("chat.toast.syncWithMain"),
               onClick: () => {
                 mergeFromDefaultMutation.mutate({ worktreePath, useRebase: false })
               },
@@ -6157,7 +6169,7 @@ export function ChatView({
       setFileViewerPath(normalizedFilePath)
       if (securityRecordAutoOpenedPathRef.current !== normalizedFilePath) {
         securityRecordAutoOpenedPathRef.current = normalizedFilePath
-        toast.success("Vulnerability record updated", {
+        toast.success(t("chat.toast.vulnerabilityRecordUpdated"), {
           description: getViewerFileName(normalizedFilePath),
           position: "top-center",
         })
@@ -6174,6 +6186,7 @@ export function ChatView({
       securityArtifactLocation?.filePath,
       securityRecordQueryInput,
       setFileViewerPath,
+      t,
       trpcUtils,
       worktreePath,
     ],
@@ -6188,7 +6201,7 @@ export function ChatView({
   // Handle Create PR (Direct) - pushes branch and opens GitHub compare URL
   const handleCreatePrDirect = useCallback(async () => {
     if (!worktreePath) {
-      toast.error("No workspace path available", { position: "top-center" })
+      toast.error(t("chat.toast.noWorkspacePath"), { position: "top-center" })
       return
     }
 
@@ -6205,7 +6218,7 @@ export function ChatView({
 
   const handleCreatePr = useCallback(async () => {
     if (!chatId) {
-      toast.error("Chat ID is required", { position: "top-center" })
+      toast.error(t("chat.toast.chatIdRequired"), { position: "top-center" })
       return
     }
 
@@ -6213,7 +6226,7 @@ export function ChatView({
     try {
       const activeSubChatId = useAgentSubChatStore.getState().activeSubChatId
       if (!activeSubChatId) {
-        toast.error("No active chat available", { position: "top-center" })
+        toast.error(t("chat.toast.noActiveChat"), { position: "top-center" })
         setIsCreatingPr(false)
         return
       }
@@ -6226,7 +6239,7 @@ export function ChatView({
       // Get PR context from backend
       const context = await trpcClient.chats.getPrContext.query({ chatId })
       if (!context) {
-        toast.error("Could not get git context", { position: "top-center" })
+        toast.error(t("chat.toast.gitContextFailed"), { position: "top-center" })
         setIsCreatingPr(false)
         return
       }
@@ -6249,7 +6262,7 @@ export function ChatView({
   const [isCommittingToPr, setIsCommittingToPr] = useState(false)
   const handleCommitToPr = useCallback(async (_selectedPaths?: string[]) => {
     if (!chatId) {
-      toast.error("Chat ID is required", { position: "top-center" })
+      toast.error(t("chat.toast.chatIdRequired"), { position: "top-center" })
       return
     }
 
@@ -6257,7 +6270,7 @@ export function ChatView({
       setIsCommittingToPr(true)
       const activeSubChatId = useAgentSubChatStore.getState().activeSubChatId
       if (!activeSubChatId) {
-        toast.error("No active chat available", { position: "top-center" })
+        toast.error(t("chat.toast.noActiveChat"), { position: "top-center" })
         setIsCommittingToPr(false)
         return
       }
@@ -6269,7 +6282,7 @@ export function ChatView({
 
       const context = await trpcClient.chats.getPrContext.query({ chatId })
       if (!context) {
-        toast.error("Could not get git context", { position: "top-center" })
+        toast.error(t("chat.toast.gitContextFailed"), { position: "top-center" })
         return
       }
 
@@ -6290,7 +6303,7 @@ export function ChatView({
 
   const handleReview = useCallback(async () => {
     if (!chatId) {
-      toast.error("Chat ID is required", { position: "top-center" })
+      toast.error(t("chat.toast.chatIdRequired"), { position: "top-center" })
       return
     }
 
@@ -6299,7 +6312,7 @@ export function ChatView({
       // Get PR context from backend
       const context = await trpcClient.chats.getPrContext.query({ chatId })
       if (!context) {
-        toast.error("Could not get git context", { position: "top-center" })
+        toast.error(t("chat.toast.gitContextFailed"), { position: "top-center" })
         return
       }
 
@@ -7736,18 +7749,18 @@ Make sure to preserve all functionality from both branches when resolving confli
                                 onClick={handleOpenSecurityMiningRecord}
                                 disabled={ensureSecurityRecordMutation.isPending}
                                 className="h-6 px-2 gap-1.5 text-xs font-medium ml-2 hover:bg-foreground/10 transition-colors rounded-md"
-                                aria-label="Open vulnerability record"
+                                aria-label={t("chat.toolbar.openVulnerabilityRecord")}
                               >
                                 {ensureSecurityRecordMutation.isPending ? (
                                   <IconSpinner className="h-3 w-3 animate-spin" />
                                 ) : (
                                   <FileText className="h-3.5 w-3.5" />
                                 )}
-                                <span>实时记录</span>
+                                <span>{t("chat.toolbar.realtimeRecord")}</span>
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent side="bottom">
-                              Open vulnerability record
+                              {t("chat.toolbar.openVulnerabilityRecord")}
                             </TooltipContent>
                           </Tooltip>
                           <Tooltip delayDuration={500}>
@@ -7758,18 +7771,18 @@ Make sure to preserve all functionality from both branches when resolving confli
                                 onClick={handleGenerateSecurityMiningReport}
                                 disabled={generateSecurityReportMutation.isPending}
                                 className="h-6 px-2 gap-1.5 text-xs font-medium hover:bg-foreground/10 transition-colors rounded-md"
-                                aria-label="Generate Markdown report"
+                                aria-label={t("chat.toolbar.generateMarkdownReport")}
                               >
                                 {generateSecurityReportMutation.isPending ? (
                                   <IconSpinner className="h-3 w-3 animate-spin" />
                                 ) : (
                                   <FileDown className="h-3.5 w-3.5" />
                                 )}
-                                <span>导出报告</span>
+                                <span>{t("chat.toolbar.exportReport")}</span>
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent side="bottom">
-                              Generate Markdown report
+                              {t("chat.toolbar.generateMarkdownReport")}
                             </TooltipContent>
                           </Tooltip>
                         </>
@@ -7790,11 +7803,11 @@ Make sure to preserve all functionality from both branches when resolving confli
                               ) : (
                                 <GitFork className="h-3 w-3" />
                               )}
-                              Fork Locally
+                              {t("workspace.forkLocally")}
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent side="bottom">
-                            Continue this session on your local machine
+                            {t("chat.toolbar.continueLocal")}
                           </TooltipContent>
                         </Tooltip>
                       )}
@@ -7814,12 +7827,12 @@ Make sure to preserve all functionality from both branches when resolving confli
                           size="icon"
                           onClick={() => setIsPreviewSidebarOpen(true)}
                           className="h-6 w-6 p-0 hover:bg-foreground/10 transition-colors text-foreground flex-shrink-0 rounded-md ml-2"
-                          aria-label="Open preview"
+                          aria-label={t("chat.toolbar.openPreview")}
                         >
                           <IconOpenSidebarRight className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>Open preview</TooltipContent>
+                      <TooltipContent>{t("chat.toolbar.openPreview")}</TooltipContent>
                     </Tooltip>
                   ) : (
                     <PreviewSetupHoverCard>
@@ -7829,7 +7842,7 @@ Make sure to preserve all functionality from both branches when resolving confli
                           size="icon"
                           disabled
                           className="h-6 w-6 p-0 text-muted-foreground flex-shrink-0 rounded-md cursor-not-allowed pointer-events-none"
-                          aria-label="Preview not available"
+                          aria-label={t("chat.toolbar.previewUnavailable")}
                         >
                           <IconOpenSidebarRight className="h-4 w-4" />
                         </Button>
@@ -7849,13 +7862,13 @@ Make sure to preserve all functionality from both branches when resolving confli
                               size="icon"
                               onClick={() => setIsDetailsSidebarOpen(true)}
                               className="h-6 w-6 p-0 hover:bg-foreground/10 transition-colors text-foreground flex-shrink-0 rounded-md ml-2"
-                              aria-label="View details"
+                              aria-label={t("chat.toolbar.viewDetails")}
                             >
                               <IconOpenSidebarRight className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent side="bottom">
-                            View details
+                            {t("chat.toolbar.viewDetails")}
                             {toggleDetailsHotkey && <Kbd>{toggleDetailsHotkey}</Kbd>}
                           </TooltipContent>
                         </Tooltip>
@@ -7870,13 +7883,13 @@ Make sure to preserve all functionality from both branches when resolving confli
                               size="icon"
                               onClick={() => setIsTerminalSidebarOpen(true)}
                               className="h-6 w-6 p-0 hover:bg-foreground/10 transition-colors text-foreground flex-shrink-0 rounded-md ml-2"
-                              aria-label="Open terminal"
+                              aria-label={t("chat.toolbar.openTerminal")}
                             >
                               <TerminalSquare className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent side="bottom">
-                            Open terminal
+                            {t("chat.toolbar.openTerminal")}
                             {toggleTerminalHotkey && <Kbd>{toggleTerminalHotkey}</Kbd>}
                           </TooltipContent>
                         </Tooltip>
@@ -7892,14 +7905,14 @@ Make sure to preserve all functionality from both branches when resolving confli
                         onClick={handleRestoreWorkspace}
                         disabled={restoreWorkspaceMutation.isPending}
                         className="h-6 px-2 gap-1.5 hover:bg-foreground/10 transition-colors text-foreground flex-shrink-0 rounded-md ml-2 flex items-center"
-                        aria-label="Restore workspace"
+                        aria-label={t("workspace.restoreWorkspace")}
                       >
                         <UnarchiveIcon className="h-4 w-4" />
-                        <span className="text-xs">Restore</span>
+                        <span className="text-xs">{t("workspace.restore")}</span>
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="bottom">
-                      Restore workspace
+                      {t("workspace.restoreWorkspace")}
                       <Kbd>⇧⌘E</Kbd>
                     </TooltipContent>
                   </Tooltip>
@@ -8099,7 +8112,7 @@ Make sure to preserve all functionality from both branches when resolving confli
                       maxHeight={200}
                     >
                       <div className="p-1 text-muted-foreground text-sm">
-                        Plan, @ for context, / for commands
+                        {t("chat.input.placeholder")}
                       </div>
                       <PromptInputActions className="w-full">
                         <div className="flex items-center gap-0.5 flex-1 min-w-0">
@@ -8302,10 +8315,10 @@ Make sure to preserve all functionality from both branches when resolving confli
                     </svg>
                   </div>
                   <p className="text-sm text-muted-foreground mb-2">
-                    Preview not available
+                    {t("chat.toolbar.previewUnavailable")}
                   </p>
                   <p className="text-xs text-muted-foreground/70 max-w-[200px]">
-                    Set up this repository to enable live preview
+                    {t("chat.preview.setupDescription")}
                   </p>
                 </div>
               </div>
