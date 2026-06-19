@@ -9,7 +9,7 @@
 - **实时记录按钮**：聊天顶部新增“实时记录”，可直接打开当前漏洞挖掘会话的 `漏洞挖掘记录.md`。
 - **自动打开右侧预览**：Agent 写入漏洞挖掘记录文件后，右侧 Markdown 预览器会自动打开并刷新。
 - **每个会话独立产物目录**：当 chat 没有真实独立 worktree 时，会创建带 chat/subChat 短 ID 的产物目录，避免多个对话文件冲突。
-- **外置漏洞挖掘 skill**：仓库只保留一份 skill 安装源，运行时以用户级 Claude skill 目录中的安装结果为准。
+- **默认项目 Skill 同步**：仓库保留 skill 安装源和 manifest，创建或打开项目时同步到项目级 Claude / Codex skill 目录。
 - **Markdown 报告导出**：点击“导出报告”后，生成 `漏洞挖掘报告.md`，并在右侧 Markdown 预览器打开；右上角下载按钮可下载。
 - **报告基于完整链路生成**：最终报告不是简单下载实时记录，而是汇总当前 subChat 的消息链路、工具调用摘要、实时记录内容和产物路径。
 
@@ -40,9 +40,9 @@
 
 1. 用户在 Agent chat 中发起漏洞挖掘任务。
 2. 前端识别安全测试类 prompt，调用 `securityMiningRecord.ensure` 创建空白实时记录文件。
-3. 前端把 `@[skill:security-mining-record]` 和实时记录文件路径注入给模型执行侧。
+3. 前端把 `security-mining-record` skill 和实时记录文件路径交给模型执行侧。
 4. Agent 按 skill 要求，把关键目标、边界、工具结论、发现、证据和用户纠偏写入 `漏洞挖掘记录.md`。
-5. Claude Write/Edit 工具产生文件变更事件后，1Code 自动打开右侧 Markdown 预览。
+5. 记录文件产生变更后，1Code 自动打开右侧 Markdown 预览。
 6. 用户点击“导出报告”，后端读取当前 subChat 消息、工具调用、实时记录内容，生成 `漏洞挖掘报告.md`。
 7. 报告在右侧 Markdown 预览器打开，可直接下载。
 
@@ -51,10 +51,12 @@
 - 路径解析：`src/main/lib/security-mining-record/path.ts`
 - Markdown 报告生成：`src/main/lib/security-mining-record/report.ts`
 - tRPC 路由：`src/main/lib/trpc/routers/security-mining-record.ts`
-- Claude prompt/skill 注入：`src/renderer/features/agents/lib/ipc-chat-transport.ts`
+- 实时记录触发与 Claude prompt/skill 注入：`src/renderer/features/agents/lib/ipc-chat-transport.ts`
 - 聊天顶部按钮与右侧预览联动：`src/renderer/features/agents/main/active-chat.tsx`
 - Markdown 下载按钮：`src/renderer/features/file-viewer/components/markdown-viewer.tsx`
-- 外置 skill 安装源：`skills/security-mining-record/SKILL.md`
+- 默认项目 Skill 同步：`src/main/lib/agent-skills/default-project-skills.ts`、`skills/default-project-skills.json`
+- Skill 管理与 Claude / Codex 创建入口：`src/main/lib/trpc/routers/skills.ts`、`src/renderer/components/dialogs/settings-tabs/agents-skills-tab.tsx`
+- 漏洞挖掘 skill 包：`skills/security-mining-record/SKILL.md`
 - 产品需求说明：`docs/security-mining-live-document-requirements.md`
 - UI 原型：`docs/prototypes/security-mining-record-preview.html`
 
@@ -121,61 +123,10 @@ skills/default-project-skills.json
 
 注意：1Code 只负责把默认 skill 包同步到项目级目录，不在源码中硬编码 skill 内容，也不写入 Claude / Codex 的用户全局 skill 目录。运行时仍由 Claude / Codex 各自读取项目级 skill。
 
-### 安装自己的 Skill
-
-临时安装自己的 skill 时，推荐直接放到当前项目的 provider 目录。Claude：
-
-```text
-<project>/.claude/skills/<skill-name>/SKILL.md
-```
-
-Codex：
-
-```text
-<project>/.agents/skills/<skill-name>/SKILL.md
-```
-
-`<skill-name>` 建议使用小写英文、数字和连字符，例如 `security-mining-record`、`my-research-skill`。
-
-macOS / Linux 示例：
-
-```bash
-PROJECT_DIR="/path/to/project"
-SKILL_NAME="my-research-skill"
-mkdir -p "$PROJECT_DIR/.claude/skills/$SKILL_NAME"
-$EDITOR "$PROJECT_DIR/.claude/skills/$SKILL_NAME/SKILL.md"
-```
-
-Windows PowerShell：
-
-```powershell
-$ProjectDir = "C:\path\to\project"
-$SkillName = "my-research-skill"
-New-Item -ItemType Directory -Force "$ProjectDir\.claude\skills\$SkillName"
-notepad "$ProjectDir\.claude\skills\$SkillName\SKILL.md"
-```
-
-`SKILL.md` 最小示例：
-
-```markdown
----
-name: my-research-skill
-description: Guide the agent to collect evidence and maintain a concise research note.
----
-
-When this skill is invoked:
-
-1. Clarify the target and boundary before taking action.
-2. Record important findings, evidence, and decisions in the requested file.
-3. Keep the note concise and update it whenever new evidence changes the conclusion.
-```
-
-安装完成后，Claude 路径可以在 1Code 对话中通过 `@[skill:my-research-skill]` 引用；也可以在输入框的 `@` 菜单或 Settings 的 Skills 页面查看是否已被识别。Codex 路径由 Codex runtime 读取 `.agents/skills`，使用时按 Codex 语法通过 `$my-research-skill` 调用。
-
 ## 验证命令
 
 ```bash
-bun test src/main/lib/security-mining-record/path.test.ts src/main/lib/security-mining-record/report.test.ts
+bun test src/main/lib/security-mining-record/path.test.ts src/main/lib/security-mining-record/report.test.ts src/main/lib/agent-skills/default-project-skills.test.ts src/main/lib/codex-permission.test.ts
 bun run build
 ```
 
@@ -185,7 +136,7 @@ bun run build
 - 最终报告是 `漏洞挖掘报告.md`，不是 Word/docx。
 - 右侧实时文档预览复用 1Code 现有 Markdown 文件预览器。
 - 实时记录内容不要求固定 JSON schema，由 skill 引导 Agent 写自然 Markdown。
-- Codex provider 的 skill 加载语义和 Claude Code 不完全一致；PoC 优先基于 1Code + Claude Code 路径验证。
+- Claude / Codex 的 skill 发现和调用语义由各自 runtime 决定；1Code 只负责按项目目录同步默认 skill 包。
 
 ## 上游项目
 
