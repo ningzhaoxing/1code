@@ -13,7 +13,9 @@ import { translateCurrentLocale as t } from "../../../lib/i18n"
 import { appStore } from "../../../lib/jotai-store"
 import { trpcClient } from "../../../lib/trpc"
 import {
+  expiredUserQuestionsAtom,
   pendingAuthRetryMessageAtom,
+  pendingUserQuestionsAtom,
   subChatCodexModelIdAtomFamily,
   subChatCodexThinkingAtomFamily,
 } from "../atoms"
@@ -184,6 +186,44 @@ export class ACPChatTransport implements ChatTransport<UIMessage> {
           },
           {
             onData: (chunk: UIMessageChunk) => {
+              if (chunk.type === "codex-permission-request") {
+                const currentMap = appStore.get(pendingUserQuestionsAtom)
+                const newMap = new Map(currentMap)
+                newMap.set(this.config.subChatId, {
+                  subChatId: this.config.subChatId,
+                  parentChatId: this.config.chatId,
+                  toolUseId: chunk.toolUseId,
+                  source: "codex-permission",
+                  questions: chunk.questions || [],
+                  codexPermissionOptions: (chunk.options || []).map((option: any) => ({
+                    optionId: option.optionId,
+                    label: option.label || option.name || option.optionId,
+                    kind: option.kind,
+                  })),
+                })
+                appStore.set(pendingUserQuestionsAtom, newMap)
+
+                const expiredMap = appStore.get(expiredUserQuestionsAtom)
+                if (expiredMap.has(this.config.subChatId)) {
+                  const nextExpiredMap = new Map(expiredMap)
+                  nextExpiredMap.delete(this.config.subChatId)
+                  appStore.set(expiredUserQuestionsAtom, nextExpiredMap)
+                }
+                return
+              }
+
+              if (chunk.type === "codex-permission-timeout") {
+                const currentMap = appStore.get(pendingUserQuestionsAtom)
+                const pending = currentMap.get(this.config.subChatId)
+                if (pending?.toolUseId === chunk.toolUseId) {
+                  const newMap = new Map(currentMap)
+                  newMap.delete(this.config.subChatId)
+                  appStore.set(pendingUserQuestionsAtom, newMap)
+                }
+                toast.error("Codex permission request timed out")
+                return
+              }
+
               if (chunk.type === "session-init") {
                 appStore.set(sessionInfoAtom, {
                   tools: chunk.tools || [],

@@ -809,11 +809,17 @@ export type PendingUserQuestion = {
   subChatId: string
   parentChatId: string
   toolUseId: string
+  source?: "claude-question" | "codex-permission"
   questions: Array<{
     question: string
     header: string
     options: Array<{ label: string; description: string }>
     multiSelect: boolean
+  }>
+  codexPermissionOptions?: Array<{
+    optionId: string
+    label: string
+    kind: string
   }>
 }
 // Map<subChatId, PendingUserQuestion> - supports multiple pending questions across workspaces

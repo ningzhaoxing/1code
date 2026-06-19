@@ -1,0 +1,13 @@
+{
+  "skills": [
+    {
+      "name": "security-mining-record",
+      "source": "skills/security-mining-record",
+      "installOnProjectCreate": true,
+      "targets": [
+        "claude-project",
+        "codex-project"
+      ]
+    }
+  ]
+}

@@ -34,11 +34,16 @@ interface UnifiedItem {
   name: string
   description: string
   source: "user" | "project" | "plugin"
+  provider?: "claude" | "codex"
   pluginName?: string
   path: string
   content: string
   argumentHint?: string
 }
+
+type SkillProvider = "claude" | "codex"
+type ItemSource = "user" | "project"
+type SkillScopeValue = `${SkillProvider}:${ItemSource}`
 
 // --- Detail Panel (Editable) ---
 function ItemDetail({
@@ -111,6 +116,11 @@ function ItemDetail({
               )}>
                 {item.kind === "skill" ? t("settings.skills.skill") : t("settings.skills.command")}
               </span>
+              {item.kind === "skill" && item.provider && (
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 bg-foreground/5 text-muted-foreground">
+                  {item.provider === "codex" ? "Codex" : "Claude"}
+                </span>
+              )}
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">{item.path}</p>
           </div>
@@ -145,7 +155,11 @@ function ItemDetail({
           <Label>{t("settings.common.usage")}</Label>
           <div className="px-3 py-2 text-sm bg-muted/50 border border-border rounded-lg">
             <code className="text-xs text-foreground">
-              {item.kind === "skill" ? `@${item.name}` : `/${item.name}`}
+              {item.kind === "skill"
+                ? item.provider === "codex"
+                  ? `$${item.name}`
+                  : `@${item.name}`
+                : `/${item.name}`}
             </code>
           </div>
         </div>
@@ -245,7 +259,7 @@ function CreateItemForm({
   hasProject,
   projectName,
 }: {
-  onCreated: (data: { name: string; description: string; content: string; source: "user" | "project"; kind: "skill" | "command" }) => void
+  onCreated: (data: { name: string; description: string; content: string; source: ItemSource; provider?: SkillProvider; kind: "skill" | "command" }) => void
   onCancel: () => void
   isSaving: boolean
   hasProject: boolean
@@ -255,10 +269,36 @@ function CreateItemForm({
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [content, setContent] = useState("")
-  const [source, setSource] = useState<"user" | "project">("user")
+  const [source, setSource] = useState<ItemSource>("user")
+  const [skillScope, setSkillScope] = useState<SkillScopeValue>("claude:user")
   const [kind, setKind] = useState<"skill" | "command">("skill")
 
   const canSave = name.trim().length > 0
+  const selectedSkillScope = useMemo(() => {
+    const [provider, scope] = skillScope.split(":") as [SkillProvider, ItemSource]
+    return { provider, source: scope }
+  }, [skillScope])
+
+  const createPayload = useMemo(() => {
+    if (kind === "skill") {
+      return {
+        name,
+        description,
+        content,
+        kind,
+        source: selectedSkillScope.source,
+        provider: selectedSkillScope.provider,
+      }
+    }
+
+    return {
+      name,
+      description,
+      content,
+      kind,
+      source,
+    }
+  }, [content, description, kind, name, selectedSkillScope.provider, selectedSkillScope.source, source])
 
   return (
     <div className="h-full overflow-y-auto">
@@ -269,7 +309,7 @@ function CreateItemForm({
           </h3>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={onCancel}>{t("settings.common.cancel")}</Button>
-            <Button size="sm" onClick={() => onCreated({ name, description, content, source, kind })} disabled={!canSave || isSaving}>
+            <Button size="sm" onClick={() => onCreated(createPayload)} disabled={!canSave || isSaving}>
               {isSaving ? t("settings.common.creating") : t("settings.common.create")}
             </Button>
           </div>
@@ -310,22 +350,52 @@ function CreateItemForm({
           />
         </div>
 
-        {hasProject && (
+        {(hasProject || kind === "skill") && (
           <div className="space-y-1.5">
             <Label>{t("settings.common.scope")}</Label>
-            <Select value={source} onValueChange={(v) => setSource(v as "user" | "project")}>
+            <Select
+              value={kind === "skill" ? skillScope : source}
+              onValueChange={(v) => {
+                if (kind === "skill") {
+                  setSkillScope(v as SkillScopeValue)
+                } else {
+                  setSource(v as ItemSource)
+                }
+              }}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="user">
-                  {t("settings.common.user")} ({kind === "skill" ? "~/.claude/skills/" : "~/.claude/commands/"})
-                </SelectItem>
-                <SelectItem value="project">
-                  {projectName
-                    ? `${t("settings.common.project")}: ${projectName}`
-                    : t("settings.common.project")} ({kind === "skill" ? ".claude/skills/" : ".claude/commands/"})
-                </SelectItem>
+                {kind === "skill" ? (
+                  <>
+                    <SelectItem value="claude:user">Claude {t("settings.common.user")} (~/.claude/skills/)</SelectItem>
+                    <SelectItem value="codex:user">Codex {t("settings.common.user")} (~/.agents/skills/)</SelectItem>
+                    {hasProject && (
+                      <>
+                        <SelectItem value="claude:project">
+                          Claude {projectName
+                            ? `${t("settings.common.project")}: ${projectName}`
+                            : t("settings.common.project")} (.claude/skills/)
+                        </SelectItem>
+                        <SelectItem value="codex:project">
+                          Codex {projectName
+                            ? `${t("settings.common.project")}: ${projectName}`
+                            : t("settings.common.project")} (.agents/skills/)
+                        </SelectItem>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <SelectItem value="user">{t("settings.common.user")} (~/.claude/commands/)</SelectItem>
+                    <SelectItem value="project">
+                      {projectName
+                        ? `${t("settings.common.project")}: ${projectName}`
+                        : t("settings.common.project")} (.claude/commands/)
+                    </SelectItem>
+                  </>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -413,7 +483,7 @@ export function AgentsSkillsTab() {
 
   // Fetch skills
   const { data: skills = [], isLoading: isLoadingSkills, refetch: refetchSkills } = trpc.skills.list.useQuery(
-    selectedProject?.path ? { cwd: selectedProject.path } : undefined,
+    selectedProject?.path ? { cwd: selectedProject.path, provider: "all" } : { provider: "all" },
   )
 
   // Fetch commands
@@ -441,11 +511,12 @@ export function AgentsSkillsTab() {
   // Build unified items
   const allItems = useMemo<UnifiedItem[]>(() => {
     const skillItems: UnifiedItem[] = skills.map((s) => ({
-      id: `skill:${s.source}:${s.name}`,
+      id: `skill:${s.provider}:${s.source}:${s.name}`,
       kind: "skill" as const,
       name: s.name,
       description: s.description,
       source: s.source,
+      provider: s.provider,
       pluginName: s.pluginName,
       path: s.path,
       content: s.content,
@@ -498,7 +569,7 @@ export function AgentsSkillsTab() {
   }, [allItems, selectedItemId, isLoading])
 
   const handleCreate = useCallback(async (data: {
-    name: string; description: string; content: string; source: "user" | "project"; kind: "skill" | "command"
+    name: string; description: string; content: string; source: ItemSource; provider?: SkillProvider; kind: "skill" | "command"
   }) => {
     try {
       if (data.kind === "skill") {
@@ -507,12 +578,13 @@ export function AgentsSkillsTab() {
           description: data.description,
           content: data.content,
           source: data.source,
+          provider: data.provider,
           cwd: selectedProject?.path,
         })
         toast.success(t("settings.skills.toast.skillCreated"), { description: result.name })
         setShowAddForm(false)
         await refetchAll()
-        setSelectedItemId(`skill:${data.source}:${result.name}`)
+        setSelectedItemId(`skill:${result.provider}:${data.source}:${result.name}`)
       } else {
         const result = await createCommandMutation.mutateAsync({
           name: data.name,

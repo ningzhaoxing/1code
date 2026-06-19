@@ -187,6 +187,18 @@ export const AgentUserQuestion = memo(forwardRef<AgentUserQuestionHandle, AgentU
     (q) => (answers[q.question] || []).length > 0,
   )
   const isLastQuestion = currentQuestionIndex === questions.length - 1
+  const isCodexPermission = pendingQuestions.source === "codex-permission"
+  const selectedCodexPermissionOption = pendingQuestions.codexPermissionOptions?.find(
+    (option) =>
+      option.label === (answers[currentQuestion?.question] || [])[0],
+  )
+  const codexPermissionSubmitLabel = selectedCodexPermissionOption?.kind.startsWith(
+    "reject",
+  )
+    ? "Reject"
+    : selectedCodexPermissionOption?.kind.startsWith("allow")
+      ? "Approve"
+      : "Confirm"
 
   // Keyboard navigation
   useEffect(() => {
@@ -377,7 +389,7 @@ export const AgentUserQuestion = memo(forwardRef<AgentUserQuestionHandle, AgentU
           disabled={isSubmitting}
           className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
         >
-          Skip All
+          {isCodexPermission ? "Cancel" : "Skip All"}
         </Button>
         <Button
           size="sm"
@@ -393,7 +405,11 @@ export const AgentUserQuestion = memo(forwardRef<AgentUserQuestionHandle, AgentU
             "Sending..."
           ) : (
             <>
-              {isLastQuestion ? "Submit" : "Continue"}
+              {isCodexPermission
+                ? codexPermissionSubmitLabel
+                : isLastQuestion
+                  ? "Submit"
+                  : "Continue"}
               <CornerDownLeft className="w-3 h-3 ml-1 opacity-60" />
             </>
           )}

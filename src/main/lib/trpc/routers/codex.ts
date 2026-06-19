@@ -1,4 +1,8 @@
 import { createACPProvider, type ACPProvider } from "@mcpc-tech/acp-ai-provider"
+import type {
+  RequestPermissionRequest,
+  RequestPermissionResponse,
+} from "@agentclientprotocol/sdk"
 import { observable } from "@trpc/server/observable"
 import { streamText } from "ai"
 import { eq } from "drizzle-orm"
@@ -16,6 +20,11 @@ import {
 } from "../../../../shared/codex-tool-normalizer"
 import { getClaudeShellEnvironment } from "../../claude/env"
 import { resolveProjectPathFromWorktree } from "../../claude-config"
+import {
+  buildCodexPermissionUiRequest,
+  createCancelledPermissionResponse,
+  createSelectedPermissionResponse,
+} from "../../codex-permission"
 import { getDatabase, projects as projectsTable, subChats } from "../../db"
 import {
   fetchMcpTools,
@@ -102,6 +111,22 @@ type ActiveCodexStream = {
 }
 
 const activeStreams = new Map<string, ActiveCodexStream>()
+const activePermissionContexts = new Map<
+  string,
+  {
+    runId: string
+    signal: AbortSignal
+    emit: (chunk: any) => void
+  }
+>()
+const pendingCodexPermissionRequests = new Map<
+  string,
+  {
+    subChatId: string
+    runId: string
+    resolve: (response: RequestPermissionResponse) => void
+  }
+>()
 
 /** Check if there are any active Codex streaming sessions */
 export function hasActiveCodexStreams(): boolean {
@@ -1220,6 +1245,147 @@ function buildModelMessageContent(
   return content
 }
 
+function getCodexPermissionRequestKey(
+  subChatId: string,
+  toolUseId: string,
+): string {
+  return `${subChatId}:${toolUseId}`
+}
+
+function settlePendingCodexPermissionRequest(
+  subChatId: string,
+  toolUseId: string,
+  response: RequestPermissionResponse,
+): boolean {
+  const key = getCodexPermissionRequestKey(subChatId, toolUseId)
+  const pending = pendingCodexPermissionRequests.get(key)
+  if (!pending) return false
+
+  pendingCodexPermissionRequests.delete(key)
+  pending.resolve(response)
+  return true
+}
+
+function cancelPendingCodexPermissionRequests(
+  subChatId: string,
+  runId?: string,
+): void {
+  for (const [key, pending] of pendingCodexPermissionRequests) {
+    if (pending.subChatId !== subChatId) continue
+    if (runId && pending.runId !== runId) continue
+
+    pendingCodexPermissionRequests.delete(key)
+    pending.resolve(createCancelledPermissionResponse())
+  }
+}
+
+async function handleCodexPermissionRequest(
+  subChatId: string,
+  request: RequestPermissionRequest,
+): Promise<RequestPermissionResponse> {
+  const context = activePermissionContexts.get(subChatId)
+  if (!context) {
+    return createCancelledPermissionResponse()
+  }
+
+  const uiRequest = buildCodexPermissionUiRequest(request)
+  const key = getCodexPermissionRequestKey(subChatId, uiRequest.toolUseId)
+
+  return new Promise<RequestPermissionResponse>((resolve) => {
+    let settled = false
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
+
+    const settle = (response: RequestPermissionResponse) => {
+      if (settled) return
+      settled = true
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+        timeoutId = null
+      }
+      context.signal.removeEventListener("abort", onAbort)
+      pendingCodexPermissionRequests.delete(key)
+      resolve(response)
+    }
+
+    const onAbort = () => {
+      settle(createCancelledPermissionResponse())
+    }
+
+    timeoutId = setTimeout(() => {
+      context.emit({
+        type: "codex-permission-timeout",
+        toolUseId: uiRequest.toolUseId,
+      })
+      settle(createCancelledPermissionResponse())
+    }, 60000)
+
+    pendingCodexPermissionRequests.set(key, {
+      subChatId,
+      runId: context.runId,
+      resolve: settle,
+    })
+
+    context.signal.addEventListener("abort", onAbort, { once: true })
+    context.emit({
+      type: "codex-permission-request",
+      toolUseId: uiRequest.toolUseId,
+      questions: uiRequest.questions,
+      options: uiRequest.options,
+    })
+  })
+}
+
+function attachCodexPermissionHandler(
+  provider: ACPProvider,
+  subChatId: string,
+): ACPProvider {
+  const providerAny = provider as any
+  if (providerAny.__oneCodeCodexPermissionPatched) {
+    return provider
+  }
+
+  const originalLanguageModel = providerAny.languageModel?.bind(provider)
+  if (typeof originalLanguageModel !== "function") {
+    return provider
+  }
+
+  providerAny.languageModel = (...args: any[]) => {
+    const model = originalLanguageModel(...args)
+    attachCodexPermissionHandlerToLanguageModel(model, subChatId)
+    return model
+  }
+
+  providerAny.__oneCodeCodexPermissionPatched = true
+  return provider
+}
+
+function attachCodexPermissionHandlerToLanguageModel(
+  model: any,
+  subChatId: string,
+): void {
+  if (!model || model.__oneCodeCodexPermissionPatched) return
+
+  const installHandler = () => {
+    if (typeof model.client?.setPermissionRequestHandler === "function") {
+      model.client.setPermissionRequestHandler((request: RequestPermissionRequest) =>
+        handleCodexPermissionRequest(subChatId, request),
+      )
+    }
+  }
+
+  const originalConnectClient = model.connectClient?.bind(model)
+  if (typeof originalConnectClient === "function") {
+    model.connectClient = async (...args: any[]) => {
+      const result = await originalConnectClient(...args)
+      installHandler()
+      return result
+    }
+  }
+
+  installHandler()
+  model.__oneCodeCodexPermissionPatched = true
+}
+
 function getOrCreateProvider(params: {
   subChatId: string
   cwd: string
@@ -1239,7 +1405,7 @@ function getOrCreateProvider(params: {
     existing.authFingerprint === authFingerprint &&
     existing.mcpFingerprint === params.mcpFingerprint
   ) {
-    return existing.provider
+    return attachCodexPermissionHandler(existing.provider, params.subChatId)
   }
 
   if (existing) {
@@ -1254,19 +1420,22 @@ function getOrCreateProvider(params: {
     ? undefined
     : params.existingSessionId
 
-  const provider = createACPProvider({
-    command: resolveCodexAcpBinaryPath(),
-    env: buildCodexProviderEnv(params.authConfig),
-    authMethodId: getCodexAuthMethodId(params.authConfig),
-    session: {
-      cwd: params.cwd,
-      mcpServers: params.mcpServers,
-    },
-    ...(existingSessionIdForProvider
-      ? { existingSessionId: existingSessionIdForProvider }
-      : {}),
-    persistSession: true,
-  })
+  const provider = attachCodexPermissionHandler(
+    createACPProvider({
+      command: resolveCodexAcpBinaryPath(),
+      env: buildCodexProviderEnv(params.authConfig),
+      authMethodId: getCodexAuthMethodId(params.authConfig),
+      session: {
+        cwd: params.cwd,
+        mcpServers: params.mcpServers,
+      },
+      ...(existingSessionIdForProvider
+        ? { existingSessionId: existingSessionIdForProvider }
+        : {}),
+      persistSession: true,
+    }),
+    params.subChatId,
+  )
 
   providerSessions.set(params.subChatId, {
     provider,
@@ -1279,6 +1448,8 @@ function getOrCreateProvider(params: {
 }
 
 function cleanupProvider(subChatId: string): void {
+  cancelPendingCodexPermissionRequests(subChatId)
+
   const existing = providerSessions.get(subChatId)
   if (!existing) return
 
@@ -1616,6 +1787,12 @@ export const codexRouter = router({
           }
         }
 
+        activePermissionContexts.set(input.subChatId, {
+          runId: input.runId,
+          signal: abortController.signal,
+          emit: safeEmit,
+        })
+
         ;(async () => {
           try {
             const db = getDatabase()
@@ -1890,12 +2067,17 @@ export const codexRouter = router({
           } finally {
             const activeStream = activeStreams.get(input.subChatId)
             if (activeStream?.runId === input.runId) {
+              cancelPendingCodexPermissionRequests(input.subChatId, input.runId)
               const shouldCleanupProvider =
                 abortController.signal.aborted || activeStream.cancelRequested
               if (shouldCleanupProvider) {
                 cleanupProvider(input.subChatId)
               }
               activeStreams.delete(input.subChatId)
+            }
+            const permissionContext = activePermissionContexts.get(input.subChatId)
+            if (permissionContext?.runId === input.runId) {
+              activePermissionContexts.delete(input.subChatId)
             }
           }
         })()
@@ -1931,10 +2113,34 @@ export const codexRouter = router({
 
       activeStream.cancelRequested = true
       activeStream.controller.abort()
+      cancelPendingCodexPermissionRequests(input.subChatId, input.runId)
 
       return { cancelled: true, ignoredStale: false }
     }),
 
+  respondToolApproval: publicProcedure
+    .input(
+      z.object({
+        subChatId: z.string(),
+        toolUseId: z.string(),
+        optionId: z.string().optional(),
+        cancelled: z.boolean().optional(),
+      }),
+    )
+    .mutation(({ input }) => {
+      const response =
+        input.cancelled || !input.optionId
+          ? createCancelledPermissionResponse()
+          : createSelectedPermissionResponse(input.optionId)
+
+      const ok = settlePendingCodexPermissionRequest(
+        input.subChatId,
+        input.toolUseId,
+        response,
+      )
+
+      return { ok }
+    }),
   cleanup: publicProcedure
     .input(z.object({ subChatId: z.string() }))
     .mutation(({ input }) => {
@@ -1945,6 +2151,7 @@ export const codexRouter = router({
         activeStream.controller.abort()
         activeStreams.delete(input.subChatId)
       }
+      activePermissionContexts.delete(input.subChatId)
 
       return { success: true }
     }),

@@ -96,7 +96,7 @@ bun run dev
 
 ## Skill 安装
 
-### 安装本 PoC 的漏洞挖掘 Skill
+### 默认项目 Skill 同步
 
 仓库中的 skill 文件只是安装源/模板，不是 1Code 运行时自动加载的位置：
 
@@ -104,45 +104,55 @@ bun run dev
 skills/security-mining-record/SKILL.md
 ```
 
-运行 Claude Code 路径验证本 PoC 时，必须先把上面的安装源复制到用户级 Claude skill 目录；否则 `security-mining-record` skill 规则不会生效：
-
-```bash
-mkdir -p "$HOME/.claude/skills/security-mining-record"
-cp skills/security-mining-record/SKILL.md "$HOME/.claude/skills/security-mining-record/SKILL.md"
-```
-
-Windows 下对应目录通常是：
+默认随项目同步的 skill 由 manifest 管理：
 
 ```text
-%USERPROFILE%\.claude\skills\security-mining-record\SKILL.md
+skills/default-project-skills.json
 ```
 
-注意：`skills/security-mining-record/SKILL.md` 不会因为存在于源码仓库里就自动生效。1Code 当前 Claude 路径通过 `~/.claude/skills` 和项目 `.claude/skills` 加载 skill；本 PoC 的产品代码只注入 `@[skill:security-mining-record]` 和本次记录文件路径，不在源码中硬编码 skill 内容。因此没有完成用户级安装时，实时记录文件仍可打开，报告也可导出，但 Agent 不会按该 skill 的完整规则持续沉淀过程、证据和发现。
+每次创建或打开 1Code 项目时，1Code 会把 manifest 中启用的 skill 同步到该项目目录下。当前 `security-mining-record` 只会同步到项目级目录：
+
+```text
+<project>/.claude/skills/security-mining-record/SKILL.md
+<project>/.agents/skills/security-mining-record/SKILL.md
+```
+
+后续新增默认 skill 不需要改 TypeScript 业务代码：添加一个 skill 包目录，并在 `skills/default-project-skills.json` 里增加一条配置即可。
+
+注意：1Code 只负责把默认 skill 包同步到项目级目录，不在源码中硬编码 skill 内容，也不写入 Claude / Codex 的用户全局 skill 目录。运行时仍由 Claude / Codex 各自读取项目级 skill。
 
 ### 安装自己的 Skill
 
-用户自己的 skill 不需要改 1Code 源码，直接安装到用户级 Claude skill 目录即可。推荐目录结构：
+临时安装自己的 skill 时，推荐直接放到当前项目的 provider 目录。Claude：
 
 ```text
-~/.claude/skills/<skill-name>/SKILL.md
+<project>/.claude/skills/<skill-name>/SKILL.md
+```
+
+Codex：
+
+```text
+<project>/.agents/skills/<skill-name>/SKILL.md
 ```
 
 `<skill-name>` 建议使用小写英文、数字和连字符，例如 `security-mining-record`、`my-research-skill`。
 
-macOS / Linux：
+macOS / Linux 示例：
 
 ```bash
+PROJECT_DIR="/path/to/project"
 SKILL_NAME="my-research-skill"
-mkdir -p "$HOME/.claude/skills/$SKILL_NAME"
-$EDITOR "$HOME/.claude/skills/$SKILL_NAME/SKILL.md"
+mkdir -p "$PROJECT_DIR/.claude/skills/$SKILL_NAME"
+$EDITOR "$PROJECT_DIR/.claude/skills/$SKILL_NAME/SKILL.md"
 ```
 
 Windows PowerShell：
 
 ```powershell
+$ProjectDir = "C:\path\to\project"
 $SkillName = "my-research-skill"
-New-Item -ItemType Directory -Force "$env:USERPROFILE\.claude\skills\$SkillName"
-notepad "$env:USERPROFILE\.claude\skills\$SkillName\SKILL.md"
+New-Item -ItemType Directory -Force "$ProjectDir\.claude\skills\$SkillName"
+notepad "$ProjectDir\.claude\skills\$SkillName\SKILL.md"
 ```
 
 `SKILL.md` 最小示例：
@@ -160,7 +170,7 @@ When this skill is invoked:
 3. Keep the note concise and update it whenever new evidence changes the conclusion.
 ```
 
-安装完成后，在 1Code 对话中通过 `@[skill:my-research-skill]` 引用；也可以在输入框的 `@` 菜单或 Settings 的 Skills 页面查看是否已被识别。若列表未立即刷新，重新打开 `@` 菜单或重新进入 Skills 页面即可。
+安装完成后，Claude 路径可以在 1Code 对话中通过 `@[skill:my-research-skill]` 引用；也可以在输入框的 `@` 菜单或 Settings 的 Skills 页面查看是否已被识别。Codex 路径由 Codex runtime 读取 `.agents/skills`，使用时按 Codex 语法通过 `$my-research-skill` 调用。
 
 ## 验证命令
 

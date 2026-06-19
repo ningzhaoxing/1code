@@ -2946,6 +2946,23 @@ const ChatViewInner = memo(function ChatViewInner({
     [],
   )
 
+  const getCodexPermissionOptionId = useCallback(
+    (answers: Record<string, string>): string | null => {
+      if (displayQuestions?.source !== "codex-permission") return null
+
+      const selectedLabel =
+        Object.values(answers).find((answer) => answer.trim().length > 0) || ""
+      if (!selectedLabel) return null
+
+      const selectedOption = displayQuestions.codexPermissionOptions?.find(
+        (option) => option.label === selectedLabel,
+      )
+
+      return selectedOption?.optionId || null
+    },
+    [displayQuestions],
+  )
+
   const clearInputAndDraft = useCallback(() => {
     editorRef.current?.clear()
     if (parentChatId) {
@@ -2970,6 +2987,14 @@ const ChatViewInner = memo(function ChatViewInner({
         // Question timed out - send answers as a normal user message
         clearPendingQuestionCallback()
         await sendUserMessage(formatAnswersAsText(answers))
+      } else if (displayQuestions.source === "codex-permission") {
+        const optionId = getCodexPermissionOptionId(answers)
+        await trpcClient.codex.respondToolApproval.mutate({
+          subChatId,
+          toolUseId: displayQuestions.toolUseId,
+          ...(optionId ? { optionId } : { cancelled: true }),
+        })
+        clearPendingQuestionCallback()
       } else {
         // Question is still live - use tool approval path
         await trpcClient.claude.respondToolApproval.mutate({
@@ -2980,7 +3005,15 @@ const ChatViewInner = memo(function ChatViewInner({
         clearPendingQuestionCallback()
       }
     },
-    [displayQuestions, isQuestionExpired, clearPendingQuestionCallback, sendUserMessage, formatAnswersAsText],
+    [
+      displayQuestions,
+      isQuestionExpired,
+      clearPendingQuestionCallback,
+      sendUserMessage,
+      formatAnswersAsText,
+      getCodexPermissionOptionId,
+      subChatId,
+    ],
   )
 
   // Handle skipping questions
@@ -3001,15 +3034,23 @@ const ChatViewInner = memo(function ChatViewInner({
 
     // Try to notify backend (may fail if already aborted - that's ok)
     try {
-      await trpcClient.claude.respondToolApproval.mutate({
-        toolUseId,
-        approved: false,
-        message: QUESTIONS_SKIPPED_MESSAGE,
-      })
+      if (displayQuestions.source === "codex-permission") {
+        await trpcClient.codex.respondToolApproval.mutate({
+          subChatId,
+          toolUseId,
+          cancelled: true,
+        })
+      } else {
+        await trpcClient.claude.respondToolApproval.mutate({
+          toolUseId,
+          approved: false,
+          message: QUESTIONS_SKIPPED_MESSAGE,
+        })
+      }
     } catch {
       // Stream likely already aborted - ignore
     }
-  }, [displayQuestions, isQuestionExpired, clearPendingQuestionCallback])
+  }, [displayQuestions, isQuestionExpired, clearPendingQuestionCallback, subChatId])
 
   // Ref to prevent double submit of question answer
   const isSubmittingQuestionAnswerRef = useRef(false)
@@ -3032,6 +3073,20 @@ const ChatViewInner = memo(function ChatViewInner({
         // 2. Get already selected answers from question component
         const selectedAnswers = questionRef.current?.getAnswers() || {}
         const formattedAnswers: Record<string, string> = { ...selectedAnswers }
+
+        if (displayQuestions.source === "codex-permission") {
+          const hasSelectedOption = Object.values(formattedAnswers).some(
+            (answer) => answer.trim().length > 0,
+          )
+          if (!hasSelectedOption) {
+            isSubmittingQuestionAnswerRef.current = false
+            return
+          }
+
+          await handleQuestionsAnswer(formattedAnswers)
+          clearInputAndDraft()
+          return
+        }
 
         // 3. Add custom text to the last question as "Other"
         const lastQuestion =
@@ -3078,7 +3133,16 @@ const ChatViewInner = memo(function ChatViewInner({
         isSubmittingQuestionAnswerRef.current = false
       }
     },
-    [displayQuestions, isQuestionExpired, clearPendingQuestionCallback, clearInputAndDraft, sendUserMessage, formatAnswersAsText, subChatId],
+    [
+      displayQuestions,
+      isQuestionExpired,
+      clearPendingQuestionCallback,
+      clearInputAndDraft,
+      sendUserMessage,
+      formatAnswersAsText,
+      subChatId,
+      handleQuestionsAnswer,
+    ],
   )
 
   // Memoize the callback to prevent ChatInputArea re-renders
@@ -4762,7 +4826,11 @@ const ChatViewInner = memo(function ChatViewInner({
               pendingQuestions={displayQuestions}
               onAnswer={handleQuestionsAnswer}
               onSkip={handleQuestionsSkip}
-              hasCustomText={inputHasContent}
+              hasCustomText={
+                displayQuestions.source === "codex-permission"
+                  ? false
+                  : inputHasContent
+              }
             />
           </div>
         </div>

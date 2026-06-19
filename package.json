@@ -173,6 +173,10 @@
       {
         "from": "resources/bin/VERSION",
         "to": "bin/VERSION"
+      },
+      {
+        "from": "skills",
+        "to": "skills"
       }
     ],
     "asar": true,

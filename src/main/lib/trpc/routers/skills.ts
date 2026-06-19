@@ -12,10 +12,17 @@ export interface FileSkill {
   name: string
   description: string
   source: "user" | "project" | "plugin"
+  provider: "claude" | "codex"
   pluginName?: string
   path: string
   content: string
 }
+
+const skillProviderSchema = z.enum(["claude", "codex"])
+const skillListProviderSchema = z.enum(["claude", "codex", "all"])
+
+type SkillProvider = z.infer<typeof skillProviderSchema>
+type SkillListProvider = z.infer<typeof skillListProviderSchema>
 
 /**
  * Parse SKILL.md frontmatter to extract name and description
@@ -40,6 +47,7 @@ function parseSkillMd(rawContent: string): { name?: string; description?: string
 async function scanSkillsDirectory(
   dir: string,
   source: "user" | "project" | "plugin",
+  provider: SkillProvider,
   basePath?: string, // For project skills, the cwd to make paths relative to
 ): Promise<FileSkill[]> {
   const skills: FileSkill[] = []
@@ -72,12 +80,12 @@ async function scanSkillsDirectory(
         const content = await fs.readFile(skillMdPath, "utf-8")
         const parsed = parseSkillMd(content)
 
-        // For project skills, show relative path; for user skills, show ~/.claude/... path
+        // For project skills, show relative path; for user skills, show ~/... path
         let displayPath: string
         if (source === "project" && basePath) {
           displayPath = path.relative(basePath, skillMdPath)
         } else {
-          // For user skills, show ~/.claude/skills/... format
+          // For user skills, show a home-relative path.
           const homeDir = os.homedir()
           displayPath = skillMdPath.startsWith(homeDir)
             ? "~" + skillMdPath.slice(homeDir.length)
@@ -88,6 +96,7 @@ async function scanSkillsDirectory(
           name: parsed.name || entry.name,
           description: parsed.description || "",
           source,
+          provider,
           path: displayPath,
           content: parsed.content,
         })
@@ -108,47 +117,83 @@ const listSkillsProcedure = publicProcedure
     z
       .object({
         cwd: z.string().optional(),
+        provider: skillListProviderSchema.optional(),
       })
       .optional(),
   )
   .query(async ({ input }) => {
-    const userSkillsDir = path.join(os.homedir(), ".claude", "skills")
-    const userSkillsPromise = scanSkillsDirectory(userSkillsDir, "user")
+    const provider: SkillListProvider = input?.provider ?? "claude"
+    const shouldListClaude = provider === "claude" || provider === "all"
+    const shouldListCodex = provider === "codex" || provider === "all"
 
-    let projectSkillsPromise = Promise.resolve<FileSkill[]>([])
-    if (input?.cwd) {
-      const projectSkillsDir = path.join(input.cwd, ".claude", "skills")
-      projectSkillsPromise = scanSkillsDirectory(projectSkillsDir, "project", input.cwd)
+    const skillPromises: Array<Promise<FileSkill[]>> = []
+
+    if (shouldListClaude) {
+      skillPromises.push(
+        scanSkillsDirectory(
+          path.join(os.homedir(), ".claude", "skills"),
+          "user",
+          "claude",
+        ),
+      )
+
+      if (input?.cwd) {
+        skillPromises.push(
+          scanSkillsDirectory(
+            path.join(input.cwd, ".claude", "skills"),
+            "project",
+            "claude",
+            input.cwd,
+          ),
+        )
+      }
+    }
+
+    if (shouldListCodex) {
+      skillPromises.push(
+        scanSkillsDirectory(
+          path.join(os.homedir(), ".agents", "skills"),
+          "user",
+          "codex",
+        ),
+      )
+
+      if (input?.cwd) {
+        skillPromises.push(
+          scanSkillsDirectory(
+            path.join(input.cwd, ".agents", "skills"),
+            "project",
+            "codex",
+            input.cwd,
+          ),
+        )
+      }
     }
 
     // Discover plugin skills
-    const [enabledPluginSources, installedPlugins] = await Promise.all([
-      getEnabledPlugins(),
-      discoverInstalledPlugins(),
-    ])
-    const enabledPlugins = installedPlugins.filter(
-      (p) => enabledPluginSources.includes(p.source),
-    )
-    const pluginSkillsPromises = enabledPlugins.map(async (plugin) => {
-      const paths = getPluginComponentPaths(plugin)
-      try {
-        const skills = await scanSkillsDirectory(paths.skills, "plugin")
-        return skills.map((skill) => ({ ...skill, pluginName: plugin.source }))
-      } catch {
-        return []
-      }
-    })
+    if (shouldListClaude) {
+      const [enabledPluginSources, installedPlugins] = await Promise.all([
+        getEnabledPlugins(),
+        discoverInstalledPlugins(),
+      ])
+      const enabledPlugins = installedPlugins.filter(
+        (p) => enabledPluginSources.includes(p.source),
+      )
+      const pluginSkillsPromises = enabledPlugins.map(async (plugin) => {
+        const paths = getPluginComponentPaths(plugin)
+        try {
+          const skills = await scanSkillsDirectory(paths.skills, "plugin", "claude")
+          return skills.map((skill) => ({ ...skill, pluginName: plugin.source }))
+        } catch {
+          return []
+        }
+      })
+      skillPromises.push(...pluginSkillsPromises)
+    }
 
     // Scan all directories in parallel
-    const [userSkills, projectSkills, ...pluginSkillsArrays] =
-      await Promise.all([
-        userSkillsPromise,
-        projectSkillsPromise,
-        ...pluginSkillsPromises,
-      ])
-    const pluginSkills = pluginSkillsArrays.flat()
-
-    return [...projectSkills, ...userSkills, ...pluginSkills]
+    const skillArrays = await Promise.all(skillPromises)
+    return skillArrays.flat()
   })
 
 /**
@@ -176,8 +221,10 @@ function resolveSkillPath(displayPath: string): string {
 export const skillsRouter = router({
   /**
    * List all skills from filesystem
-   * - User skills: ~/.claude/skills/
-   * - Project skills: .claude/skills/ (relative to cwd)
+   * - Claude user skills: ~/.claude/skills/
+   * - Claude project skills: .claude/skills/ (relative to cwd)
+   * - Codex user skills: ~/.agents/skills/
+   * - Codex project skills: .agents/skills/ (relative to cwd)
    */
   list: listSkillsProcedure,
 
@@ -196,10 +243,12 @@ export const skillsRouter = router({
         description: z.string(),
         content: z.string(),
         source: z.enum(["user", "project"]),
+        provider: skillProviderSchema.optional(),
         cwd: z.string().optional(),
       })
     )
     .mutation(async ({ input }) => {
+      const provider = input.provider ?? "claude"
       const safeName = input.name.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "")
       if (!safeName) {
         throw new Error("Skill name must contain at least one alphanumeric character")
@@ -210,9 +259,16 @@ export const skillsRouter = router({
         if (!input.cwd) {
           throw new Error("Project path (cwd) required for project skills")
         }
-        targetDir = path.join(input.cwd, ".claude", "skills")
+        targetDir = path.join(
+          input.cwd,
+          provider === "codex" ? ".agents" : ".claude",
+          "skills",
+        )
       } else {
-        targetDir = path.join(os.homedir(), ".claude", "skills")
+        targetDir =
+          provider === "codex"
+            ? path.join(os.homedir(), ".agents", "skills")
+            : path.join(os.homedir(), ".claude", "skills")
       }
 
       const skillDir = path.join(targetDir, safeName)
@@ -243,6 +299,7 @@ export const skillsRouter = router({
         name: safeName,
         path: skillMdPath,
         source: input.source,
+        provider,
       }
     }),
 
