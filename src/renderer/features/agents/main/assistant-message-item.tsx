@@ -656,6 +656,17 @@ export const AssistantMessageItem = memo(function AssistantMessageItem({
 
   const msgMetadata = message?.metadata as AgentMessageMetadata
 
+  // Operator author micro-label. Uses the model id already present in metadata
+  // when available (Claude); falls back to a bare "AGENT" (e.g. Codex, where the
+  // field may be absent). Pure re-visualization of existing data — no new fetch.
+  const agentLabel = useMemo(() => {
+    const rawModel = typeof msgMetadata?.model === "string" ? msgMetadata.model.trim() : ""
+    if (!rawModel) return "AGENT"
+    // Compact the id: drop any provider prefix segment (e.g. "anthropic/").
+    const shortModel = rawModel.includes("/") ? rawModel.split("/").pop()! : rawModel
+    return `AGENT · ${shortModel}`
+  }, [msgMetadata?.model])
+
   const renderPart = useCallback((part: any, idx: number, isFinal = false) => {
     if (part.type === "step-start") return null
     if (part.type === "tool-TaskOutput") return null
@@ -858,6 +869,12 @@ export const AssistantMessageItem = memo(function AssistantMessageItem({
       className="group/message w-full mb-4"
     >
       <div className="flex flex-col gap-1.5">
+        {/* Operator author micro-label (re-visualizes role + existing model id) */}
+        {contentParts.length > 0 && (
+          <span className="block font-mono text-[10px] leading-none tracking-wide text-muted-foreground/50 select-none">
+            {agentLabel}
+          </span>
+        )}
         {shouldCollapse && visibleStepsCount > 0 && (
           <CollapsibleSteps stepsCount={visibleStepsCount}>
             {(() => {

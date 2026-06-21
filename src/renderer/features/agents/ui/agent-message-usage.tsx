@@ -60,9 +60,13 @@ export const AgentMessageUsage = memo(function AgentMessageUsage({
     inputTokens = 0,
     outputTokens = 0,
     totalTokens = 0,
+    totalCostUsd,
     durationMs,
     resultSubtype,
   } = metadata
+
+  // Cost is provider-aware: Codex omits it. Only surface when actually present.
+  const hasCost = typeof totalCostUsd === "number" && totalCostUsd > 0
 
   const hasUsage = inputTokens > 0 || outputTokens > 0
 
@@ -81,11 +85,12 @@ export const AgentMessageUsage = memo(function AgentMessageUsage({
         <button
           tabIndex={-1}
           className={cn(
-            "h-5 px-1.5 flex items-center text-[10px] rounded-md",
+            "h-5 px-1.5 flex items-center gap-1 text-[10px] rounded-[3px]",
             "text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50",
             "transition-[background-color,transform] duration-150 ease-out",
           )}
         >
+          <span aria-hidden className="font-mono leading-none">⊡</span>
           <span className="font-mono">{formatTokens(displayTokens)}</span>
         </button>
       </HoverCardTrigger>
@@ -124,6 +129,16 @@ export const AgentMessageUsage = memo(function AgentMessageUsage({
               <span className="text-muted-foreground">{t("chat.usage.tokens")}</span>
               <span className="font-mono font-medium text-foreground">
                 {displayTokens.toLocaleString()}
+              </span>
+            </div>
+          )}
+
+          {/* Cost — only present for providers that report it (e.g. Claude); omitted for Codex */}
+          {hasCost && (
+            <div className="flex justify-between text-xs gap-4">
+              <span className="text-muted-foreground">{t("chat.usage.cost")}</span>
+              <span className="font-mono text-foreground">
+                ${totalCostUsd!.toFixed(totalCostUsd! < 1 ? 4 : 2)}
               </span>
             </div>
           )}

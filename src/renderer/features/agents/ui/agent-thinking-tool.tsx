@@ -105,7 +105,7 @@ export const AgentThinkingTool = memo(function AgentThinkingTool({
       >
         <div className="flex-1 min-w-0 flex items-center gap-1">
           <div className="text-xs flex items-center gap-1.5 min-w-0">
-            <span className="font-medium whitespace-nowrap flex-shrink-0">
+            <span className="font-mono font-medium whitespace-nowrap flex-shrink-0">
               {isStreaming ? (
                 <TextShimmer
                   as="span"

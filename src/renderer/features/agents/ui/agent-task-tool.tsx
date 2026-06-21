@@ -139,12 +139,12 @@ export const AgentTaskTool = memo(function AgentTaskTool({
               <TextShimmer
                 as="span"
                 duration={1.2}
-                className="font-medium whitespace-nowrap flex-shrink-0"
+                className="font-mono font-medium whitespace-nowrap flex-shrink-0"
               >
                 {getTitle()}
               </TextShimmer>
             ) : (
-              <span className="font-medium whitespace-nowrap flex-shrink-0 text-muted-foreground">
+              <span className="font-mono font-medium whitespace-nowrap flex-shrink-0 text-muted-foreground">
                 {getTitle()}
               </span>
             )}
@@ -211,7 +211,7 @@ export const AgentTaskTool = memo(function AgentTaskTool({
                   </div>
                 )
               }
-              const { isPending: nestedIsPending, isError: nestedIsError } =
+              const { isPending: nestedIsPending, isError: nestedIsError, isSuccess: nestedIsSuccess } =
                 getToolStatus(nestedPart, chatStatus)
               const handleClick = nestedPart.type === "tool-Read" && onOpenFile && nestedPart.input?.file_path
                 ? () => onOpenFile(nestedPart.input.file_path)
@@ -225,6 +225,7 @@ export const AgentTaskTool = memo(function AgentTaskTool({
                   tooltipContent={nestedMeta.tooltipContent?.(nestedPart, projectPath)}
                   isPending={nestedIsPending}
                   isError={nestedIsError}
+                  isSuccess={nestedIsSuccess}
                   onClick={handleClick}
                 />
               )

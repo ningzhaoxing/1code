@@ -394,7 +394,7 @@ export const AgentTodoTool = memo(function AgentTodoTool({
 
   // State for expanded/collapsed - initialize based on user preference
   const [isExpanded, setIsExpanded] = useState(alwaysExpandTodoList)
-  const { isPending } = getToolStatus(part, chatStatus)
+  const { isPending, isSuccess } = getToolStatus(part, chatStatus)
 
   // Sync isExpanded with alwaysExpandTodoList preference when it changes
   // Only auto-expand, don't auto-collapse (respect user's manual collapse)
@@ -482,7 +482,7 @@ export const AgentTodoTool = memo(function AgentTodoTool({
       <div className="flex items-start gap-1.5 py-0.5 rounded-md px-2">
         <div className="flex-1 min-w-0 flex items-center gap-1.5">
           <div className="text-xs text-muted-foreground flex items-center gap-1.5 min-w-0">
-            <span className="font-medium whitespace-nowrap flex-shrink-0">
+            <span className="font-mono font-medium whitespace-nowrap flex-shrink-0">
               <TextShimmer
                 as="span"
                 duration={1.2}
@@ -515,10 +515,10 @@ export const AgentTodoTool = memo(function AgentTodoTool({
         className="mx-2 sticky z-[5] bg-background"
         style={{ top: 'calc(var(--user-message-height, 28px) - 29px)' }}
       >
-        <div className="rounded-lg border border-border bg-muted/30 px-2.5 py-1.5">
+        <div className="rounded-[3px] border border-border bg-muted/30 px-2.5 py-1.5">
           <div className="flex items-center gap-1.5">
             <PlanIcon className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-            <span className="text-xs font-medium whitespace-nowrap flex-shrink-0">
+            <span className="text-xs font-mono font-medium whitespace-nowrap flex-shrink-0">
               {isPending ? (
                 <TextShimmer
                   as="span"
@@ -557,6 +557,7 @@ export const AgentTodoTool = memo(function AgentTodoTool({
         title={getStatusVerb(change.newStatus, titleText, t)}
         isPending={isPending}
         isError={false}
+        isSuccess={isSuccess}
       />
     )
   }
@@ -599,7 +600,7 @@ export const AgentTodoTool = memo(function AgentTodoTool({
       <div className="flex items-start gap-1.5 py-0.5 rounded-md px-2">
         <div className="flex-1 min-w-0 flex items-center gap-1.5">
           <div className="text-xs text-muted-foreground flex items-center gap-1.5 min-w-0">
-            <span className="font-medium whitespace-nowrap flex-shrink-0">
+            <span className="font-mono font-medium whitespace-nowrap flex-shrink-0">
               {isPending ? (
                 <TextShimmer
                   as="span"
@@ -672,7 +673,7 @@ export const AgentTodoTool = memo(function AgentTodoTool({
     >
       {/* TOP BLOCK - Plan title with expand/collapse button */}
       <div
-        className="rounded-t-lg border border-b-0 border-border bg-muted/30 px-2.5 py-1.5 cursor-pointer hover:bg-muted/40 transition-colors duration-150"
+        className="rounded-t-[3px] border border-b-0 border-border bg-muted/30 px-2.5 py-1.5 cursor-pointer hover:bg-muted/40 transition-colors duration-150"
         onClick={handleToggleExpand}
         role="button"
         aria-expanded={isExpanded}
@@ -685,7 +686,7 @@ export const AgentTodoTool = memo(function AgentTodoTool({
       >
         <div className="flex items-center gap-1.5">
           <PlanIcon className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-          <span className="text-xs font-medium text-foreground">
+          <span className="text-xs font-mono font-medium text-foreground">
             {t("todo.title")}
           </span>
           <span className="text-xs text-muted-foreground truncate flex-1">
@@ -710,7 +711,7 @@ export const AgentTodoTool = memo(function AgentTodoTool({
       </div>
 
       {/* BOTTOM BLOCK - Current task + progress (expandable) */}
-      <div className="rounded-b-lg border border-border bg-muted/20 shadow-xl shadow-background">
+      <div className="rounded-b-[3px] border border-border bg-muted/20">
         {/* Collapsed view - progress circle + current task + count */}
         {!isExpanded && (
           <div

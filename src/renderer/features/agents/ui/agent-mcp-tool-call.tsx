@@ -187,7 +187,7 @@ export const AgentMcpToolCall = memo(function AgentMcpToolCall({
   chatStatus,
 }: AgentMcpToolCallProps) {
   const [isExpanded, setIsExpanded] = useState(false)
-  const { isPending, isInterrupted } = getToolStatus(part, chatStatus)
+  const { isPending, isError, isSuccess, isInterrupted } = getToolStatus(part, chatStatus)
 
   const unwrappedOutput = useMemo(() => unwrapMcpOutput(part.output), [part.output])
 
@@ -238,7 +238,30 @@ export const AgentMcpToolCall = memo(function AgentMcpToolCall({
       >
         <div className="flex-1 min-w-0 flex items-center gap-1.5">
           <div className="text-xs text-muted-foreground flex items-center gap-1.5 min-w-0">
-            <span className="font-medium whitespace-nowrap flex-shrink-0">
+            {/* Operator status chip from existing state */}
+            {isPending ? (
+              <span
+                aria-hidden
+                className="inline-block w-1 h-1 rounded-[1px] bg-tool-running animate-pulse flex-shrink-0"
+              />
+            ) : isError ? (
+              <span className="font-mono text-[10px] leading-none tracking-wide text-tool-fail flex-shrink-0">
+                FAIL
+              </span>
+            ) : isSuccess ? (
+              <span
+                aria-hidden
+                className="font-mono text-[10px] leading-none text-tool-success/70 flex-shrink-0"
+              >
+                ✓
+              </span>
+            ) : (
+              <span
+                aria-hidden
+                className="inline-block w-1 h-1 rounded-[1px] bg-current text-muted-foreground/40 flex-shrink-0"
+              />
+            )}
+            <span className="font-mono font-medium whitespace-nowrap flex-shrink-0">
               {isPending ? (
                 <TextShimmer
                   as="span"

@@ -53,12 +53,12 @@ export function AgentPastedTextItem({
 
   return (
     <div
-      className="relative flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg bg-muted/50 cursor-default min-w-[120px] max-w-[200px]"
+      className="relative flex items-center gap-2 pl-1 pr-2 py-1 rounded-[3px] border border-border bg-muted/50 cursor-default min-w-[120px] max-w-[200px]"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Icon container */}
-      <div className="flex items-center justify-center w-8 self-stretch rounded-md bg-muted shrink-0">
+      <div className="flex items-center justify-center w-8 self-stretch rounded-[2px] bg-muted shrink-0">
         {isChatHistory ? (
           <ChatHistoryIcon className="size-4 text-muted-foreground" />
         ) : (
@@ -71,7 +71,7 @@ export function AgentPastedTextItem({
         <span className="text-sm font-medium text-foreground truncate">
           {displayTitle}
         </span>
-        <span className="text-xs text-muted-foreground">
+        <span className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
           {subtitle}
         </span>
       </div>
@@ -83,7 +83,7 @@ export function AgentPastedTextItem({
             e.stopPropagation()
             onRemove()
           }}
-          className={`absolute -top-1.5 -right-1.5 size-4 rounded-full bg-background border border-border
+          className={`absolute -top-1.5 -right-1.5 size-4 rounded-[2px] bg-background border border-border
                      flex items-center justify-center transition-[opacity,transform] duration-150 ease-out active:scale-[0.97] z-10
                      text-muted-foreground hover:text-foreground
                      ${isHovered ? "opacity-100" : "opacity-0"}`}

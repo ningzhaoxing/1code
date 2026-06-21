@@ -52,7 +52,7 @@ export function WorkModeSelector({
         <button
           type="button"
           className={cn(
-            "flex items-center gap-1.5 px-2 py-1 text-sm text-muted-foreground hover:text-foreground transition-[background-color,color] duration-150 ease-out rounded-md hover:bg-muted/50 outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70",
+            "flex items-center gap-1.5 px-2 py-1 font-mono text-[11px] uppercase tracking-wide text-muted-foreground hover:text-foreground transition-[background-color,color] duration-150 ease-out rounded-[3px] border border-border hover:bg-muted/50 outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70",
             disabled && "opacity-50 pointer-events-none",
           )}
           disabled={disabled}

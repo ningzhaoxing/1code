@@ -385,7 +385,9 @@ const agents = [
   { id: "codex", name: "OpenAI Codex", disabled: true },
 ]
 
-const SECURITY_MINING_RECORD_FILENAME = "漏洞挖掘记录.md"
+const SECURITY_MINING_RECORD_FILENAME = "Findings.md"
+// Legacy filename kept so existing records still auto-open after the rename.
+const SECURITY_MINING_RECORD_FILENAME_LEGACY = "漏洞挖掘记录.md"
 
 function joinViewerPath(basePath: string, fileName: string): string {
   return `${basePath.replace(/\/+$/, "")}/${fileName.replace(/^\/+/, "")}`
@@ -402,7 +404,10 @@ function getViewerFileName(filePath: string): string {
 
 function isSecurityMiningRecordPath(filePath: string): boolean {
   const fileName = getViewerFileName(filePath)
-  return fileName === SECURITY_MINING_RECORD_FILENAME
+  return (
+    fileName === SECURITY_MINING_RECORD_FILENAME ||
+    fileName === SECURITY_MINING_RECORD_FILENAME_LEGACY
+  )
 }
 
 // Helper function to get agent icon

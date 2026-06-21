@@ -184,7 +184,7 @@ export const AgentPlanFileTool = memo(function AgentPlanFileTool({
   }
 
   return (
-    <div className="rounded-lg border border-border bg-muted/30 overflow-hidden mx-2">
+    <div className="rounded-[3px] border border-border bg-muted/30 overflow-hidden mx-2">
       {/* Header - title + expand/collapse button */}
       <div
         onClick={handleToggleExpand}
@@ -193,11 +193,11 @@ export const AgentPlanFileTool = memo(function AgentPlanFileTool({
         <div className="flex items-center gap-1.5 text-xs truncate flex-1 min-w-0">
           <PlanIcon className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
           {shouldShowShimmer ? (
-            <TextShimmer as="span" duration={1.2} className="truncate">
+            <TextShimmer as="span" duration={1.2} className="truncate font-mono">
               {isEdit ? t("chat.tool.updatingPlanEllipsis") : t("chat.tool.creatingPlanEllipsis")}
             </TextShimmer>
           ) : (
-            <span className="truncate text-foreground font-medium">{t("chat.tool.plan")}</span>
+            <span className="truncate text-foreground font-mono font-medium">{t("chat.tool.plan")}</span>
           )}
         </div>
 

@@ -492,7 +492,7 @@ export const AgentEditTool = memo(function AgentEditTool({
       data-part-index={partIndex}
       data-part-type={toolPrefix}
       data-tool-file-path={displayPath}
-      className="rounded-lg border border-border bg-muted/30 overflow-hidden mx-2"
+      className="rounded-[3px] border border-border bg-muted/30 overflow-hidden mx-2"
     >
       {/* Header - clickable to expand, fixed height to prevent layout shift */}
       <div
@@ -505,7 +505,7 @@ export const AgentEditTool = memo(function AgentEditTool({
         <div
           onClick={handleFilenameClick}
           className={cn(
-            "flex items-center gap-1.5 text-xs truncate flex-1 min-w-0",
+            "flex items-center gap-1.5 font-mono text-xs truncate flex-1 min-w-0",
             displayPath && "cursor-pointer hover:text-foreground",
           )}
         >
@@ -543,11 +543,11 @@ export const AgentEditTool = memo(function AgentEditTool({
           {/* Diff stats - only show when not pending */}
           {!isPending && !isInputStreaming && diffStats && (
             <div className="flex items-center gap-1.5 text-xs">
-              <span className="text-green-600 dark:text-green-400">
+              <span className="text-tool-success">
                 +{diffStats.addedLines}
               </span>
               {diffStats.removedLines > 0 && (
-                <span className="text-red-600 dark:text-red-400">
+                <span className="text-tool-fail">
                   -{diffStats.removedLines}
                 </span>
               )}

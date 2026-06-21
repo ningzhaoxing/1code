@@ -60,7 +60,7 @@ export const MessageJsonDisplay = memo(function MessageJsonDisplay({
                 isOpen && "rotate-90",
               )}
             />
-            <span>{label} JSON</span>
+            <span className="font-mono">{label} JSON</span>
           </button>
         </CollapsibleTrigger>
         <button
@@ -79,7 +79,7 @@ export const MessageJsonDisplay = memo(function MessageJsonDisplay({
         </button>
       </div>
       <CollapsibleContent>
-        <div className="mt-1 mx-2 rounded-md border bg-muted/30 overflow-hidden">
+        <div className="mt-1 mx-2 rounded-[3px] border border-border bg-muted/30 overflow-hidden">
           {/* JSON content */}
           <div className="p-3 max-h-[300px] overflow-auto">
             {highlightedHtml ? (

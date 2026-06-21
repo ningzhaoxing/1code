@@ -388,7 +388,7 @@ function MentionChip({ mention }: { mention: ParsedMention }) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1 px-[6px] rounded-[6px] text-sm align-middle bg-black/[0.04] dark:bg-white/[0.08] text-foreground/80 select-none${isClickable ? " cursor-pointer hover:bg-black/[0.08] dark:hover:bg-white/[0.12] transition-colors" : ""}`}
+      className={`inline-flex items-center gap-1 px-[6px] rounded-[3px] font-mono text-[13px] align-middle bg-black/[0.04] dark:bg-white/[0.08] text-foreground/80 select-none${isClickable ? " cursor-pointer hover:bg-black/[0.08] dark:hover:bg-white/[0.12] transition-colors" : ""}`}
       title={title}
       onClick={isClickable ? () => onOpenFile(mention.path) : undefined}
     >

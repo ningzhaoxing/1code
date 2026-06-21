@@ -1,7 +1,7 @@
 import { join, resolve, sep } from "node:path"
 
 export const SECURITY_MINING_RECORD_SKILL_NAME = "security-mining-record"
-export const SECURITY_MINING_RECORD_FILENAME = "漏洞挖掘记录.md"
+export const SECURITY_MINING_RECORD_FILENAME = "Findings.md"
 export const SECURITY_MINING_REPORT_FILENAME = "漏洞挖掘报告.md"
 const SECURITY_MINING_ARTIFACT_DIR_PREFIX = "漏洞挖掘"
 const SECURITY_MINING_RECORD_ID_LENGTH = 8

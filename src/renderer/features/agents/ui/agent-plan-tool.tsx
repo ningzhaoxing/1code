@@ -161,7 +161,7 @@ export const AgentPlanTool = memo(function AgentPlanTool({
   }
 
   return (
-    <div className="rounded-lg border border-border bg-muted/30 overflow-hidden mx-2">
+    <div className="rounded-[3px] border border-border bg-muted/30 overflow-hidden mx-2">
       {/* Header - click anywhere to expand/collapse */}
       <div 
         className="flex items-center justify-between px-2.5 py-2 cursor-pointer hover:bg-muted/50 transition-colors duration-150"
@@ -173,12 +173,12 @@ export const AgentPlanTool = memo(function AgentPlanTool({
               <TextShimmer
                 as="span"
                 duration={1.2}
-                className="text-xs font-medium"
+                className="text-xs font-mono font-medium"
               >
                 {getHeaderTitle()}
               </TextShimmer>
             ) : (
-              <span className="text-xs font-medium text-foreground truncate">
+              <span className="text-xs font-mono font-medium text-foreground truncate">
                 {getHeaderTitle()}
               </span>
             )}

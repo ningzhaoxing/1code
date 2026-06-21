@@ -188,6 +188,10 @@ export const AgentUserMessageBubble = memo(function AgentUserMessageBubble({
     <>
       <div className="flex justify-start drop-shadow-[0_10px_20px_hsl(var(--background))]" data-user-bubble>
         <div className="space-y-2 w-full">
+          {/* Operator author micro-label (re-visualizes the existing user role) */}
+          <span className="block font-mono text-[10px] leading-none tracking-wide text-muted-foreground/50 select-none">
+            YOU
+          </span>
           {/* Show attached images from stored message */}
           {imageParts.length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5">

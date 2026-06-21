@@ -134,7 +134,7 @@ const SidebarSearchHistoryPopover = memo(function SidebarSearchHistoryPopover({
       <div className="flex items-center gap-2 flex-1 min-w-0">
         <div className="flex-shrink-0 w-4 h-4 flex items-center justify-center relative">
           {hasPendingQuestion ? (
-            <QuestionIcon className="w-4 h-4 text-blue-500" />
+            <QuestionIcon className="w-4 h-4 text-state-needs-human" />
           ) : isLoading ? (
             <IconSpinner className="w-4 h-4 text-muted-foreground" />
           ) : mode === "plan" ? (
@@ -144,7 +144,7 @@ const SidebarSearchHistoryPopover = memo(function SidebarSearchHistoryPopover({
           )}
           {hasUnseen && !isLoading && !hasPendingQuestion && (
             <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-popover flex items-center justify-center">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#307BD0]" />
+              <div className="w-1.5 h-1.5 rounded-full bg-primary" />
             </div>
           )}
         </div>
@@ -1138,6 +1138,20 @@ export function AgentsSubChatsSidebar({
               </div>
             </div>
           )}
+          {/* Region label - marks this column as the sub-level (chats) of the selected workspace */}
+          <div className="flex items-center gap-1.5 h-5 border-b border-border pb-1 min-w-0">
+            <span className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground flex-shrink-0">
+              {t("chat.section.chats")}
+            </span>
+            {agentName && (
+              <>
+                <span className="font-mono text-[11px] text-muted-foreground/50 flex-shrink-0">/</span>
+                <span className="font-mono text-[11px] text-muted-foreground/70 truncate min-w-0">
+                  {agentName}
+                </span>
+              </>
+            )}
+          </div>
           {/* Search Input */}
           <div
             className="relative"
@@ -1190,7 +1204,7 @@ export function AgentsSubChatsSidebar({
                   return
                 }
               }}
-              className="h-7 w-full rounded-lg text-sm bg-muted border border-input placeholder:text-muted-foreground/40"
+              className="h-7 w-full rounded-[3px] text-sm bg-muted border border-border placeholder:text-muted-foreground/40 focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary"
             />
           </div>
           {/* New Chat Button */}
@@ -1206,9 +1220,9 @@ export function AgentsSubChatsSidebar({
                   onClick={handleCreateNew}
                   variant="outline"
                   size="sm"
-                  className="h-7 px-2 w-full hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] text-foreground rounded-lg"
+                  className="h-7 px-2 w-full border-border hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] text-foreground rounded-[3px]"
                 >
-                  <span className="text-sm font-medium">{t("chat.new")}</span>
+                  <span className="font-mono text-[11px] uppercase tracking-wide font-medium">{t("chat.new")}</span>
                 </Button>
               </TooltipTrigger>
             <TooltipContent side="right">
@@ -1263,11 +1277,11 @@ export function AgentsSubChatsSidebar({
                     <>
                       <div
                         className={cn(
-                          "flex items-center h-4 mb-1",
+                          "flex items-center h-5 mb-1",
                           isMultiSelectMode ? "pl-3" : "pl-2",
                         )}
                       >
-                        <h3 className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+                        <h3 className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground whitespace-nowrap">
                           {t("chat.section.pinned")}
                         </h3>
                       </div>
@@ -1365,9 +1379,11 @@ export function AgentsSubChatsSidebar({
                                     "w-full text-left py-1.5 transition-colors duration-75 cursor-pointer group relative",
                                     "outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70",
                                     isMultiSelectMode ? "px-3" : "pl-2 pr-2",
-                                    isMultiSelectMode ? "" : "rounded-md",
+                                    isMultiSelectMode ? "" : "rounded-[3px]",
+                                    // Active = 2px amber left rail + subtle fill (Operator Console). Left pad -2px keeps text aligned.
                                     isActive
-                                      ? "bg-foreground/5 text-foreground"
+                                      ? "border-l-2 border-primary bg-primary/[0.08] text-foreground " +
+                                        (isMultiSelectMode ? "pl-[10px]" : "pl-[6px]")
                                       : isChecked
                                         ? "bg-foreground/5 text-foreground"
                                         : isFocused
@@ -1410,7 +1426,7 @@ export function AgentsSubChatsSidebar({
                                         )}
                                       >
                                         {hasPendingQuestion ? (
-                                          <QuestionIcon className="w-4 h-4 text-blue-500" />
+                                          <QuestionIcon className="w-4 h-4 text-state-needs-human" />
                                         ) : mode === "plan" ? (
                                           <PlanIcon className="w-4 h-4 text-muted-foreground" />
                                         ) : (
@@ -1428,13 +1444,13 @@ export function AgentsSubChatsSidebar({
                                                 : "bg-[#F4F4F4] group-hover:bg-[#E8E8E8] dark:bg-[#101010] dark:group-hover:bg-[#1B1B1B]",
                                             )}
                                           >
-                                            {/* Priority: loader > amber dot (pending plan) > blue dot (unseen) */}
+                                            {/* Priority: loader (amber) > amber dot (pending plan) > primary dot (unseen) */}
                                             {isSubChatLoading ? (
-                                              <LoadingDot isLoading={true} className="w-2.5 h-2.5 text-muted-foreground" />
+                                              <LoadingDot isLoading={true} className="w-2.5 h-2.5 text-tool-running" />
                                             ) : hasPendingPlan ? (
-                                              <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                              <div className="w-1.5 h-1.5 rounded-full bg-tool-running" />
                                             ) : (
-                                              <LoadingDot isLoading={false} className="w-2.5 h-2.5 text-muted-foreground" />
+                                              <LoadingDot isLoading={false} className="w-2.5 h-2.5" dotClassName="bg-primary" />
                                             )}
                                           </div>
                                         )}
@@ -1473,10 +1489,10 @@ export function AgentsSubChatsSidebar({
                                           </button>
                                         )}
                                       </div>
-                                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60 min-w-0">
+                                      <div className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground min-w-0">
                                         {draftText ? (
                                           <span className="truncate flex-1 min-w-0">
-                                            <span className="text-blue-500">{t("chat.draft")}</span>{" "}
+                                            <span className="text-primary">{t("chat.draft")}</span>{" "}
                                             {draftText}
                                           </span>
                                         ) : (
@@ -1494,10 +1510,10 @@ export function AgentsSubChatsSidebar({
                                         <div className="flex items-center gap-1.5 flex-shrink-0">
                                           {!draftText && stats && (stats.additions > 0 || stats.deletions > 0) && (
                                             <>
-                                              <span className="text-green-600 dark:text-green-400">
+                                              <span className="text-tool-success">
                                                 +{stats.additions}
                                               </span>
-                                              <span className="text-red-600 dark:text-red-400">
+                                              <span className="text-tool-fail">
                                                 -{stats.deletions}
                                               </span>
                                             </>
@@ -1566,11 +1582,11 @@ export function AgentsSubChatsSidebar({
                     <>
                       <div
                         className={cn(
-                          "flex items-center h-4 mb-1",
+                          "flex items-center h-5 mb-1",
                           isMultiSelectMode ? "pl-3" : "pl-2",
                         )}
                       >
-                        <h3 className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+                        <h3 className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground whitespace-nowrap">
                           {pinnedChats.length > 0 ? t("chat.section.recent") : t("chat.section.chats")}
                         </h3>
                       </div>
@@ -1668,9 +1684,11 @@ export function AgentsSubChatsSidebar({
                                     "w-full text-left py-1.5 transition-colors duration-75 cursor-pointer group relative",
                                     "outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70",
                                     isMultiSelectMode ? "px-3" : "pl-2 pr-2",
-                                    isMultiSelectMode ? "" : "rounded-md",
+                                    isMultiSelectMode ? "" : "rounded-[3px]",
+                                    // Active = 2px amber left rail + subtle fill (Operator Console). Left pad -2px keeps text aligned.
                                     isActive
-                                      ? "bg-foreground/5 text-foreground"
+                                      ? "border-l-2 border-primary bg-primary/[0.08] text-foreground " +
+                                        (isMultiSelectMode ? "pl-[10px]" : "pl-[6px]")
                                       : isChecked
                                         ? "bg-foreground/5 text-foreground"
                                         : isFocused
@@ -1713,7 +1731,7 @@ export function AgentsSubChatsSidebar({
                                         )}
                                       >
                                         {hasPendingQuestion ? (
-                                          <QuestionIcon className="w-4 h-4 text-blue-500" />
+                                          <QuestionIcon className="w-4 h-4 text-state-needs-human" />
                                         ) : mode === "plan" ? (
                                           <PlanIcon className="w-4 h-4 text-muted-foreground" />
                                         ) : (
@@ -1731,13 +1749,13 @@ export function AgentsSubChatsSidebar({
                                                 : "bg-[#F4F4F4] group-hover:bg-[#E8E8E8] dark:bg-[#101010] dark:group-hover:bg-[#1B1B1B]",
                                             )}
                                           >
-                                            {/* Priority: loader > amber dot (pending plan) > blue dot (unseen) */}
+                                            {/* Priority: loader (amber) > amber dot (pending plan) > primary dot (unseen) */}
                                             {isSubChatLoading ? (
-                                              <LoadingDot isLoading={true} className="w-2.5 h-2.5 text-muted-foreground" />
+                                              <LoadingDot isLoading={true} className="w-2.5 h-2.5 text-tool-running" />
                                             ) : hasPendingPlan ? (
-                                              <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                              <div className="w-1.5 h-1.5 rounded-full bg-tool-running" />
                                             ) : (
-                                              <LoadingDot isLoading={false} className="w-2.5 h-2.5 text-muted-foreground" />
+                                              <LoadingDot isLoading={false} className="w-2.5 h-2.5" dotClassName="bg-primary" />
                                             )}
                                           </div>
                                         )}
@@ -1776,10 +1794,10 @@ export function AgentsSubChatsSidebar({
                                           </button>
                                         )}
                                       </div>
-                                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60 min-w-0">
+                                      <div className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground min-w-0">
                                         {draftText ? (
                                           <span className="truncate flex-1 min-w-0">
-                                            <span className="text-blue-500">{t("chat.draft")}</span>{" "}
+                                            <span className="text-primary">{t("chat.draft")}</span>{" "}
                                             {draftText}
                                           </span>
                                         ) : (
@@ -1797,10 +1815,10 @@ export function AgentsSubChatsSidebar({
                                         <div className="flex items-center gap-1.5 flex-shrink-0">
                                           {!draftText && stats && (stats.additions > 0 || stats.deletions > 0) && (
                                             <>
-                                              <span className="text-green-600 dark:text-green-400">
+                                              <span className="text-tool-success">
                                                 +{stats.additions}
                                               </span>
-                                              <span className="text-red-600 dark:text-red-400">
+                                              <span className="text-tool-fail">
                                                 -{stats.deletions}
                                               </span>
                                             </>

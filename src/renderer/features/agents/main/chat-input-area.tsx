@@ -1255,9 +1255,9 @@ export const ChatInputArea = memo(function ChatInputArea({
           >
             <PromptInput
               className={cn(
-                "border bg-input-background relative z-10 p-2 rounded-md transition-[border-color,box-shadow] duration-150",
-                isDragOver && "ring-2 ring-primary/50 border-primary/50",
-                isFocused && !isDragOver && "ring-2 ring-primary/50",
+                "border border-border bg-input-background relative z-10 p-2 rounded-[3px] transition-[border-color,box-shadow] duration-150",
+                isDragOver && "ring-1 ring-primary border-primary",
+                isFocused && !isDragOver && "ring-1 ring-primary border-primary",
               )}
               maxHeight={200}
               onSubmit={onSend}
@@ -1386,7 +1386,14 @@ export const ChatInputArea = memo(function ChatInputArea({
                     }}
                   >
                     <DropdownMenuTrigger asChild>
-                      <button className="flex items-center gap-1.5 px-2 py-1 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-muted/50 outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70">
+                      <button
+                        className={cn(
+                          "flex items-center gap-1.5 px-2 py-1 font-mono text-[11px] uppercase tracking-wide rounded-[3px] border transition-colors outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70",
+                          subChatMode === "plan"
+                            ? "border-primary/40 bg-primary/10 text-primary hover:bg-primary/15"
+                            : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                        )}
+                      >
                         {subChatMode === "plan" ? (
                           <PlanIcon className="h-3.5 w-3.5 shrink-0" />
                         ) : (
@@ -1551,6 +1558,7 @@ export const ChatInputArea = memo(function ChatInputArea({
                       allowProviderSwitch={canSwitchProvider}
                       onContinueWithProvider={!canSwitchProvider ? onContinueWithProvider : undefined}
                       selectedModelLabel={selectedModelLabel}
+                      triggerClassName="font-mono text-[11px] rounded-[3px] border border-border hover:bg-muted/50"
                       onOpenModelsSettings={() => {
                         setSettingsTab("models")
                         setSettingsOpen(true)

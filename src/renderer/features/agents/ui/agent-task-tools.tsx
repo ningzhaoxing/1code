@@ -949,10 +949,10 @@ export const AgentTaskToolsGroup = memo(function AgentTaskToolsGroup({
     if (isStreaming || anyPending) {
       return (
         <div className="mx-2">
-          <div className="rounded-lg border border-border bg-muted/30 px-2.5 py-1.5">
+          <div className="rounded-[3px] border border-border bg-muted/30 px-2.5 py-1.5">
             <div className="flex items-center gap-1.5">
               <PlanIcon className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-              <span className="text-xs font-medium whitespace-nowrap flex-shrink-0">
+              <span className="text-xs font-mono font-medium whitespace-nowrap flex-shrink-0">
                 <TextShimmer
                   as="span"
                   duration={1.2}
@@ -1035,7 +1035,7 @@ export const AgentTaskToolsGroup = memo(function AgentTaskToolsGroup({
       <div
         className={cn(
           "border border-border bg-muted/30 px-2.5 py-1.5",
-          isReadOnly && !isExpanded ? "rounded-lg" : "rounded-t-lg border-b-0",
+          isReadOnly && !isExpanded ? "rounded-[3px]" : "rounded-t-[3px] border-b-0",
           isReadOnly && "cursor-pointer hover:bg-muted/50 transition-colors",
         )}
         onClick={isReadOnly ? () => setIsExpanded(!isExpanded) : undefined}
@@ -1043,7 +1043,7 @@ export const AgentTaskToolsGroup = memo(function AgentTaskToolsGroup({
         <div className="flex items-center gap-1.5">
           <PlanIcon className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
           {headerText.startsWith("__TASK_GET__") ? (
-            <span className="text-xs flex-1">
+            <span className="text-xs font-mono flex-1">
               <span className="font-medium text-foreground">{t("chat.tool.readTask")}</span>
               <span className="text-muted-foreground ml-1">
                 {(() => {
@@ -1055,7 +1055,7 @@ export const AgentTaskToolsGroup = memo(function AgentTaskToolsGroup({
               </span>
             </span>
           ) : (
-            <span className="text-xs font-medium text-foreground flex-1">
+            <span className="text-xs font-mono font-medium text-foreground flex-1">
               {headerText}
             </span>
           )}
@@ -1067,7 +1067,7 @@ export const AgentTaskToolsGroup = memo(function AgentTaskToolsGroup({
 
       {/* Items list */}
       {(!isReadOnly || isExpanded) && (
-      <div className="rounded-b-lg border border-border bg-muted/20 shadow-xl shadow-background max-h-[400px] overflow-y-auto">
+      <div className="rounded-b-[3px] border border-border bg-muted/20 max-h-[400px] overflow-y-auto">
         {itemsToRender.map((item, idx) => {
           const isLast = idx === itemsToRender.length - 1
           if (item.type === "change") {

@@ -147,7 +147,7 @@ export const SubChatStatusCard = memo(function SubChatStatusCard({
       className={cn(
         "border border-border bg-muted/30 overflow-hidden flex flex-col border-b-0 pb-6",
         // If queue card above - no top radius
-        hasQueueCardAbove ? "rounded-none" : "rounded-t-xl"
+        hasQueueCardAbove ? "rounded-none" : "rounded-t-[3px]"
       )}
     >
       {/* Header - at top */}
@@ -181,14 +181,14 @@ export const SubChatStatusCard = memo(function SubChatStatusCard({
 
           {/* Streaming indicator */}
           {isBusy && (
-            <span className="text-xs text-muted-foreground">
+            <span className="font-mono text-xs text-muted-foreground">
               {isCompacting ? t("chat.status.compacting") : t("chat.status.generating")}<AnimatedDots />
             </span>
           )}
 
           {/* File count and stats - only show when not streaming */}
           {!isBusy && (
-            <span className="text-xs text-muted-foreground">
+            <span className="font-mono text-xs text-muted-foreground">
               {totals.fileCount} {totals.fileCount === 1 ? t("chat.fileSingular") : t("chat.filePlural")}
               {(totals.additions > 0 || totals.deletions > 0) && (
                 <>

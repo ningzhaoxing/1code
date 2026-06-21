@@ -1,7 +1,6 @@
 "use client"
 
 import { memo, useState, useMemo } from "react"
-import { Check, X } from "lucide-react"
 import { useAtomValue } from "jotai"
 import {
   IconSpinner,
@@ -81,8 +80,8 @@ export const AgentBashTool = memo(function AgentBashTool({
   // Determine if we have any output
   const hasOutput = stdout || stderr
 
-  // Limit output to 3 lines when collapsed
-  const MAX_OUTPUT_LINES = 3
+  // Limit output lines when collapsed; full output revealed on expand.
+  const MAX_OUTPUT_LINES = 6
   const stdoutLimited = useMemo(() => limitLines(stdout, MAX_OUTPUT_LINES), [stdout])
   const stderrLimited = useMemo(() => limitLines(stderr, MAX_OUTPUT_LINES), [stderr])
   const hasMoreOutput = stdoutLimited.truncated || stderrLimited.truncated
@@ -136,7 +135,7 @@ export const AgentBashTool = memo(function AgentBashTool({
       data-message-id={messageId}
       data-part-index={partIndex}
       data-part-type="tool-Bash"
-      className="rounded-lg border border-border bg-muted/30 overflow-hidden mx-2"
+      className="rounded-[3px] border border-border bg-muted/30 overflow-hidden mx-2"
     >
       {/* Header - clickable to expand, fixed height to prevent layout shift */}
       <div
@@ -146,26 +145,27 @@ export const AgentBashTool = memo(function AgentBashTool({
           hasMoreOutput && !isPending && "cursor-pointer hover:bg-muted/50 transition-colors duration-150",
         )}
       >
-        <span className="text-xs text-muted-foreground truncate flex-1 min-w-0">
+        <span className="font-mono text-xs text-muted-foreground truncate flex-1 min-w-0">
           {isPending ? t("chat.tool.runningCommand") : t("chat.tool.ranCommand")}
           {commandSummary}
         </span>
 
         {/* Status and expand button */}
         <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
-          {/* Status */}
+          {/* Status chip - compact operator-console idiom (matches AgentToolCall) */}
           {!isPending && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1 font-mono text-xs">
               {isSuccess ? (
-                <>
-                  <Check className="w-3 h-3" />
-                  <span>{t("common.success")}</span>
-                </>
+                <span
+                  aria-hidden
+                  className="font-mono text-[10px] leading-none text-tool-success/70 flex-shrink-0"
+                >
+                  ✓
+                </span>
               ) : isError ? (
-                <>
-                  <X className="w-3 h-3" />
-                  <span>{t("common.failed")}</span>
-                </>
+                <span className="font-mono text-[10px] leading-none tracking-wide text-tool-fail flex-shrink-0">
+                  FAIL
+                </span>
               ) : null}
             </div>
           )}
@@ -205,7 +205,7 @@ export const AgentBashTool = memo(function AgentBashTool({
       >
         {/* Command - always show full command */}
         <div className="font-mono text-xs">
-          <span className="text-amber-600 dark:text-amber-400">$ </span>
+          <span className="text-tool-running">$ </span>
           <span className="text-foreground whitespace-pre-wrap break-all">
             {displayCommand}
           </span>
@@ -226,8 +226,8 @@ export const AgentBashTool = memo(function AgentBashTool({
               // If exitCode is 0, it's a warning (e.g. npm warnings)
               // If exitCode is non-zero, it's an error
               exitCode === 0 || exitCode === undefined
-                ? "text-amber-600 dark:text-amber-400"
-                : "text-rose-500 dark:text-rose-400",
+                ? "text-tool-running"
+                : "text-tool-fail",
             )}
           >
             {isOutputExpanded ? stderr : stderrLimited.text}

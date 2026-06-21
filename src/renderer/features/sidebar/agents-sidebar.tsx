@@ -138,10 +138,6 @@ import { useHaptic } from "./hooks/use-haptic"
 import { TypewriterText } from "../../components/ui/typewriter-text"
 import { exportChat, copyChat, type ExportFormat } from "../agents/lib/export-chat"
 
-// Feedback URL: uses env variable for hosted version, falls back to public Discord for open source
-const FEEDBACK_URL =
-  import.meta.env.VITE_FEEDBACK_URL || "https://discord.gg/8ektTZGnj4"
-
 // GitHub avatar with loading placeholder
 const GitHubAvatar = React.memo(function GitHubAvatar({
   gitOwner,
@@ -278,7 +274,7 @@ const ChatIcon = React.memo(function ChatIcon({
                   exit={{ opacity: 0, scale: 0.5 }}
                   transition={{ duration: 0.15 }}
                 >
-                  <QuestionIcon className="w-2.5 h-2.5 text-blue-500" />
+                  <QuestionIcon className="w-2.5 h-2.5 text-state-needs-human" />
                 </motion.div>
               ) : isLoading ? (
                 <motion.div
@@ -288,7 +284,7 @@ const ChatIcon = React.memo(function ChatIcon({
                   exit={{ opacity: 0, scale: 0.5 }}
                   transition={{ duration: 0.15 }}
                 >
-                  <LoadingDot isLoading={true} className="w-2.5 h-2.5 text-muted-foreground" />
+                  <LoadingDot isLoading={true} className="w-2.5 h-2.5 text-tool-running" />
                 </motion.div>
               ) : hasPendingPlan ? (
                 <motion.div
@@ -297,7 +293,7 @@ const ChatIcon = React.memo(function ChatIcon({
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.5 }}
                   transition={{ duration: 0.15 }}
-                  className="w-1.5 h-1.5 rounded-full bg-amber-500"
+                  className="w-1.5 h-1.5 rounded-full bg-tool-running"
                 />
               ) : (
                 <motion.div
@@ -307,7 +303,7 @@ const ChatIcon = React.memo(function ChatIcon({
                   exit={{ opacity: 0, scale: 0.5 }}
                   transition={{ duration: 0.15 }}
                 >
-                  <LoadingDot isLoading={false} className="w-2.5 h-2.5 text-muted-foreground" />
+                  <LoadingDot isLoading={false} className="w-2.5 h-2.5" dotClassName="bg-primary" />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -359,9 +355,10 @@ const DraftItem = React.memo(function DraftItem({
         "transition-colors duration-75",
         "outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70",
         isMultiSelectMode ? "px-3" : "pl-2 pr-2",
-        !isMultiSelectMode && "rounded-md",
+        !isMultiSelectMode && "rounded-[3px]",
         isSelected
-          ? "bg-foreground/5 text-foreground"
+          ? "border-l-2 border-primary bg-primary/[0.08] text-foreground" +
+            (isMultiSelectMode ? " pl-[10px]" : " pl-[6px]")
           : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
       )}
     >
@@ -399,15 +396,15 @@ const DraftItem = React.memo(function DraftItem({
             )}
           </div>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] text-muted-foreground/60 truncate">
-              <span className="text-blue-500">{t("workspace.draft")}</span>
+            <span className="font-mono text-[11px] text-muted-foreground truncate">
+              <span className="text-primary">{t("workspace.draft")}</span>
               {projectGitRepo
                 ? ` • ${projectGitRepo}`
                 : projectName
                   ? ` • ${projectName}`
                   : ""}
             </span>
-            <span className="text-[11px] text-muted-foreground/60 flex-shrink-0">
+            <span className="font-mono text-[11px] text-muted-foreground flex-shrink-0">
               {formatTime(new Date(draftUpdatedAt).toISOString())}
             </span>
           </div>
@@ -558,9 +555,11 @@ const AgentChatItem = React.memo(function AgentChatItem({
             "outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70",
             // In multi-select: px-3 compensates for removed container px-2, keeping text aligned
             isMultiSelectMode ? "px-3" : "pl-2 pr-2",
-            !isMultiSelectMode && "rounded-md",
+            !isMultiSelectMode && "rounded-[3px]",
+            // Selected = 2px amber left rail + subtle fill (Operator Console). border-l-2 + -2px left pad keeps text aligned.
             isSelected
-              ? "bg-foreground/5 text-foreground"
+              ? "border-l-2 border-primary bg-primary/[0.08] text-foreground" +
+                (isMultiSelectMode ? " pl-[10px]" : " pl-[6px]")
               : isFocused
                 ? "bg-foreground/5 text-foreground"
                 : // On mobile, no hover effect to prevent double-tap issue
@@ -621,7 +620,7 @@ const AgentChatItem = React.memo(function AgentChatItem({
                               exit={{ opacity: 0, scale: 0.5 }}
                               transition={{ duration: 0.15 }}
                             >
-                              <QuestionIcon className="w-2.5 h-2.5 text-blue-500" />
+                              <QuestionIcon className="w-2.5 h-2.5 text-state-needs-human" />
                             </motion.div>
                           ) : isLoading ? (
                             <motion.div
@@ -631,7 +630,7 @@ const AgentChatItem = React.memo(function AgentChatItem({
                               exit={{ opacity: 0, scale: 0.5 }}
                               transition={{ duration: 0.15 }}
                             >
-                              <LoadingDot isLoading={true} className="w-2.5 h-2.5 text-muted-foreground" />
+                              <LoadingDot isLoading={true} className="w-2.5 h-2.5 text-tool-running" />
                             </motion.div>
                           ) : hasPendingPlan ? (
                             <motion.div
@@ -640,7 +639,7 @@ const AgentChatItem = React.memo(function AgentChatItem({
                               animate={{ opacity: 1, scale: 1 }}
                               exit={{ opacity: 0, scale: 0.5 }}
                               transition={{ duration: 0.15 }}
-                              className="w-1.5 h-1.5 rounded-full bg-amber-500"
+                              className="w-1.5 h-1.5 rounded-full bg-tool-running"
                             />
                           ) : (
                             <motion.div
@@ -650,7 +649,7 @@ const AgentChatItem = React.memo(function AgentChatItem({
                               exit={{ opacity: 0, scale: 0.5 }}
                               transition={{ duration: 0.15 }}
                             >
-                              <LoadingDot isLoading={false} className="w-2.5 h-2.5 text-muted-foreground" />
+                              <LoadingDot isLoading={false} className="w-2.5 h-2.5" dotClassName="bg-primary" />
                             </motion.div>
                           )}
                         </AnimatePresence>
@@ -671,7 +670,7 @@ const AgentChatItem = React.memo(function AgentChatItem({
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-1 text-[11px] text-muted-foreground/60 min-w-0">
+              <div className="flex items-center gap-1 font-mono text-[11px] text-muted-foreground min-w-0">
                 {/* Cloud icon for remote chats */}
                 {isRemote && (
                   <CloudIcon className="h-2.5 w-2.5 flex-shrink-0" />
@@ -680,10 +679,10 @@ const AgentChatItem = React.memo(function AgentChatItem({
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   {stats && (stats.additions > 0 || stats.deletions > 0) && (
                     <>
-                      <span className="text-green-600 dark:text-green-400">
+                      <span className="text-tool-success">
                         +{stats.additions}
                       </span>
-                      <span className="text-red-600 dark:text-red-400">
+                      <span className="text-tool-fail">
                         -{stats.deletions}
                       </span>
                     </>
@@ -951,11 +950,11 @@ const ChatListSection = React.memo(function ChatListSection({
     <>
       <div
         className={cn(
-          "flex items-center h-4 mb-1",
+          "flex items-center h-5 mb-1",
           isMultiSelectMode ? "pl-3" : "pl-2",
         )}
       >
-        <h3 className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+        <h3 className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground whitespace-nowrap">
           {title}
         </h3>
       </div>
@@ -3199,7 +3198,7 @@ export function AgentsSidebar({
                 }
               }}
               className={cn(
-                "w-full rounded-lg text-sm bg-muted border border-input placeholder:text-muted-foreground/40",
+                "w-full rounded-[3px] text-sm bg-muted border border-border placeholder:text-muted-foreground/40 focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary",
                 isMobileFullscreen ? "h-10" : "h-7",
               )}
             />
@@ -3212,11 +3211,11 @@ export function AgentsSidebar({
                 variant="outline"
                 size="sm"
                 className={cn(
-                  "px-2 w-full hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] text-foreground rounded-lg gap-1.5",
+                  "px-2 w-full border-border hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] text-foreground rounded-[3px] gap-1.5",
                   isMobileFullscreen ? "h-10" : "h-7",
                 )}
               >
-                <span className="text-sm font-medium">{t("workspace.new")}</span>
+                <span className="font-mono text-[11px] uppercase tracking-wide font-medium">{t("workspace.new")}</span>
               </ButtonCustom>
             </TooltipTrigger>
             <TooltipContent side="right" className="flex flex-col items-start gap-1">
@@ -3253,11 +3252,11 @@ export function AgentsSidebar({
             <div className={cn("mb-4", isMultiSelectMode ? "px-0" : "-mx-1")}>
               <div
                 className={cn(
-                  "flex items-center h-4 mb-1",
+                  "flex items-center h-5 mb-1",
                   isMultiSelectMode ? "pl-3" : "pl-2",
                 )}
               >
-                <h3 className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+                <h3 className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground whitespace-nowrap">
                   {t("workspace.section.drafts")}
                 </h3>
               </div>
@@ -3477,19 +3476,6 @@ export function AgentsSidebar({
 
               <div className="flex-1" />
             </div>
-
-            {/* Feedback Button */}
-            <ButtonCustom
-              onClick={() => window.open(FEEDBACK_URL, "_blank")}
-              variant="outline"
-              size="sm"
-              className={cn(
-                "px-2 w-full hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] text-foreground rounded-lg gap-1.5",
-                isMobileFullscreen ? "h-10" : "h-7",
-              )}
-            >
-              <span className="text-sm font-medium">{t("workspace.feedback")}</span>
-            </ButtonCustom>
           </motion.div>
         )}
       </AnimatePresence>

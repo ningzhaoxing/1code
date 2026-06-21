@@ -71,7 +71,7 @@ export const AgentWebSearchCollapsible = memo(
         >
           <div className="flex-1 min-w-0 flex items-center gap-1">
             <div className="text-xs flex items-center gap-1.5 min-w-0">
-              <span className="font-medium whitespace-nowrap flex-shrink-0 text-muted-foreground">
+              <span className="font-mono font-medium whitespace-nowrap flex-shrink-0 text-muted-foreground">
                 {isStreaming ? (
                   <TextShimmer
                     as="span"
@@ -85,12 +85,12 @@ export const AgentWebSearchCollapsible = memo(
                 )}
               </span>
               {/* Query preview when collapsed */}
-              <span className="text-muted-foreground/60 truncate">
+              <span className="font-mono text-muted-foreground/60 truncate">
                 {query.length > 40 ? query.slice(0, 37) + "..." : query}
               </span>
               {/* Result count */}
               {!isStreaming && hasResults && (
-                <span className="text-muted-foreground/60 whitespace-nowrap flex-shrink-0">
+                <span className="font-mono text-muted-foreground/60 whitespace-nowrap flex-shrink-0">
                   · {t("chat.tool.resultCount", {
                     count: resultCount,
                     item: t(resultCount === 1 ? "chat.tool.resultSingular" : "chat.tool.resultPlural"),

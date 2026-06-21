@@ -56,7 +56,7 @@ export const AgentWebFetchTool = memo(function AgentWebFetchTool({
   }
 
   return (
-    <div className="rounded-lg border border-border bg-muted/30 overflow-hidden mx-2">
+    <div className="rounded-[3px] border border-border bg-muted/30 overflow-hidden mx-2">
       {/* Header - clickable to toggle expand */}
       <div
         onClick={() => hasContent && !isPending && setIsExpanded(!isExpanded)}
@@ -65,7 +65,7 @@ export const AgentWebFetchTool = memo(function AgentWebFetchTool({
           hasContent && !isPending && "cursor-pointer hover:bg-muted/50 transition-colors duration-150",
         )}
       >
-        <div className="flex items-center gap-1.5 text-xs truncate flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 font-mono text-xs truncate flex-1 min-w-0">
           <GlobeIcon className="w-3 h-3 flex-shrink-0 text-muted-foreground" />
           
           {isPending ? (
@@ -85,11 +85,11 @@ export const AgentWebFetchTool = memo(function AgentWebFetchTool({
 
         {/* Status and expand button */}
         <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-          <div className="flex items-center gap-1.5 text-xs">
+          <div className="flex items-center gap-1.5 font-mono text-xs">
             {isPending ? (
               <IconSpinner className="w-3 h-3" />
             ) : isError || !isSuccess ? (
-              <span className="text-destructive">
+              <span className="text-tool-fail">
                 {statusCode ? `Error ${statusCode}` : t("common.failed")}
               </span>
             ) : (

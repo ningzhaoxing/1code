@@ -108,7 +108,7 @@ export const AgentAskUserQuestionTool = memo(function AgentAskUserQuestionTool({
       <div className="flex items-center gap-2 py-1 px-2 text-xs text-muted-foreground">
         <span>{t("chat.question.label")}</span>
         <span className="text-muted-foreground/50">•</span>
-        <span className="text-red-500">{effectiveErrorText || t("common.failed")}</span>
+        <span className="text-tool-fail">{effectiveErrorText || t("common.failed")}</span>
       </div>
     )
   }
@@ -125,11 +125,11 @@ export const AgentAskUserQuestionTool = memo(function AgentAskUserQuestionTool({
     }
 
     return (
-      <div className="rounded-lg border border-border bg-muted/30 overflow-hidden mx-2">
+      <div className="rounded-[3px] border border-border bg-muted/30 overflow-hidden mx-2">
         {/* Header */}
         <div className="flex items-center gap-1.5 pl-2.5 pr-2 h-7 border-b border-border">
           <QuestionIcon className="w-3.5 h-3.5 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs font-mono text-muted-foreground">
             {entries.length === 1 ? t("chat.question.answer") : t("chat.question.answers")}
           </span>
         </div>

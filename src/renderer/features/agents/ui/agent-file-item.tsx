@@ -48,11 +48,11 @@ export function AgentFileItem({
 
   return (
     <div
-      className="relative flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg bg-muted/50 min-w-[120px] max-w-[200px]"
+      className="relative flex items-center gap-2 pl-1 pr-2 py-1 rounded-[3px] border border-border bg-muted/50 min-w-[120px] max-w-[200px]"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="flex items-center justify-center w-8 self-stretch rounded-md bg-muted shrink-0">
+      <div className="flex items-center justify-center w-8 self-stretch rounded-[2px] bg-muted shrink-0">
         {isLoading ? (
           <IconSpinner className="size-4 text-muted-foreground" />
         ) : (
@@ -65,7 +65,7 @@ export function AgentFileItem({
           {filename}
         </span>
         {size !== undefined && (
-          <span className="text-[10px] text-muted-foreground">
+          <span className="font-mono text-[10px] text-muted-foreground">
             {formatFileSize(size)}
           </span>
         )}
@@ -77,7 +77,7 @@ export function AgentFileItem({
             e.stopPropagation()
             onRemove()
           }}
-          className={`absolute -top-1.5 -right-1.5 size-4 rounded-full bg-background border border-border
+          className={`absolute -top-1.5 -right-1.5 size-4 rounded-[2px] bg-background border border-border
                      flex items-center justify-center transition-[opacity,transform] duration-150 ease-out active:scale-[0.97] z-10
                      text-muted-foreground hover:text-foreground
                      ${isHovered ? "opacity-100" : "opacity-0"}`}

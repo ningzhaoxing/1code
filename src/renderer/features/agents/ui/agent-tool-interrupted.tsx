@@ -13,7 +13,7 @@ export const AgentToolInterrupted = memo(function AgentToolInterrupted({
 }: AgentToolInterruptedProps) {
   return (
     <div className="flex items-center gap-1.5 rounded-md py-0.5 px-2">
-      <span className="text-xs text-muted-foreground">
+      <span className="font-mono text-xs text-muted-foreground">
         {toolName} interrupted
       </span>
       {subtitle && (
