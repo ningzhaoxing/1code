@@ -2001,10 +2001,8 @@ ${prompt}
                     : // Rollback support - resume at specific message UUID (from DB)
                       resumeAtUuid && !isUsingOllama
                       ? { resumeSessionAt: resumeAtUuid }
-                      : { continue: true }),
+                      : {}),
                 }),
-                // For first message in chat (no session ID yet), use continue mode
-                ...(!resumeSessionId && { continue: true }),
                 ...(resolvedModel && { model: resolvedModel }),
                 // fallbackModel: "claude-opus-4-5-20251101",
                 ...(input.maxThinkingTokens && {

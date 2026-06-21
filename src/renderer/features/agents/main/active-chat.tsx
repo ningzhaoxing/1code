@@ -4646,6 +4646,29 @@ const ChatViewInner = memo(function ChatViewInner({
         })
 
         const newId = newSubChat.id
+        const nowIso = new Date().toISOString()
+
+        // Keep the local chat cache in sync immediately. Without this, the
+        // new provider sub-chat can be filtered out and the UI falls back to
+        // the disabled placeholder composer.
+        utils.agents.getAgentChat.setData({ chatId: parentChatId }, (old) => {
+          if (!old) return old
+          return {
+            ...old,
+            subChats: [
+              ...(old.subChats || []),
+              {
+                id: newId,
+                name: newSubChat.name || "New Chat",
+                mode: newSubChat.mode || subChatMode,
+                created_at: newSubChat.createdAt || nowIso,
+                updated_at: newSubChat.updatedAt || nowIso,
+                messages: newSubChat.messages || "[]",
+                stream_id: newSubChat.streamId || null,
+              },
+            ],
+          }
+        })
 
         // Inherit model preferences from source sub-chat for deterministic behavior.
         appStore.set(
@@ -4678,7 +4701,7 @@ const ChatViewInner = memo(function ChatViewInner({
         store.addToAllSubChats({
           id: newId,
           name: "New Chat",
-          created_at: new Date().toISOString(),
+          created_at: nowIso,
           mode: subChatMode,
         })
         appStore.set(subChatModeAtomFamily(newId), subChatMode)
@@ -4696,7 +4719,7 @@ const ChatViewInner = memo(function ChatViewInner({
         isContinuingRef.current = false
       }
     },
-    [isStreaming, messages, subChatId, parentChatId, subChatMode, onProviderChange],
+    [isStreaming, messages, subChatId, parentChatId, subChatMode, onProviderChange, utils],
   )
 
   return (

@@ -339,6 +339,7 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
                   newExpiredMap.delete(this.config.subChatId)
                   appStore.set(expiredUserQuestionsAtom, newExpiredMap)
                 }
+                return
               }
 
               // Handle AskUserQuestion timeout - move to expired (keep UI visible)
@@ -357,6 +358,7 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
                   newExpiredMap.set(this.config.subChatId, pending)
                   appStore.set(expiredUserQuestionsAtom, newExpiredMap)
                 }
+                return
               }
 
               // Handle AskUserQuestion result - store for real-time updates
@@ -365,6 +367,7 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
                 const newResults = new Map(currentResults)
                 newResults.set(chunk.toolUseId, chunk.result)
                 appStore.set(askUserQuestionResultsAtom, newResults)
+                return
               }
 
               // Handle compacting status - track in atom for UI display
@@ -405,6 +408,7 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
                   plugins: chunk.plugins,
                   skills: chunk.skills,
                 })
+                return
               }
 
               // Clear pending questions ONLY when agent has moved on
