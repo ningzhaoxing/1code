@@ -69,8 +69,10 @@ export const AgentToolCall = memo(
 
     return (
       <div
-        className={`flex items-start gap-1.5 py-0.5 ${
-          isNested ? "px-2.5" : "rounded-md px-2"
+        className={`flex items-start gap-1.5 py-1 ${
+          isNested
+            ? "px-2.5"
+            : "rounded-lg border border-border bg-muted/20 px-2 mx-2"
         }`}
       >
         {/* Icon container - commented out like canvas, uncomment to show icons */}

@@ -17,6 +17,31 @@ export type CodexPermissionUiRequest = {
   options: Array<PermissionOption & { label: string }>
 }
 
+export type CodexPendingPermissionRef = {
+  key: string
+  subChatId: string
+  toolUseId: string
+}
+
+export function findCodexPermissionSettlementKey(
+  pending: CodexPendingPermissionRef[],
+  subChatId: string,
+  toolUseId: string,
+): string | null {
+  const exact = pending.find(
+    (entry) => entry.subChatId === subChatId && entry.toolUseId === toolUseId,
+  )
+  if (exact) return exact.key
+
+  const sameSubChat = pending.filter((entry) => entry.subChatId === subChatId)
+  if (sameSubChat.length === 1) return sameSubChat[0].key
+
+  const sameToolUse = pending.filter((entry) => entry.toolUseId === toolUseId)
+  if (sameToolUse.length === 1) return sameToolUse[0].key
+
+  return null
+}
+
 function describePermissionOptionKind(kind: PermissionOption["kind"]): string {
   switch (kind) {
     case "allow_once":
@@ -66,6 +91,21 @@ export function createSelectedPermissionResponse(
       optionId,
     },
   }
+}
+
+export function createDefaultAllowedPermissionResponse(
+  request: RequestPermissionRequest,
+): RequestPermissionResponse {
+  const allowOption =
+    request.options.find((option) => option.kind === "allow_once") ??
+    request.options.find((option) => option.kind === "allow_always") ??
+    request.options[0]
+
+  if (!allowOption) {
+    return createCancelledPermissionResponse()
+  }
+
+  return createSelectedPermissionResponse(allowOption.optionId)
 }
 
 export function createCancelledPermissionResponse(): RequestPermissionResponse {

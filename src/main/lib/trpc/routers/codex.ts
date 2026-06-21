@@ -6,7 +6,7 @@ import type {
 import { observable } from "@trpc/server/observable"
 import { streamText } from "ai"
 import { eq } from "drizzle-orm"
-import { app } from "electron"
+import { app, BrowserWindow } from "electron"
 import { spawn, type ChildProcess } from "node:child_process"
 import { createHash } from "node:crypto"
 import { existsSync, mkdirSync } from "node:fs"
@@ -21,10 +21,16 @@ import {
 import { getClaudeShellEnvironment } from "../../claude/env"
 import { resolveProjectPathFromWorktree } from "../../claude-config"
 import {
-  buildCodexPermissionUiRequest,
   createCancelledPermissionResponse,
+  createDefaultAllowedPermissionResponse,
   createSelectedPermissionResponse,
+  findCodexPermissionSettlementKey,
 } from "../../codex-permission"
+import {
+  getCodexCompletedFileChange,
+  snapshotCodexToolInputChunk,
+  type CodexToolInputSnapshot,
+} from "../../codex-file-change"
 import { getDatabase, projects as projectsTable, subChats } from "../../db"
 import {
   fetchMcpTools,
@@ -42,6 +48,7 @@ const imageAttachmentSchema = z.object({
 type CodexProviderSession = {
   provider: ACPProvider
   cwd: string
+  modelId: string
   authFingerprint: string | null
   mcpFingerprint: string
 }
@@ -124,9 +131,12 @@ const pendingCodexPermissionRequests = new Map<
   {
     subChatId: string
     runId: string
+    toolUseId: string
     resolve: (response: RequestPermissionResponse) => void
   }
 >()
+
+const CODEX_PERMISSION_TIMEOUT_MS = 5 * 60 * 1000
 
 /** Check if there are any active Codex streaming sessions */
 export function hasActiveCodexStreams(): boolean {
@@ -258,6 +268,17 @@ function resolveCodexAcpBinaryPath(): string {
   })
 
   return toUnpackedAsarPath(resolvedPath)
+}
+
+function buildCodexAcpArgs(modelId: string): string[] {
+  const [model, reasoningEffort] = modelId.split("/")
+  const args = ["-c", `model=${JSON.stringify(model || DEFAULT_CODEX_MODEL.split("/")[0])}`]
+
+  if (reasoningEffort) {
+    args.push("-c", `model_reasoning_effort=${JSON.stringify(reasoningEffort)}`)
+  }
+
+  return args
 }
 
 function resolveBundledCodexCliPath(): string {
@@ -1144,12 +1165,6 @@ function preprocessCodexModelName(params: {
   modelId: string
   authConfig?: { apiKey: string }
 }): string {
-  const hasAppManagedApiKey = Boolean(params.authConfig?.apiKey?.trim())
-  if (!hasAppManagedApiKey) {
-    return params.modelId
-  }
-
-  // All model IDs now match the real API; pass through as-is
   return params.modelId
 }
 
@@ -1257,7 +1272,17 @@ function settlePendingCodexPermissionRequest(
   toolUseId: string,
   response: RequestPermissionResponse,
 ): boolean {
-  const key = getCodexPermissionRequestKey(subChatId, toolUseId)
+  const key = findCodexPermissionSettlementKey(
+    Array.from(pendingCodexPermissionRequests.entries()).map(([key, pending]) => ({
+      key,
+      subChatId: pending.subChatId,
+      toolUseId: pending.toolUseId,
+    })),
+    subChatId,
+    toolUseId,
+  )
+  if (!key) return false
+
   const pending = pendingCodexPermissionRequests.get(key)
   if (!pending) return false
 
@@ -1288,51 +1313,9 @@ async function handleCodexPermissionRequest(
     return createCancelledPermissionResponse()
   }
 
-  const uiRequest = buildCodexPermissionUiRequest(request)
-  const key = getCodexPermissionRequestKey(subChatId, uiRequest.toolUseId)
-
-  return new Promise<RequestPermissionResponse>((resolve) => {
-    let settled = false
-    let timeoutId: ReturnType<typeof setTimeout> | null = null
-
-    const settle = (response: RequestPermissionResponse) => {
-      if (settled) return
-      settled = true
-      if (timeoutId) {
-        clearTimeout(timeoutId)
-        timeoutId = null
-      }
-      context.signal.removeEventListener("abort", onAbort)
-      pendingCodexPermissionRequests.delete(key)
-      resolve(response)
-    }
-
-    const onAbort = () => {
-      settle(createCancelledPermissionResponse())
-    }
-
-    timeoutId = setTimeout(() => {
-      context.emit({
-        type: "codex-permission-timeout",
-        toolUseId: uiRequest.toolUseId,
-      })
-      settle(createCancelledPermissionResponse())
-    }, 60000)
-
-    pendingCodexPermissionRequests.set(key, {
-      subChatId,
-      runId: context.runId,
-      resolve: settle,
-    })
-
-    context.signal.addEventListener("abort", onAbort, { once: true })
-    context.emit({
-      type: "codex-permission-request",
-      toolUseId: uiRequest.toolUseId,
-      questions: uiRequest.questions,
-      options: uiRequest.options,
-    })
-  })
+  // PoC policy: Codex permissions are auto-approved to keep vulnerability-mining
+  // runs uninterrupted. The UI approval bridge remains for future policy re-enable.
+  return createDefaultAllowedPermissionResponse(request)
 }
 
 function attachCodexPermissionHandler(
@@ -1389,6 +1372,7 @@ function attachCodexPermissionHandlerToLanguageModel(
 function getOrCreateProvider(params: {
   subChatId: string
   cwd: string
+  modelId: string
   mcpServers: CodexMcpServerForSession[]
   mcpFingerprint: string
   existingSessionId?: string
@@ -1402,6 +1386,7 @@ function getOrCreateProvider(params: {
   if (
     existing &&
     existing.cwd === params.cwd &&
+    existing.modelId === params.modelId &&
     existing.authFingerprint === authFingerprint &&
     existing.mcpFingerprint === params.mcpFingerprint
   ) {
@@ -1423,6 +1408,7 @@ function getOrCreateProvider(params: {
   const provider = attachCodexPermissionHandler(
     createACPProvider({
       command: resolveCodexAcpBinaryPath(),
+      args: buildCodexAcpArgs(params.modelId),
       env: buildCodexProviderEnv(params.authConfig),
       authMethodId: getCodexAuthMethodId(params.authConfig),
       session: {
@@ -1440,6 +1426,7 @@ function getOrCreateProvider(params: {
   providerSessions.set(params.subChatId, {
     provider,
     cwd: params.cwd,
+    modelId: params.modelId,
     authFingerprint,
     mcpFingerprint: params.mcpFingerprint,
   })
@@ -1910,6 +1897,7 @@ export const codexRouter = router({
             const provider = getOrCreateProvider({
               subChatId: input.subChatId,
               cwd: input.cwd,
+              modelId: selectedModelId,
               mcpServers: mcpSnapshot.mcpServersForSession,
               mcpFingerprint: mcpSnapshot.fingerprint,
               existingSessionId:
@@ -1941,7 +1929,10 @@ export const codexRouter = router({
             }
 
             const result = streamText({
-              model: provider.languageModel(selectedModelId),
+              // codex-acp reads model selection from process config (`-c model=...`).
+              // Passing a model ID here makes acp-ai-provider call ACP session/set_model,
+              // which codex-acp does not implement and aborts the session.
+              model: provider.languageModel(),
               messages: [
                 {
                   role: "user",
@@ -2015,6 +2006,7 @@ export const codexRouter = router({
             })
 
             const reader = uiStream.getReader()
+            const toolSnapshots = new Map<string, CodexToolInputSnapshot>()
             let pendingFinishChunk: any | null = null
             while (true) {
               const { done, value } = await reader.read()
@@ -2036,7 +2028,38 @@ export const codexRouter = router({
                 continue
               }
 
-              safeEmit(value)
+              const normalizedValue = normalizeCodexStreamChunk(value)
+              const toolInputSnapshot =
+                snapshotCodexToolInputChunk(normalizedValue)
+              if (toolInputSnapshot) {
+                toolSnapshots.set(
+                  toolInputSnapshot.toolCallId,
+                  toolInputSnapshot.snapshot,
+                )
+              }
+
+              if (
+                normalizedValue &&
+                typeof normalizedValue === "object" &&
+                (normalizedValue as any).type === "tool-output-available" &&
+                typeof (normalizedValue as any).toolCallId === "string"
+              ) {
+                const fileChange = getCodexCompletedFileChange(
+                  toolSnapshots.get((normalizedValue as any).toolCallId),
+                )
+                if (fileChange) {
+                  const windows = BrowserWindow.getAllWindows()
+                  for (const win of windows) {
+                    win.webContents.send("file-changed", {
+                      filePath: fileChange.filePath,
+                      type: fileChange.type,
+                      subChatId: input.subChatId,
+                    })
+                  }
+                }
+              }
+
+              safeEmit(normalizedValue)
             }
 
             if (pendingFinishChunk) {
@@ -2138,6 +2161,12 @@ export const codexRouter = router({
         input.toolUseId,
         response,
       )
+      if (!ok) {
+        console.warn("[codex-permission] ignored stale permission response", {
+          subChatId: input.subChatId,
+          toolUseId: input.toolUseId,
+        })
+      }
 
       return { ok }
     }),

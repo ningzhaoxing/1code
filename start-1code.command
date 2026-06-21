@@ -27,10 +27,10 @@ fi
 echo "Starting 1Code desktop app..."
 echo
 bun run dev
-status=$?
+exit_status=$?
 
 echo
-echo "1Code exited with code $status."
+echo "1Code exited with code $exit_status."
 echo "Press Enter to close this window."
 read -r _
-exit "$status"
+exit "$exit_status"

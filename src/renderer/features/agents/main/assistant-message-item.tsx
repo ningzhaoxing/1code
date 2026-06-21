@@ -696,6 +696,7 @@ export const AssistantMessageItem = memo(function AssistantMessageItem({
           isFinalText={isFinalText}
           visibleStepsCount={visibleStepsCount}
           isStreaming={isTextStreaming}
+          onOpenFile={onOpenFile ?? undefined}
         />
       )
     }

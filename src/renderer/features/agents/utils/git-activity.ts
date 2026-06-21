@@ -1,3 +1,5 @@
+import { extractCodexFileChanges } from "../../../../shared/codex-file-change-stats"
+
 export interface GitCommitInfo {
   type: "commit"
   message: string
@@ -181,6 +183,31 @@ export function extractChangedFiles(parts: any[], projectPath?: string): Changed
 
   for (const part of parts) {
     if (part.type !== "tool-Edit" && part.type !== "tool-Write") continue
+
+    const codexFileChanges = extractCodexFileChanges(part)
+    if (codexFileChanges.length > 0) {
+      for (const change of codexFileChanges) {
+        const filePath = change.filePath
+        if (!filePath) continue
+        if (filePath.includes("claude-sessions") || filePath.includes("Application Support")) continue
+
+        const displayPath = toRelativePath(filePath, projectPath)
+        const existing = fileMap.get(filePath)
+        if (existing) {
+          existing.additions += change.additions
+          existing.deletions += change.deletions
+        } else {
+          fileMap.set(filePath, {
+            filePath,
+            displayPath,
+            additions: change.additions,
+            deletions: change.deletions,
+          })
+        }
+      }
+      continue
+    }
+
     const filePath: string = part.input?.file_path || ""
     if (!filePath) continue
 

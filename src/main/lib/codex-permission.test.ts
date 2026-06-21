@@ -4,7 +4,9 @@ import type { RequestPermissionRequest } from "@agentclientprotocol/sdk"
 import {
   buildCodexPermissionUiRequest,
   createCancelledPermissionResponse,
+  createDefaultAllowedPermissionResponse,
   createSelectedPermissionResponse,
+  findCodexPermissionSettlementKey,
 } from "./codex-permission"
 
 describe("codex permission helpers", () => {
@@ -69,5 +71,67 @@ describe("codex permission helpers", () => {
     assert.deepEqual(createCancelledPermissionResponse(), {
       outcome: { outcome: "cancelled" },
     })
+  })
+
+  test("creates a default allowed response without persisting approval", () => {
+    const request: RequestPermissionRequest = {
+      sessionId: "session-1",
+      toolCall: {
+        toolCallId: "tool-1",
+        title: "Edit file",
+        rawInput: { file_path: "/workspace/漏洞挖掘记录.md" },
+      },
+      options: [
+        {
+          optionId: "allow_always",
+          name: "Always allow",
+          kind: "allow_always",
+        },
+        {
+          optionId: "allow_once",
+          name: "Allow once",
+          kind: "allow_once",
+        },
+        {
+          optionId: "reject_once",
+          name: "Reject once",
+          kind: "reject_once",
+        },
+      ],
+    }
+
+    assert.deepEqual(createDefaultAllowedPermissionResponse(request), {
+      outcome: { outcome: "selected", optionId: "allow_once" },
+    })
+  })
+
+  test("finds the pending permission key with safe fallbacks", () => {
+    const pending = [
+      { key: "chat-a:tool-1", subChatId: "chat-a", toolUseId: "tool-1" },
+    ]
+
+    assert.equal(
+      findCodexPermissionSettlementKey(pending, "chat-a", "tool-1"),
+      "chat-a:tool-1",
+    )
+    assert.equal(
+      findCodexPermissionSettlementKey(pending, "chat-a", "stale-tool-id"),
+      "chat-a:tool-1",
+    )
+    assert.equal(
+      findCodexPermissionSettlementKey(pending, "stale-chat-id", "tool-1"),
+      "chat-a:tool-1",
+    )
+    assert.equal(
+      findCodexPermissionSettlementKey(
+        [
+          ...pending,
+          { key: "chat-a:tool-2", subChatId: "chat-a", toolUseId: "tool-2" },
+        ],
+        "chat-a",
+        "stale-tool-id",
+      ),
+      null,
+    )
   })
 })

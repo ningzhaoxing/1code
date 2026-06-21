@@ -7,6 +7,7 @@ import { Copy, Check } from "lucide-react"
 import { useCodeTheme } from "../lib/hooks/use-code-theme"
 import { highlightCode } from "../lib/themes/shiki-theme-loader"
 import { MermaidBlock } from "./mermaid-block"
+import { getLocalMarkdownFilePathFromLink } from "../lib/markdown-file-link"
 
 // Function to strip emojis from text (only common emojis, preserving markdown symbols)
 export function stripEmojis(text: string): string {
@@ -148,6 +149,21 @@ interface ChatMarkdownRendererProps {
   syntaxHighlight?: boolean
   /** Whether content is being streamed */
   isStreaming?: boolean
+  /** Open a local Markdown file in the in-app file viewer */
+  onOpenFile?: (path: string) => void
+}
+
+function getTextFromReactNode(value: unknown): string {
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value)
+  }
+  if (Array.isArray(value)) {
+    return value.map(getTextFromReactNode).join("")
+  }
+  if (value && typeof value === "object" && "props" in value) {
+    return getTextFromReactNode((value as any).props?.children)
+  }
+  return ""
 }
 
 // Size-based styles inspired by Notion's spacing
@@ -286,6 +302,7 @@ export const ChatMarkdownRenderer = memo(function ChatMarkdownRenderer({
   size = "md",
   className,
   isStreaming = false,
+  onOpenFile,
 }: ChatMarkdownRendererProps) {
   const codeTheme = useCodeTheme()
   const styles = sizeStyles[size]
@@ -352,6 +369,14 @@ export const ChatMarkdownRenderer = memo(function ChatMarkdownRenderer({
           href={href}
           onClick={(e) => {
             e.preventDefault()
+            const localMarkdownPath = getLocalMarkdownFilePathFromLink({
+              href,
+              text: getTextFromReactNode(children),
+            })
+            if (localMarkdownPath && onOpenFile) {
+              onOpenFile(localMarkdownPath)
+              return
+            }
             if (href) {
               window.desktopApi.openExternal(href)
             }
@@ -413,7 +438,7 @@ export const ChatMarkdownRenderer = memo(function ChatMarkdownRenderer({
       pre: ({ children }: any) => <>{children}</>,
       code: createCodeComponent(codeTheme, size, styles, isStreaming),
     }),
-    [styles, codeTheme, size, isStreaming],
+    [styles, codeTheme, size, isStreaming, onOpenFile],
   )
 
   return (
@@ -547,11 +572,13 @@ const MemoizedMarkdownBlock = memo(
     size,
     className,
     codeTheme,
+    onOpenFile,
   }: {
     content: string
     size: MarkdownSize
     className?: string
     codeTheme: string
+    onOpenFile?: (path: string) => void
   }) {
     // Don't render empty blocks
     if (!content.trim()) return null
@@ -616,6 +643,14 @@ const MemoizedMarkdownBlock = memo(
             href={href}
             onClick={(e) => {
               e.preventDefault()
+              const localMarkdownPath = getLocalMarkdownFilePathFromLink({
+                href,
+                text: getTextFromReactNode(children),
+              })
+              if (localMarkdownPath && onOpenFile) {
+                onOpenFile(localMarkdownPath)
+                return
+              }
               if (href) {
                 window.desktopApi.openExternal(href)
               }
@@ -677,7 +712,7 @@ const MemoizedMarkdownBlock = memo(
         pre: ({ children }: any) => <>{children}</>,
         code: createCodeComponent(codeTheme, size, styles),
       }),
-      [styles, codeTheme, size],
+      [styles, codeTheme, size, onOpenFile],
     )
 
     return (
@@ -697,7 +732,8 @@ const MemoizedMarkdownBlock = memo(
       prevProps.content === nextProps.content &&
       prevProps.size === nextProps.size &&
       prevProps.className === nextProps.className &&
-      prevProps.codeTheme === nextProps.codeTheme
+      prevProps.codeTheme === nextProps.codeTheme &&
+      prevProps.onOpenFile === nextProps.onOpenFile
     )
   },
 )
@@ -711,11 +747,13 @@ export const MemoizedMarkdown = memo(
     id,
     size = "sm",
     className,
+    onOpenFile,
   }: {
     content: string
     id: string
     size?: MarkdownSize
     className?: string
+    onOpenFile?: (path: string) => void
   }) {
     const codeTheme = useCodeTheme()
 
@@ -753,6 +791,7 @@ export const MemoizedMarkdown = memo(
             size={size}
             className={className}
             codeTheme={codeTheme}
+            onOpenFile={onOpenFile}
           />
         ))}
       </div>

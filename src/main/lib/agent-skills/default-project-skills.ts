@@ -1,4 +1,4 @@
-import { access, cp, mkdir, readFile } from "node:fs/promises"
+import { access, cp, mkdir, readdir, readFile } from "node:fs/promises"
 import { constants } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, isAbsolute, join, resolve } from "node:path"
@@ -36,6 +36,11 @@ export type SyncDefaultProjectSkillsInput = {
   appRoot?: string
   homeDir?: string
   codexHome?: string
+}
+
+export type SyncProjectInstalledSkillsInput = {
+  sourceProjectPath: string
+  worktreePath: string
 }
 
 const DEFAULT_SKILLS_MANIFEST_RELATIVE_PATH = join(
@@ -179,6 +184,91 @@ async function installSkillPackage({
       error: error instanceof Error ? error.message : String(error),
     }
   }
+}
+
+async function listInstalledSkillNames(skillsDir: string): Promise<string[]> {
+  try {
+    const entries = await readdir(skillsDir, { withFileTypes: true })
+    const skillNames: string[] = []
+
+    for (const entry of entries) {
+      if (!entry.isDirectory() && !entry.isSymbolicLink()) continue
+
+      try {
+        assertSafeSkillName(entry.name)
+        await access(join(skillsDir, entry.name, "SKILL.md"), constants.R_OK)
+        skillNames.push(entry.name)
+      } catch {
+        continue
+      }
+    }
+
+    return skillNames.sort()
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      console.warn(
+        `[project-skills] Failed to scan installed skills in ${skillsDir}:`,
+        error instanceof Error ? error.message : error,
+      )
+    }
+    return []
+  }
+}
+
+export async function syncProjectInstalledSkillsToWorktree({
+  sourceProjectPath,
+  worktreePath,
+}: SyncProjectInstalledSkillsInput): Promise<SkillInstallResult[]> {
+  if (resolve(sourceProjectPath) === resolve(worktreePath)) {
+    return []
+  }
+
+  const providers: Array<{
+    target: Extract<DefaultSkillInstallTarget, "claude-project" | "codex-project">
+    relativeSkillsDir: string
+  }> = [
+    {
+      target: "claude-project",
+      relativeSkillsDir: join(".claude", "skills"),
+    },
+    {
+      target: "codex-project",
+      relativeSkillsDir: join(".agents", "skills"),
+    },
+  ]
+
+  const results: SkillInstallResult[] = []
+
+  for (const provider of providers) {
+    const sourceSkillsDir = join(sourceProjectPath, provider.relativeSkillsDir)
+    const skillNames = await listInstalledSkillNames(sourceSkillsDir)
+
+    for (const skillName of skillNames) {
+      const targetPath = getSkillInstallTargetPath({
+        skillName,
+        target: provider.target,
+        projectPath: worktreePath,
+      })
+
+      if (!targetPath) continue
+
+      results.push(
+        await installSkillPackage({
+          sourcePath: join(sourceSkillsDir, skillName),
+          skillName,
+          target: provider.target,
+          targetPath,
+        }),
+      )
+    }
+  }
+
+  const failures = results.filter((result) => !result.ok)
+  if (failures.length > 0) {
+    console.warn("[project-skills] Some project skill syncs failed:", failures)
+  }
+
+  return results
 }
 
 export async function syncDefaultProjectSkills({

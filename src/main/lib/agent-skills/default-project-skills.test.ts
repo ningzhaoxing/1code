@@ -7,6 +7,7 @@ import {
   getOneCodeCodexHome,
   getSkillInstallTargetPath,
   syncDefaultProjectSkills,
+  syncProjectInstalledSkillsToWorktree,
 } from "./default-project-skills"
 
 describe("default project skill install helpers", () => {
@@ -62,7 +63,7 @@ describe("default project skill install helpers", () => {
     )
   })
 
-  test("syncs manifest skills to all configured targets", async () => {
+  test("syncs manifest skills to configured project-level targets", async () => {
     const root = await mkdtemp(join(tmpdir(), "onecode-skills-"))
     const homeDir = join(root, "home")
     const projectPath = join(root, "project")
@@ -108,5 +109,74 @@ describe("default project skill install helpers", () => {
     for (const installedPath of installedPaths) {
       assert.equal(await readFile(installedPath, "utf-8"), "# Security Mining\n")
     }
+  })
+
+  test("default manifest installs security-mining-record only at project level", async () => {
+    const manifest = JSON.parse(
+      await readFile(
+        join(process.cwd(), "skills/default-project-skills.json"),
+        "utf-8",
+      ),
+    )
+    const skill = manifest.skills.find(
+      (entry: { name?: string }) => entry.name === "security-mining-record",
+    )
+
+    assert.deepEqual(skill.targets, ["claude-project", "codex-project"])
+  })
+
+  test("syncs project-installed skills into a chat worktree", async () => {
+    const root = await mkdtemp(join(tmpdir(), "onecode-project-skills-"))
+    const projectPath = join(root, "project")
+    const worktreePath = join(root, "worktree")
+    const codexSkill = join(projectPath, ".agents", "skills", "vulnforge")
+    const claudeSkill = join(projectPath, ".claude", "skills", "vulnforge")
+    const incompleteSkill = join(projectPath, ".agents", "skills", "draft-skill")
+
+    await mkdir(codexSkill, { recursive: true })
+    await mkdir(claudeSkill, { recursive: true })
+    await mkdir(incompleteSkill, { recursive: true })
+    await mkdir(worktreePath, { recursive: true })
+    await writeFile(join(codexSkill, "SKILL.md"), "# Codex VulnForge\n", "utf-8")
+    await writeFile(join(codexSkill, "notes.md"), "codex notes\n", "utf-8")
+    await writeFile(join(claudeSkill, "SKILL.md"), "# Claude VulnForge\n", "utf-8")
+
+    const results = await syncProjectInstalledSkillsToWorktree({
+      sourceProjectPath: projectPath,
+      worktreePath,
+    })
+
+    assert.deepEqual(
+      results.map((result) => ({
+        skillName: result.skillName,
+        target: result.target,
+        ok: result.ok,
+      })),
+      [
+        { skillName: "vulnforge", target: "claude-project", ok: true },
+        { skillName: "vulnforge", target: "codex-project", ok: true },
+      ],
+    )
+    assert.equal(
+      await readFile(
+        join(worktreePath, ".agents", "skills", "vulnforge", "SKILL.md"),
+        "utf-8",
+      ),
+      "# Codex VulnForge\n",
+    )
+    assert.equal(
+      await readFile(
+        join(worktreePath, ".agents", "skills", "vulnforge", "notes.md"),
+        "utf-8",
+      ),
+      "codex notes\n",
+    )
+    assert.equal(
+      await readFile(
+        join(worktreePath, ".claude", "skills", "vulnforge", "SKILL.md"),
+        "utf-8",
+      ),
+      "# Claude VulnForge\n",
+    )
   })
 })

@@ -27,6 +27,7 @@ import { applyRollbackStash } from "../../git/stash"
 import { checkInternetConnection, checkOllamaStatus } from "../../ollama"
 import { terminalManager } from "../../terminal/manager"
 import { publicProcedure, router } from "../index"
+import { calculateToolChangedFileStats } from "../../../../shared/tool-file-change-stats"
 
 type WorktreeSetupFailurePayload = {
   kind: "create-failed" | "setup-failed"
@@ -1686,65 +1687,14 @@ export const chatsRouter = router({
           }>
         }>
 
-        // Track file states for this sub-chat
-        const fileStates = new Map<
-          string,
-          { originalContent: string | null; currentContent: string }
-        >()
-
-        for (const msg of messages) {
-          if (msg.role !== "assistant") continue
-          for (const part of msg.parts || []) {
-            if (part.type === "tool-Edit" || part.type === "tool-Write") {
-              const filePath = part.input?.file_path
-              if (!filePath) continue
-              // Skip session files
-              if (
-                filePath.includes("claude-sessions") ||
-                filePath.includes("Application Support")
-              )
-                continue
-
-              const oldString = part.input?.old_string || ""
-              const newString =
-                part.input?.new_string || part.input?.content || ""
-
-              const existing = fileStates.get(filePath)
-              if (existing) {
-                existing.currentContent = newString
-              } else {
-                fileStates.set(filePath, {
-                  originalContent: part.type === "tool-Write" ? null : oldString,
-                  currentContent: newString,
-                })
-              }
-            }
-          }
-        }
-
-        // Calculate stats for this sub-chat and add to workspace total
-        let subChatAdditions = 0
-        let subChatDeletions = 0
-        let subChatFileCount = 0
-
-        for (const [, state] of fileStates) {
-          const original = state.originalContent || ""
-          if (original === state.currentContent) continue
-
-          const oldLines = original ? original.split("\n").length : 0
-          const newLines = state.currentContent
-            ? state.currentContent.split("\n").length
-            : 0
-
-          if (!original) {
-            // New file
-            subChatAdditions += newLines
-          } else {
-            subChatAdditions += newLines
-            subChatDeletions += oldLines
-          }
-          subChatFileCount += 1
-        }
+        const fileStats = calculateToolChangedFileStats(
+          messages
+            .filter((msg) => msg.role === "assistant")
+            .flatMap((msg) => msg.parts || []),
+        )
+        const subChatAdditions = fileStats.reduce((sum, file) => sum + file.additions, 0)
+        const subChatDeletions = fileStats.reduce((sum, file) => sum + file.deletions, 0)
+        const subChatFileCount = fileStats.length
 
         // Add to workspace total
         const existing = statsMap.get(chatId) || {

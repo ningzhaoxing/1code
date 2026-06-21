@@ -15,6 +15,7 @@ import {
   logRawClaudeMessage,
   type UIMessageChunk,
 } from "../../claude"
+import { getClaudeResultCompletionIssue } from "../../claude/stream-completion"
 import {
   getMergedGlobalMcpServers,
   getMergedLocalProjectMcpServers,
@@ -1055,6 +1056,9 @@ export const claudeRouter = router({
             const parts: any[] = []
             let currentText = ""
             let metadata: any = {}
+            let lastResultSubtype: string | undefined
+            let lastResultText: string | undefined
+            let lastResultNumTurns: number | undefined
 
             // Capture stderr from Claude process for debugging
             const stderrLines: string[] = []
@@ -2296,6 +2300,16 @@ ${prompt}
 
                   // When result arrives, assign the last assistant UUID to metadata
                   // It will be emitted as part of the merged message-metadata chunk below
+                  if (msgAny.type === "result") {
+                    lastResultSubtype = msgAny.subtype || "success"
+                    lastResultText =
+                      typeof msgAny.result === "string" ? msgAny.result : ""
+                    lastResultNumTurns =
+                      typeof msgAny.num_turns === "number"
+                        ? msgAny.num_turns
+                        : undefined
+                  }
+
                   if (
                     msgAny.type === "result" &&
                     historyEnabled &&
@@ -2677,6 +2691,31 @@ ${prompt}
             // Flush any remaining text
             if (currentText.trim()) {
               parts.push({ type: "text", text: currentText })
+            }
+
+            const completionIssue = getClaudeResultCompletionIssue({
+              aborted: abortController.signal.aborted,
+              resultSubtype: lastResultSubtype,
+              resultText: lastResultText,
+              numTurns: lastResultNumTurns,
+              currentText,
+              parts,
+            })
+
+            if (completionIssue) {
+              parts.push({
+                type: "text",
+                text: completionIssue,
+              })
+              safeEmit({
+                type: "error",
+                errorText: completionIssue,
+                debugInfo: {
+                  category: "EMPTY_CLAUDE_RESULT",
+                  resultSubtype: lastResultSubtype,
+                  numTurns: lastResultNumTurns,
+                },
+              } as UIMessageChunk)
             }
 
             const savedSessionId = metadata.sessionId

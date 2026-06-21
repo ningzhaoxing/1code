@@ -12,6 +12,7 @@ interface MemoizedTextPartProps {
   isFinalText: boolean
   visibleStepsCount: number
   isStreaming?: boolean
+  onOpenFile?: (path: string) => void
 }
 
 // Helper function to highlight text in DOM using TreeWalker
@@ -101,6 +102,7 @@ const MemoizedTextPartInner = memo(function MemoizedTextPartInner({
   partIndex,
   isFinalText,
   visibleStepsCount,
+  onOpenFile,
 }: Omit<MemoizedTextPartProps, "isStreaming">) {
   if (!text?.trim()) return null
 
@@ -119,7 +121,12 @@ const MemoizedTextPartInner = memo(function MemoizedTextPartInner({
           Response
         </div>
       )}
-      <MemoizedMarkdown content={text} id={`${messageId}-${partIndex}`} size="sm" />
+      <MemoizedMarkdown
+        content={text}
+        id={`${messageId}-${partIndex}`}
+        size="sm"
+        onOpenFile={onOpenFile}
+      />
     </div>
   )
 }, (prev, next) => {
@@ -128,7 +135,8 @@ const MemoizedTextPartInner = memo(function MemoizedTextPartInner({
     prev.messageId === next.messageId &&
     prev.partIndex === next.partIndex &&
     prev.isFinalText === next.isFinalText &&
-    prev.visibleStepsCount === next.visibleStepsCount
+    prev.visibleStepsCount === next.visibleStepsCount &&
+    prev.onOpenFile === next.onOpenFile
   )
 })
 
@@ -142,6 +150,7 @@ export const MemoizedTextPart = memo(function MemoizedTextPart({
   isFinalText,
   visibleStepsCount,
   isStreaming = false,
+  onOpenFile,
 }: MemoizedTextPartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -183,6 +192,7 @@ export const MemoizedTextPart = memo(function MemoizedTextPart({
         partIndex={partIndex}
         isFinalText={isFinalText}
         visibleStepsCount={visibleStepsCount}
+        onOpenFile={onOpenFile}
       />
     </div>
   )
@@ -195,6 +205,7 @@ export const MemoizedTextPart = memo(function MemoizedTextPart({
     prev.partIndex === next.partIndex &&
     prev.isFinalText === next.isFinalText &&
     prev.visibleStepsCount === next.visibleStepsCount &&
-    prev.isStreaming === next.isStreaming
+    prev.isStreaming === next.isStreaming &&
+    prev.onOpenFile === next.onOpenFile
   )
 })
