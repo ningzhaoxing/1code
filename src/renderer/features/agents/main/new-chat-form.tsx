@@ -1613,7 +1613,7 @@ export function NewChatForm({
   return (
     <div className="flex h-full flex-col relative">
       {/* Header - Simple burger on mobile, AgentsHeaderControls on desktop */}
-      <div className="flex-shrink-0 flex items-center justify-between bg-background p-1.5">
+      <div className="flex-shrink-0 flex min-h-[44px] items-center justify-between bg-background px-1.5 py-1.5 window-drag-region">
         <div className="flex-1 min-w-0 flex items-center gap-2">
           {isMobileFullscreen ? (
             // Simple burger button for mobile - just opens chats list
