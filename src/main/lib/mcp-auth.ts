@@ -55,7 +55,7 @@ export async function fetchMcpTools(
     console.log(`[MCP] Fetched ${tools.length} tools via SDK`);
     return tools.map(t => ({ name: t.name, description: t.description }));
   } catch (error) {
-    console.error('[MCP] Failed to fetch tools:', error);
+    logMcpToolProbeFailure(serverUrl, error);
     return [];
   } finally {
     // Clean up the connection
@@ -83,6 +83,42 @@ const BLOCKED_ENV_VARS = [
   'OPENAI_API_KEY',
 ];
 
+const LOG_MCP_TOOL_PROBE_FAILURES = process.env.DEBUG_MCP_TOOL_PROBES === '1';
+const MAX_MCP_STDERR_SNIPPET_LENGTH = 1200;
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function getStdioServerLabel(config: {
+  command: string;
+  args?: string[];
+}): string {
+  const args = config.args && config.args.length > 0 ? ` ${config.args.join(' ')}` : '';
+  return `${config.command}${args}`;
+}
+
+function normalizeStderrSnippet(stderrOutput: string): string | null {
+  const normalized = stderrOutput.replace(/\s+/g, ' ').trim();
+  if (!normalized) return null;
+  return normalized.slice(0, MAX_MCP_STDERR_SNIPPET_LENGTH);
+}
+
+function logMcpToolProbeFailure(
+  label: string,
+  error: unknown,
+  stderrOutput?: string,
+): void {
+  if (!LOG_MCP_TOOL_PROBE_FAILURES) return;
+
+  const stderrSnippet = stderrOutput ? normalizeStderrSnippet(stderrOutput) : null;
+  console.warn(
+    `[MCP] Tool probe failed for ${label}: ${getErrorMessage(error)}${
+      stderrSnippet ? `; stderr: ${stderrSnippet}` : ''
+    }`,
+  );
+}
+
 /**
  * Fetch tools from a stdio-based MCP server
  * Uses shell environment to ensure proper PATH (homebrew, nvm, etc.) in production
@@ -91,8 +127,10 @@ export async function fetchMcpToolsStdio(config: {
   command: string;
   args?: string[];
   env?: Record<string, string>;
+  cwd?: string;
 }): Promise<McpToolInfo[]> {
   let transport: StdioClientTransport | null = null;
+  let stderrOutput = '';
 
   try {
     const client = new Client({
@@ -117,6 +155,12 @@ export async function fetchMcpToolsStdio(config: {
       command: config.command,
       args: config.args,
       env: { ...safeEnv, ...config.env },
+      stderr: 'pipe',
+      cwd: config.cwd,
+    });
+    transport.stderr?.on('data', (chunk: unknown) => {
+      if (stderrOutput.length >= MAX_MCP_STDERR_SNIPPET_LENGTH) return;
+      stderrOutput += String(chunk);
     });
 
     await client.connect(transport);
@@ -126,7 +170,7 @@ export async function fetchMcpToolsStdio(config: {
     console.log(`[MCP] Fetched ${tools.length} tools via stdio`);
     return tools.map(t => ({ name: t.name, description: t.description }));
   } catch (error) {
-    console.error('[MCP] Failed to fetch tools via stdio:', error);
+    logMcpToolProbeFailure(getStdioServerLabel(config), error, stderrOutput);
     return [];
   } finally {
     try {

@@ -24,6 +24,7 @@ import { windowManager } from "./window-manager"
 
 // Flag to bypass close confirmation when app.quit() has already been confirmed
 let isQuitting = false
+const DEBUG_SIGNED_FETCH = process.env.DEBUG_SIGNED_FETCH === "1"
 
 type WindowOpenOptions = { chatId?: string; subChatId?: string }
 
@@ -38,6 +39,12 @@ function getWindowFromEvent(
   const webContents = event.sender
   const win = BrowserWindow.fromWebContents(webContents)
   return win && !win.isDestroyed() ? win : null
+}
+
+function logSignedFetchDebug(...args: unknown[]): void {
+  if (DEBUG_SIGNED_FETCH) {
+    console.log("[SignedFetch]", ...args)
+  }
 }
 
 // Register IPC handlers for window operations (only once)
@@ -417,15 +424,15 @@ function registerIpcHandlers(): void {
       url: string,
       options?: { method?: string; body?: string; headers?: Record<string, string> },
     ) => {
-      console.log("[SignedFetch] IPC handler called with URL:", url)
+      logSignedFetchDebug("IPC handler called with URL:", url)
       if (!validateSender(event)) {
-        console.log("[SignedFetch] Unauthorized sender")
+        console.warn("[SignedFetch] Unauthorized sender")
         return { ok: false, status: 403, data: null, error: "Unauthorized sender" }
       }
-      console.log("[SignedFetch] Sender validated OK")
+      logSignedFetchDebug("Sender validated OK")
 
       const token = await getAuthManager().getValidToken()
-      console.log("[SignedFetch] Token:", token ? "present" : "missing", "URL:", url)
+      logSignedFetchDebug("Token:", token ? "present" : "missing", "URL:", url)
       if (!token) {
         return { ok: false, status: 401, data: null, error: "Not authenticated" }
       }
@@ -442,7 +449,7 @@ function registerIpcHandlers(): void {
         })
 
         const data = await response.json().catch(() => null)
-        console.log("[SignedFetch] Response:", response.status, response.ok ? "OK" : "FAILED")
+        logSignedFetchDebug("Response:", response.status, response.ok ? "OK" : "FAILED")
 
         return {
           ok: response.ok,
@@ -451,7 +458,7 @@ function registerIpcHandlers(): void {
           error: response.ok ? null : `Request failed: ${response.status}`,
         }
       } catch (error) {
-        console.log("[SignedFetch] Error:", error)
+        console.warn("[SignedFetch] Error:", error)
         return {
           ok: false,
           status: 0,

@@ -12,7 +12,7 @@ import { createHash } from "node:crypto"
 import { existsSync, mkdirSync } from "node:fs"
 import { readdir, readFile } from "node:fs/promises"
 import { homedir } from "node:os"
-import { basename, dirname, join, sep } from "node:path"
+import { basename, delimiter, dirname, join, sep } from "node:path"
 import { z } from "zod"
 import {
   normalizeCodexAssistantMessage,
@@ -153,6 +153,8 @@ export function abortAllCodexStreams(): void {
 }
 const loginSessions = new Map<string, CodexLoginSession>()
 const codexMcpCache = new Map<string, CodexMcpSnapshot>()
+let loggedCodexCliDevFallbackPath = false
+let codexAcpNoiseFilterInstalled = false
 
 const URL_CANDIDATE_REGEX = /https?:\/\/[^\s]+/g
 const ANSI_ESCAPE_REGEX = /\u001B\[[0-?]*[ -/]*[@-~]/g
@@ -281,6 +283,96 @@ function buildCodexAcpArgs(modelId: string): string[] {
   return args
 }
 
+function shouldSuppressCodexAcpStderrLine(line: string): boolean {
+  return (
+    line.includes("WARN codex_acp::thread: Received event for unknown submission ID:") &&
+    line.includes("McpStartup")
+  )
+}
+
+function installCodexAcpNoiseFilter(): void {
+  if (codexAcpNoiseFilterInstalled || process.env.DEBUG_CODEX_ACP_NOISE === "1") {
+    return
+  }
+
+  codexAcpNoiseFilterInstalled = true
+
+  const originalConsoleLog = console.log.bind(console)
+  console.log = (...args: Parameters<typeof console.log>) => {
+    const firstArg = args[0]
+    if (
+      typeof firstArg === "string" &&
+      firstArg.startsWith("[acp-ai-provider] Lazy auth enabled with authMethodId=")
+    ) {
+      return
+    }
+    originalConsoleLog(...args)
+  }
+
+  const originalStderrWrite = process.stderr.write.bind(process.stderr)
+  process.stderr.write = ((chunk: unknown, ...args: any[]) => {
+    const text = typeof chunk === "string"
+      ? chunk
+      : Buffer.isBuffer(chunk)
+        ? chunk.toString("utf8")
+        : null
+
+    if (!text) {
+      return originalStderrWrite(chunk as any, ...args)
+    }
+
+    const filteredText = text
+      .split(/(?<=\n)/)
+      .filter((line) => !shouldSuppressCodexAcpStderrLine(line))
+      .join("")
+
+    if (!filteredText) return true
+    return originalStderrWrite(filteredText, ...args)
+  }) as typeof process.stderr.write
+}
+
+function findExecutableOnPath(binaryName: string, pathValue: string | undefined): string | null {
+  if (!pathValue) return null
+
+  for (const directory of pathValue.split(delimiter)) {
+    if (!directory) continue
+    const candidate = join(directory, binaryName)
+    if (existsSync(candidate)) {
+      return candidate
+    }
+  }
+
+  return null
+}
+
+function getDevCodexCliFallbackPath(binaryName: string): string | null {
+  const candidates: Array<string | null | undefined> = [
+    process.env.CODEX_CLI_PATH?.trim(),
+  ]
+
+  try {
+    const shellEnv = getClaudeShellEnvironment()
+    candidates.push(shellEnv.CODEX_CLI_PATH?.trim())
+    candidates.push(findExecutableOnPath(binaryName, shellEnv.PATH))
+  } catch {
+    // Ignore shell env failures here; buildBaseCodexEnv has its own fallback path.
+  }
+
+  candidates.push(findExecutableOnPath(binaryName, process.env.PATH))
+
+  if (process.platform === "darwin") {
+    candidates.push(join("/Applications", "Codex.app", "Contents", "Resources", binaryName))
+  }
+
+  for (const candidate of candidates) {
+    if (candidate && existsSync(candidate)) {
+      return candidate
+    }
+  }
+
+  return null
+}
+
 function resolveBundledCodexCliPath(): string {
   const binaryName = process.platform === "win32" ? "codex.exe" : "codex"
   const resourcesDir = app.isPackaged
@@ -295,6 +387,17 @@ function resolveBundledCodexCliPath(): string {
   const binaryPath = join(resourcesDir, binaryName)
   if (existsSync(binaryPath)) {
     return binaryPath
+  }
+
+  if (!app.isPackaged) {
+    const fallbackPath = getDevCodexCliFallbackPath(binaryName)
+    if (fallbackPath) {
+      if (!loggedCodexCliDevFallbackPath) {
+        console.log(`[codex] Using dev Codex CLI fallback at ${fallbackPath}`)
+        loggedCodexCliDevFallbackPath = true
+      }
+      return fallbackPath
+    }
   }
 
   const hint = app.isPackaged
@@ -822,6 +925,7 @@ async function fetchCodexMcpTools(entry: CodexMcpListEntry): Promise<McpToolInfo
         command,
         args: entry.transport.args || undefined,
         env: resolveCodexStdioEnv(entry.transport),
+        cwd: entry.transport.cwd || undefined,
       })
     }
 
@@ -1188,20 +1292,28 @@ function buildCodexProviderEnv(authConfig?: { apiKey: string }): Record<string, 
   }
 }
 
-function getCodexAuthMethodId(authConfig?: {
-  apiKey: string
-}): "codex-api-key" | undefined {
+type CodexAuthMethodId = "chatgpt" | "codex-api-key" | "openai-api-key"
+
+function getCodexAuthMethodId(params: {
+  authConfig?: { apiKey: string }
+  env: Record<string, string>
+}): CodexAuthMethodId {
+  const { authConfig, env } = params
   const apiKey = authConfig?.apiKey?.trim()
-  if (!apiKey) {
-    return undefined
+  if (apiKey || env.CODEX_API_KEY?.trim()) {
+    // codex-acp advertises auth methods:
+    // - chatgpt
+    // - codex-api-key
+    // - openai-api-key
+    // For app-managed and environment Codex API keys we want deterministic key auth.
+    return "codex-api-key"
   }
 
-  // codex-acp advertises auth methods:
-  // - chatgpt
-  // - codex-api-key
-  // - openai-api-key
-  // For app-managed API key path we want deterministic key auth.
-  return "codex-api-key"
+  if (env.OPENAI_API_KEY?.trim()) {
+    return "openai-api-key"
+  }
+
+  return "chatgpt"
 }
 
 function buildUserParts(
@@ -1404,13 +1516,18 @@ function getOrCreateProvider(params: {
   const existingSessionIdForProvider = hasAppManagedApiKey
     ? undefined
     : params.existingSessionId
+  const providerEnv = buildCodexProviderEnv(params.authConfig)
+  installCodexAcpNoiseFilter()
 
   const provider = attachCodexPermissionHandler(
     createACPProvider({
       command: resolveCodexAcpBinaryPath(),
       args: buildCodexAcpArgs(params.modelId),
-      env: buildCodexProviderEnv(params.authConfig),
-      authMethodId: getCodexAuthMethodId(params.authConfig),
+      env: providerEnv,
+      authMethodId: getCodexAuthMethodId({
+        authConfig: params.authConfig,
+        env: providerEnv,
+      }),
       session: {
         cwd: params.cwd,
         mcpServers: params.mcpServers,

@@ -27,6 +27,67 @@ export interface FileAgent extends ParsedAgent {
   path: string
 }
 
+function parseToolsValue(value: unknown): string[] | undefined {
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((t: string) => t.trim())
+      .filter(Boolean)
+  }
+  if (Array.isArray(value)) {
+    return value
+  }
+  return undefined
+}
+
+function parseAgentModel(value: unknown): AgentModel | undefined {
+  return value && VALID_AGENT_MODELS.includes(value as AgentModel)
+    ? (value as AgentModel)
+    : undefined
+}
+
+function parseLooseFrontmatterValue(value: string): string {
+  const trimmed = value.trim()
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    try {
+      return JSON.parse(trimmed)
+    } catch {
+      return trimmed.slice(1, -1)
+    }
+  }
+  return trimmed
+}
+
+function parseAgentMdLoosely(
+  content: string,
+  filename: string
+): Partial<ParsedAgent> | null {
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/)
+  if (!match) return null
+
+  const [, frontmatter, body] = match
+  const data: Record<string, string> = {}
+
+  for (const line of frontmatter.split(/\r?\n/)) {
+    const fieldMatch = line.match(/^([A-Za-z][\w-]*)\s*:\s*(.*)$/)
+    if (!fieldMatch) continue
+    const [, key, value] = fieldMatch
+    data[key] = parseLooseFrontmatterValue(value)
+  }
+
+  return {
+    name: data.name || filename.replace(".md", ""),
+    description: data.description || "",
+    prompt: body.trim(),
+    tools: parseToolsValue(data.tools),
+    disallowedTools: parseToolsValue(data.disallowedTools),
+    model: parseAgentModel(data.model),
+  }
+}
+
 /**
  * Parse agent markdown file with YAML frontmatter
  * Format:
@@ -47,32 +108,13 @@ export function parseAgentMd(
     const { data, content: body } = matter(content)
 
     // Parse tools - can be comma-separated string or array
-    let tools: string[] | undefined
-    if (typeof data.tools === "string") {
-      tools = data.tools
-        .split(",")
-        .map((t: string) => t.trim())
-        .filter(Boolean)
-    } else if (Array.isArray(data.tools)) {
-      tools = data.tools
-    }
+    const tools = parseToolsValue(data.tools)
 
     // Parse disallowedTools
-    let disallowedTools: string[] | undefined
-    if (typeof data.disallowedTools === "string") {
-      disallowedTools = data.disallowedTools
-        .split(",")
-        .map((t: string) => t.trim())
-        .filter(Boolean)
-    } else if (Array.isArray(data.disallowedTools)) {
-      disallowedTools = data.disallowedTools
-    }
+    const disallowedTools = parseToolsValue(data.disallowedTools)
 
     // Validate model
-    const model =
-      data.model && VALID_AGENT_MODELS.includes(data.model)
-        ? (data.model as AgentModel)
-        : undefined
+    const model = parseAgentModel(data.model)
 
     return {
       name:
@@ -84,7 +126,11 @@ export function parseAgentMd(
       model,
     }
   } catch (err) {
-    console.error("[agents] Failed to parse markdown:", err)
+    const looseParsed = parseAgentMdLoosely(content, filename)
+    if (looseParsed) return looseParsed
+
+    const message = err instanceof Error ? err.message : String(err)
+    console.warn(`[agents] Failed to parse ${filename}: ${message}`)
     return {}
   }
 }
@@ -101,8 +147,8 @@ export function generateAgentMd(agent: {
   model?: AgentModel
 }): string {
   const frontmatter: string[] = []
-  frontmatter.push(`name: ${agent.name}`)
-  frontmatter.push(`description: ${agent.description}`)
+  frontmatter.push(`name: ${JSON.stringify(agent.name)}`)
+  frontmatter.push(`description: ${JSON.stringify(agent.description)}`)
   if (agent.tools && agent.tools.length > 0) {
     frontmatter.push(`tools: ${agent.tools.join(", ")}`)
   }

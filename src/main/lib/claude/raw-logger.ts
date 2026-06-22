@@ -90,8 +90,9 @@ export async function logRawClaudeMessage(
     const dir = await ensureLogsDir()
 
     // Create new file for new session OR rotate if current file is too large
+    const isNewSession = sessionId !== currentSessionId
     const needsNewFile =
-      sessionId !== currentSessionId ||
+      isNewSession ||
       (currentLogFile && (await shouldRotateLog(currentLogFile)))
 
     if (needsNewFile) {
@@ -101,7 +102,7 @@ export async function logRawClaudeMessage(
       currentLogFile = join(dir, `${sessionId}_${timestamp}${suffix}.jsonl`)
 
       // Run cleanup periodically (on new session start)
-      if (sessionId !== currentSessionId) {
+      if (isNewSession) {
         // Run cleanup in background, don't wait for it
         cleanupOldLogs().catch((err) =>
           console.error("[raw-logger] Background cleanup failed:", err),
@@ -114,6 +115,7 @@ export async function logRawClaudeMessage(
       data: msg,
     }
 
+    await mkdir(dir, { recursive: true })
     await appendFile(currentLogFile!, JSON.stringify(entry) + "\n")
   } catch (err) {
     // Don't let logging errors break the main flow

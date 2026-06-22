@@ -1403,12 +1403,15 @@ export const chatsRouter = router({
         // Online - use web API
         const authManager = getAuthManager()
         const token = await authManager.getValidToken()
+
+        if (!token) {
+          console.log("[generateSubChatName] No auth token, using fallback")
+          return { name: getFallbackName(input.userMessage) }
+        }
+
         const apiUrl = "https://21st.dev"
 
-        console.log(
-          "[generateSubChatName] Online - calling API with token:",
-          token ? "present" : "missing",
-        )
+        console.log("[generateSubChatName] Online - calling API")
 
         const response = await fetch(
           `${apiUrl}/api/agents/sub-chat/generate-name`,
@@ -1416,7 +1419,7 @@ export const chatsRouter = router({
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              ...(token && { "X-Desktop-Token": token }),
+              "X-Desktop-Token": token,
             },
             body: JSON.stringify({ userMessage: input.userMessage }),
           },
@@ -1425,11 +1428,9 @@ export const chatsRouter = router({
         console.log("[generateSubChatName] Response status:", response.status)
 
         if (!response.ok) {
-          const errorText = await response.text()
           console.error(
             "[generateSubChatName] API error:",
             response.status,
-            errorText,
           )
           return { name: getFallbackName(input.userMessage) }
         }

@@ -37,9 +37,52 @@ const STRIPPED_ENV_KEYS = !app.isPackaged
 let cachedBinaryPath: string | null = null
 let binaryPathComputed = false
 
+function findExecutableOnPath(
+  binaryName: string,
+  pathValue: string | undefined
+): string | null {
+  if (!pathValue) return null
+
+  for (const directory of pathValue.split(path.delimiter)) {
+    if (!directory) continue
+    const candidate = path.join(directory, binaryName)
+    if (fs.existsSync(candidate)) {
+      return candidate
+    }
+  }
+
+  return null
+}
+
+function getDevClaudeBinaryFallbackPath(binaryName: string): string | null {
+  const candidates: Array<string | null | undefined> = [
+    process.env.CLAUDE_CODE_PATH?.trim(),
+    process.env.CLAUDE_CLI_PATH?.trim(),
+  ]
+
+  try {
+    const shellEnv = getClaudeShellEnvironment()
+    candidates.push(shellEnv.CLAUDE_CODE_PATH?.trim())
+    candidates.push(shellEnv.CLAUDE_CLI_PATH?.trim())
+    candidates.push(findExecutableOnPath(binaryName, shellEnv.PATH))
+  } catch {
+    // Ignore shell env failures here; buildClaudeEnv has its own fallback path.
+  }
+
+  candidates.push(findExecutableOnPath(binaryName, process.env.PATH))
+
+  for (const candidate of candidates) {
+    if (candidate && fs.existsSync(candidate)) {
+      return candidate
+    }
+  }
+
+  return null
+}
+
 /**
- * Get path to the bundled Claude binary.
- * Returns the path to the native Claude executable bundled with the app.
+ * Get path to the Claude binary.
+ * Returns the bundled native Claude executable, or a local dev fallback.
  * CACHED - only computes path once and logs verbose info on first call.
  */
 export function getBundledClaudeBinaryPath(): string {
@@ -80,13 +123,23 @@ export function getBundledClaudeBinaryPath(): string {
   const exists = fs.existsSync(binaryPath)
 
   if (!exists) {
-    console.error(
-      "[claude-binary] WARNING: Binary not found at path:",
-      binaryPath
-    )
-    console.error(
-      "[claude-binary] Run 'bun run claude:download' to download it"
-    )
+    const fallbackPath = isDev
+      ? getDevClaudeBinaryFallbackPath(binaryName)
+      : null
+
+    if (fallbackPath) {
+      console.log(
+        "[claude-binary] Using dev Claude CLI fallback:",
+        fallbackPath
+      )
+      console.log("[claude-binary] ============================================")
+      cachedBinaryPath = fallbackPath
+      binaryPathComputed = true
+      return fallbackPath
+    }
+
+    console.error("[claude-binary] Binary not found at path:", binaryPath)
+    console.error("[claude-binary] Run 'bun run claude:download' to download it")
   } else {
     const stats = fs.statSync(binaryPath)
     const sizeMB = (stats.size / 1024 / 1024).toFixed(1)

@@ -460,6 +460,7 @@ async function fetchToolsForServer(
           command,
           args: (serverConfig as any).args,
           env: (serverConfig as any).env,
+          cwd: (serverConfig as any).cwd,
         })
       } catch {
         return []
