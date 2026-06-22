@@ -243,6 +243,7 @@ import { autoRenameAgentChat } from "../utils/auto-rename"
 import { generateCommitToPrMessage, generatePrMessage, generateReviewMessage } from "../utils/pr-message"
 import { ChatInputArea } from "./chat-input-area"
 import { IsolatedMessagesSection } from "./isolated-messages-section"
+import { useRightPanelMutualExclusion } from "./use-right-panel-mutual-exclusion"
 const clearSubChatSelectionAtom = atom(null, () => {})
 const isSubChatMultiSelectModeAtom = atom(false)
 const selectedSubChatIdsAtom = atom(new Set<string>())
@@ -5230,106 +5231,6 @@ export function ChatView({
     return () => window.removeEventListener("keydown", handleKeyDown, true)
   }, [isTerminalSidebarOpen, setIsTerminalSidebarOpen])
 
-  // Mutual exclusion: Details sidebar vs Plan/Terminal/Diff(side-peek) sidebars
-  // When one opens, close the conflicting ones and remember for restoration
-
-  // Track what was auto-closed and by whom for restoration
-  const autoClosedStateRef = useRef<{
-    // What closed Details
-    detailsClosedBy: "plan" | "terminal" | "diff" | null
-    // What Details closed
-    planClosedByDetails: boolean
-    terminalClosedByDetails: boolean
-    diffClosedByDetails: boolean
-  }>({
-    detailsClosedBy: null,
-    planClosedByDetails: false,
-    terminalClosedByDetails: false,
-    diffClosedByDetails: false,
-  })
-
-  // Track previous states to detect opens/closes
-  const prevSidebarStatesRef = useRef({
-    details: isDetailsSidebarOpen,
-    plan: isPlanSidebarOpen && !!currentPlanPath,
-    terminal: isTerminalSidebarOpen,
-  })
-
-  useEffect(() => {
-    const prev = prevSidebarStatesRef.current
-    const auto = autoClosedStateRef.current
-    const isPlanOpen = isPlanSidebarOpen && !!currentPlanPath
-
-    // Detect state changes
-    const detailsJustOpened = isDetailsSidebarOpen && !prev.details
-    const detailsJustClosed = !isDetailsSidebarOpen && prev.details
-    const planJustOpened = isPlanOpen && !prev.plan
-    const planJustClosed = !isPlanOpen && prev.plan
-    const terminalJustOpened = isTerminalSidebarOpen && !prev.terminal
-    const terminalJustClosed = !isTerminalSidebarOpen && prev.terminal
-
-    // Terminal in "bottom" mode doesn't conflict with Details sidebar
-    const terminalConflictsWithDetails = terminalDisplayMode === "side-peek"
-
-    // Details opened → close conflicting sidebars and remember
-    if (detailsJustOpened) {
-      if (isPlanOpen) {
-        auto.planClosedByDetails = true
-        setIsPlanSidebarOpen(false)
-      }
-      if (isTerminalSidebarOpen && terminalConflictsWithDetails) {
-        auto.terminalClosedByDetails = true
-        setIsTerminalSidebarOpen(false)
-      }
-    }
-    // Details closed → restore what it closed
-    else if (detailsJustClosed) {
-      if (auto.planClosedByDetails) {
-        auto.planClosedByDetails = false
-        setIsPlanSidebarOpen(true)
-      }
-      if (auto.terminalClosedByDetails) {
-        auto.terminalClosedByDetails = false
-        setIsTerminalSidebarOpen(true)
-      }
-    }
-    // Plan opened → close Details and remember
-    else if (planJustOpened && isDetailsSidebarOpen) {
-      auto.detailsClosedBy = "plan"
-      setIsDetailsSidebarOpen(false)
-    }
-    // Plan closed → restore Details if we closed it
-    else if (planJustClosed && auto.detailsClosedBy === "plan") {
-      auto.detailsClosedBy = null
-      setIsDetailsSidebarOpen(true)
-    }
-    // Terminal opened → close Details and remember (only in side-peek mode)
-    else if (terminalJustOpened && isDetailsSidebarOpen && terminalConflictsWithDetails) {
-      auto.detailsClosedBy = "terminal"
-      setIsDetailsSidebarOpen(false)
-    }
-    // Terminal closed → restore Details if we closed it
-    else if (terminalJustClosed && auto.detailsClosedBy === "terminal") {
-      auto.detailsClosedBy = null
-      setIsDetailsSidebarOpen(true)
-    }
-
-    prevSidebarStatesRef.current = {
-      details: isDetailsSidebarOpen,
-      plan: isPlanOpen,
-      terminal: isTerminalSidebarOpen,
-    }
-  }, [
-    isDetailsSidebarOpen,
-    isPlanSidebarOpen,
-    currentPlanPath,
-    isTerminalSidebarOpen,
-    terminalDisplayMode,
-    setIsDetailsSidebarOpen,
-    setIsPlanSidebarOpen,
-    setIsTerminalSidebarOpen,
-  ])
-
   // Diff data cache - stored in atoms to persist across workspace switches
   const diffCacheAtom = useMemo(
     () => workspaceDiffCacheAtomFamily(chatId),
@@ -5390,63 +5291,6 @@ export function ChatView({
       appStore.set(agentsDiffSidebarWidthAtom, 400)
     }
   }, [diffDisplayMode])
-
-  // Handle Diff + Details sidebar conflict (side-peek mode only)
-  // - If Diff opens in side-peek while Details is open: close Details and remember
-  // - If user manually switches Diff to side-peek while Details is open: close Details and remember
-  // - If Details opens while Diff is in side-peek mode: close Diff and remember
-  const prevDiffStateRef = useRef<{ isOpen: boolean; mode: string; detailsOpen: boolean }>({
-    isOpen: isDiffSidebarOpen,
-    mode: diffDisplayMode,
-    detailsOpen: isDetailsSidebarOpen,
-  })
-  // Flag to skip center-peek switch when restoring Diff after Details closes
-  const isRestoringDiffRef = useRef(false)
-  useEffect(() => {
-    const prev = prevDiffStateRef.current
-    const auto = autoClosedStateRef.current
-    const isNowSidePeek = isDiffSidebarOpen && diffDisplayMode === "side-peek"
-    const wasSidePeek = prev.isOpen && prev.mode === "side-peek"
-    const detailsJustOpened = isDetailsSidebarOpen && !prev.detailsOpen
-    const detailsJustClosed = !isDetailsSidebarOpen && prev.detailsOpen
-    const diffSidePeekJustClosed = wasSidePeek && !isNowSidePeek
-
-    if (isNowSidePeek && isDetailsSidebarOpen) {
-      // Details just opened while Diff is in side-peek → close Diff and remember
-      if (detailsJustOpened) {
-        auto.diffClosedByDetails = true
-        setIsDiffSidebarOpen(false)
-      }
-      // Diff just opened in side-peek mode → close Details and remember
-      // Skip if we're restoring Diff after Details closed
-      else if (!prev.isOpen && !isRestoringDiffRef.current) {
-        auto.detailsClosedBy = "diff"
-        setIsDetailsSidebarOpen(false)
-      }
-      // User manually switched to side-peek while Diff was already open → close Details and remember
-      else if (prev.isOpen && prev.mode !== "side-peek") {
-        auto.detailsClosedBy = "diff"
-        setIsDetailsSidebarOpen(false)
-      }
-    }
-    // Diff side-peek closed → restore Details if we closed it
-    else if (diffSidePeekJustClosed && auto.detailsClosedBy === "diff") {
-      auto.detailsClosedBy = null
-      setIsDetailsSidebarOpen(true)
-    }
-    // Details closed → restore Diff if we closed it (in side-peek mode, not switching to dialog)
-    else if (detailsJustClosed && auto.diffClosedByDetails) {
-      auto.diffClosedByDetails = false
-      isRestoringDiffRef.current = true
-      setIsDiffSidebarOpen(true)
-      // Reset flag after state update
-      requestAnimationFrame(() => {
-        isRestoringDiffRef.current = false
-      })
-    }
-
-    prevDiffStateRef.current = { isOpen: isDiffSidebarOpen, mode: diffDisplayMode, detailsOpen: isDetailsSidebarOpen }
-  }, [isDiffSidebarOpen, diffDisplayMode, isDetailsSidebarOpen, setDiffDisplayMode, setIsDetailsSidebarOpen, setIsDiffSidebarOpen])
 
   // Hide/show traffic lights based on full-page diff or full-page file viewer
   // When exiting full-page mode, restore based on sidebar state (not unconditionally true)
@@ -5844,6 +5688,39 @@ export function ChatView({
   useEffect(() => {
     setSecurityArtifactLocationOverride(null)
   }, [chatId, activeSubChatId])
+
+  const securityFileViewerPath = useMemo(() => {
+    if (!fileViewerPath || fileViewerDisplayMode !== "side-peek") return null
+
+    const isKnownSecurityArtifact =
+      fileViewerPath === securityArtifactLocation?.filePath ||
+      fileViewerPath === securityArtifactLocation?.reportPath ||
+      isSecurityMiningRecordPath(fileViewerPath) ||
+      isSecurityMiningReportPath(fileViewerPath)
+
+    return isKnownSecurityArtifact ? fileViewerPath : null
+  }, [
+    fileViewerPath,
+    fileViewerDisplayMode,
+    securityArtifactLocation?.filePath,
+    securityArtifactLocation?.reportPath,
+  ])
+
+  useRightPanelMutualExclusion({
+    isDetailsSidebarOpen,
+    setIsDetailsSidebarOpen,
+    isPlanOpen: isPlanSidebarOpen && !!currentPlanPath,
+    setIsPlanSidebarOpen,
+    isTerminalSidebarOpen,
+    terminalDisplayMode,
+    setIsTerminalSidebarOpen,
+    isDiffSidebarOpen,
+    diffDisplayMode,
+    setIsDiffSidebarOpen,
+    fileViewerSidePeekPath: securityFileViewerPath,
+    fileViewerDisplayMode,
+    setFileViewerPath,
+  })
 
   const openFileInSidebar = useCallback(
     (filePath: string) => {
