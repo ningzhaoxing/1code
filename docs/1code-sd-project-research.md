@@ -35,11 +35,11 @@
 
 - 自动识别安全测试类 prompt。
 - 自动创建 `漏洞挖掘记录.md`。
-- 自动把 `@[skill:security-mining-record]` 和记录文件路径注入 Claude prompt。
+- 自动把 `@[skill:security-mining-record]`、记录文件路径和最终报告路径注入 Claude / Codex prompt。
 - Agent 写入记录后，右侧 Markdown 预览自动打开并刷新。
 - 顶部“实时记录”按钮可手动打开记录文件。
-- 顶部“导出报告”按钮生成 `漏洞挖掘报告.md`。
-- 报告不是简单复制实时记录，而是合并 subChat 消息、工具调用、实时记录内容和产物路径。
+- 漏洞挖掘 skill 在任务完成后指导 Agent 写入 `漏洞挖掘报告.md`。
+- 报告不是简单复制实时记录，而是基于完整执行链路、工具调用、审批/纠偏、证据文件和实时记录生成。
 
 ## 架构
 
@@ -73,15 +73,15 @@ renderer
 ## 安全挖掘链路
 
 1. 用户在 Agent 输入安全测试类任务。
-2. `ipc-chat-transport.ts` 用关键词识别安全场景。
+2. `security-mining-record.ts` 用关键词识别安全场景。
 3. 前端调用 `securityMiningRecord.ensure`。
 4. 主进程根据 chat/subChat/worktree/project/userData 解析产物目录。
-5. 前端把原 prompt 改写为：原任务 + `@[skill:security-mining-record]` + 记录文件绝对路径。
-6. Claude Code 执行任务并按 skill 持续写 `漏洞挖掘记录.md`。
-7. Claude Write/Edit 触发 file-changed 事件。
+5. 前端把原 prompt 改写为：原任务 + `@[skill:security-mining-record]` + 记录文件绝对路径 + 最终报告绝对路径。
+6. Claude Code 或 Codex 执行任务并按 skill 持续写 `漏洞挖掘记录.md`。
+7. Agent 写文件触发 file-changed 事件。
 8. `active-chat.tsx` 识别记录文件路径，打开右侧 Markdown viewer。
-9. 用户点击“导出报告”。
-10. `security-mining-record/report.ts` 汇总消息链路、工具调用和记录内容，写出 `漏洞挖掘报告.md`。
+9. 任务完成后，skill 指导 Agent 基于完整链路和实时记录写出 `漏洞挖掘报告.md`。
+10. `active-chat.tsx` 识别报告文件后打开右侧 Markdown viewer，并显示顶部报告入口。
 
 关键代码：
 
@@ -123,7 +123,7 @@ Claude 路径不是直接跑用户 PATH 里的 `claude`。项目用 `@anthropic-
 resources/bin/darwin-arm64/claude
 ```
 
-1Code 会为 subChat 建隔离 Claude config，但用户级 `~/.claude/skills` 会被复用。本 PoC 的 skill 已安装到：
+1Code 会为 subChat 建隔离 Claude config，但用户级 `~/.claude/skills` 会被复用。本 PoC 的 Claude skill 安装到：
 
 ```text
 ~/.claude/skills/security-mining-record/SKILL.md
@@ -146,6 +146,13 @@ bundled Codex CLI 主要用于登录状态和 MCP 配置。项目默认 `CODEX_H
 ```text
 ~/.1code/codex/auth.json -> ~/.codex/auth.json
 ~/.1code/codex/config.toml -> ~/.codex/config.toml
+```
+
+本 PoC 的 Codex skill 默认同步到用户级目录，不写入项目级 `.agents/skills`：
+
+```text
+~/.agents/skills/security-mining-record/SKILL.md
+~/.1code/codex/skills/security-mining-record/SKILL.md
 ```
 
 当前 `resources/bin/darwin-arm64/codex` 链接到桌面 Codex app 的 CLI：

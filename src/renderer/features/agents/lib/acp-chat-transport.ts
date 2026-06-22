@@ -13,13 +13,22 @@ import { translateCurrentLocale as t } from "../../../lib/i18n"
 import { appStore } from "../../../lib/jotai-store"
 import { trpcClient } from "../../../lib/trpc"
 import {
+  expiredUserQuestionsAtom,
+  fileViewerDisplayModeAtom,
+  fileViewerOpenAtomFamily,
   pendingAuthRetryMessageAtom,
+  pendingUserQuestionsAtom,
   subChatCodexModelIdAtomFamily,
   subChatCodexThinkingAtomFamily,
 } from "../atoms"
 import { CODEX_MODELS, type CodexThinkingLevel } from "./models"
 import { useAgentSubChatStore } from "../stores/sub-chat-store"
 import type { AgentMessageMetadata } from "../ui/agent-message-usage"
+import {
+  buildSecurityMiningRuntimePrompt,
+  getSecurityMiningRecordPreviewState,
+  shouldUseSecurityMiningRecord,
+} from "./security-mining-record"
 
 type UIMessageChunk = any
 
@@ -119,6 +128,7 @@ export class ACPChatTransport implements ChatTransport<UIMessage> {
       .find((message) => message.role === "user")
 
     const prompt = this.extractText(lastUser)
+    let promptForModel = prompt
     const images = this.extractImages(lastUser)
 
     const lastAssistant = [...options.messages]
@@ -138,6 +148,28 @@ export class ACPChatTransport implements ChatTransport<UIMessage> {
     }
     const codexApiKey = normalizeCodexApiKey(appStore.get(codexApiKeyAtom))
     const selectedModel = getSelectedCodexModel(this.config.subChatId)
+    if (currentMode === "agent" && shouldUseSecurityMiningRecord(prompt)) {
+      try {
+        const record = await trpcClient.securityMiningRecord.ensure.mutate({
+          chatId: this.config.chatId,
+          subChatId: this.config.subChatId,
+        })
+        promptForModel = buildSecurityMiningRuntimePrompt(prompt, record)
+        const previewState = getSecurityMiningRecordPreviewState(record)
+        if (previewState) {
+          appStore.set(fileViewerDisplayModeAtom, previewState.displayMode)
+          appStore.set(
+            fileViewerOpenAtomFamily(this.config.chatId),
+            previewState.filePath,
+          )
+        }
+      } catch (error) {
+        console.error("[security-mining-record] Failed to prepare record:", error)
+        toast.error(t("chat.transport.prepareRecordFailed"), {
+          description: error instanceof Error ? error.message : t("common.unknownError"),
+        })
+      }
+    }
 
     return new ReadableStream({
       start: (controller) => {
@@ -164,7 +196,7 @@ export class ACPChatTransport implements ChatTransport<UIMessage> {
             subChatId: this.config.subChatId,
             chatId: this.config.chatId,
             runId,
-            prompt,
+            prompt: promptForModel,
             cwd: this.config.cwd,
             ...(this.config.projectPath
               ? { projectPath: this.config.projectPath }
@@ -184,6 +216,44 @@ export class ACPChatTransport implements ChatTransport<UIMessage> {
           },
           {
             onData: (chunk: UIMessageChunk) => {
+              if (chunk.type === "codex-permission-request") {
+                const currentMap = appStore.get(pendingUserQuestionsAtom)
+                const newMap = new Map(currentMap)
+                newMap.set(this.config.subChatId, {
+                  subChatId: this.config.subChatId,
+                  parentChatId: this.config.chatId,
+                  toolUseId: chunk.toolUseId,
+                  source: "codex-permission",
+                  questions: chunk.questions || [],
+                  codexPermissionOptions: (chunk.options || []).map((option: any) => ({
+                    optionId: option.optionId,
+                    label: option.label || option.name || option.optionId,
+                    kind: option.kind,
+                  })),
+                })
+                appStore.set(pendingUserQuestionsAtom, newMap)
+
+                const expiredMap = appStore.get(expiredUserQuestionsAtom)
+                if (expiredMap.has(this.config.subChatId)) {
+                  const nextExpiredMap = new Map(expiredMap)
+                  nextExpiredMap.delete(this.config.subChatId)
+                  appStore.set(expiredUserQuestionsAtom, nextExpiredMap)
+                }
+                return
+              }
+
+              if (chunk.type === "codex-permission-timeout") {
+                const currentMap = appStore.get(pendingUserQuestionsAtom)
+                const pending = currentMap.get(this.config.subChatId)
+                if (pending?.toolUseId === chunk.toolUseId) {
+                  const newMap = new Map(currentMap)
+                  newMap.delete(this.config.subChatId)
+                  appStore.set(pendingUserQuestionsAtom, newMap)
+                }
+                toast.error("Codex permission request timed out")
+                return
+              }
+
               if (chunk.type === "session-init") {
                 appStore.set(sessionInfoAtom, {
                   tools: chunk.tools || [],

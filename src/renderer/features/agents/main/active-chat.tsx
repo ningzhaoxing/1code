@@ -174,6 +174,10 @@ import { useToggleFocusOnCmdEsc } from "../hooks/use-toggle-focus-on-cmd-esc"
 import { ACPChatTransport } from "../lib/acp-chat-transport"
 import { formatHistoryForContext } from "../lib/export-chat"
 import {
+  resolveFileViewerProjectPath,
+  shouldAutoOpenSecurityArtifact,
+} from "../lib/file-viewer-path"
+import {
   clearSubChatDraft,
   getSubChatDraftFull
 } from "../lib/drafts"
@@ -388,6 +392,15 @@ const agents = [
 const SECURITY_MINING_RECORD_FILENAME = "Findings.md"
 // Legacy filename kept so existing records still auto-open after the rename.
 const SECURITY_MINING_RECORD_FILENAME_LEGACY = "漏洞挖掘记录.md"
+const SECURITY_MINING_REPORT_FILENAME = "漏洞挖掘报告.md"
+
+type SecurityArtifactLocationState = {
+  filePath: string
+  reportPath: string
+  projectPath: string
+  recordExists: boolean
+  reportExists: boolean
+}
 
 function joinViewerPath(basePath: string, fileName: string): string {
   return `${basePath.replace(/\/+$/, "")}/${fileName.replace(/^\/+/, "")}`
@@ -402,12 +415,54 @@ function getViewerFileName(filePath: string): string {
   return filePath.split("/").filter(Boolean).pop() || filePath
 }
 
+function getViewerDirectoryPath(filePath: string): string | null {
+  const normalized = filePath.replace(/\/+$/, "")
+  const index = normalized.lastIndexOf("/")
+  if (index <= 0) return null
+  return normalized.slice(0, index)
+}
+
 function isSecurityMiningRecordPath(filePath: string): boolean {
   const fileName = getViewerFileName(filePath)
   return (
     fileName === SECURITY_MINING_RECORD_FILENAME ||
     fileName === SECURITY_MINING_RECORD_FILENAME_LEGACY
   )
+}
+
+function isSecurityMiningReportPath(filePath: string): boolean {
+  const fileName = getViewerFileName(filePath)
+  return fileName === SECURITY_MINING_REPORT_FILENAME
+}
+
+function getSecurityArtifactLocationFromFilePath({
+  filePath,
+  isSecurityRecord,
+  isSecurityReport,
+  current,
+}: {
+  filePath: string
+  isSecurityRecord: boolean
+  isSecurityReport: boolean
+  current?: SecurityArtifactLocationState | null
+}): SecurityArtifactLocationState | null {
+  const projectPath = getViewerDirectoryPath(filePath)
+  if (!projectPath) return null
+
+  const recordPath = joinViewerPath(projectPath, SECURITY_MINING_RECORD_FILENAME)
+  const reportPath = joinViewerPath(projectPath, SECURITY_MINING_REPORT_FILENAME)
+  const isCurrentDirectory =
+    current?.projectPath === projectPath ||
+    current?.filePath === recordPath ||
+    current?.reportPath === reportPath
+
+  return {
+    filePath: recordPath,
+    reportPath,
+    projectPath,
+    recordExists: isSecurityRecord || isSecurityReport || (isCurrentDirectory ? current?.recordExists === true : false),
+    reportExists: isSecurityReport || (isCurrentDirectory ? current?.reportExists === true : false),
+  }
 }
 
 // Helper function to get agent icon
@@ -2834,11 +2889,15 @@ const ChatViewInner = memo(function ChatViewInner({
 
       // Streaming just stopped - if there's a pending question for this chat,
       // clear it after a brief delay (backend already handled the abort)
-      if (pendingQuestions) {
+      if (pendingQuestions && pendingQuestions.source !== "codex-permission") {
         const timeout = setTimeout(() => {
           // Re-check if still showing the same question (might have been cleared by other means)
           setPendingQuestionsMap((current) => {
-            if (current.has(subChatId)) {
+            const currentQuestion = current.get(subChatId)
+            if (
+              currentQuestion &&
+              currentQuestion.source !== "codex-permission"
+            ) {
               const newMap = new Map(current)
               newMap.delete(subChatId)
               return newMap
@@ -2872,13 +2931,21 @@ const ChatViewInner = memo(function ChatViewInner({
     // Helper to clear pending question for this subChat
     const clearPendingQuestion = () => {
       setPendingQuestionsMap((current) => {
-        if (current.has(subChatId)) {
+        const currentQuestion = current.get(subChatId)
+        if (
+          currentQuestion &&
+          currentQuestion.source !== "codex-permission"
+        ) {
           const newMap = new Map(current)
           newMap.delete(subChatId)
           return newMap
         }
         return current
       })
+    }
+
+    if (pendingQuestions?.source === "codex-permission") {
+      return
     }
 
     // If streaming and we already have a pending question for this chat, keep it
@@ -2951,6 +3018,23 @@ const ChatViewInner = memo(function ChatViewInner({
     [],
   )
 
+  const getCodexPermissionOptionId = useCallback(
+    (answers: Record<string, string>): string | null => {
+      if (displayQuestions?.source !== "codex-permission") return null
+
+      const selectedLabel =
+        Object.values(answers).find((answer) => answer.trim().length > 0) || ""
+      if (!selectedLabel) return null
+
+      const selectedOption = displayQuestions.codexPermissionOptions?.find(
+        (option) => option.label === selectedLabel,
+      )
+
+      return selectedOption?.optionId || null
+    },
+    [displayQuestions],
+  )
+
   const clearInputAndDraft = useCallback(() => {
     editorRef.current?.clear()
     if (parentChatId) {
@@ -2975,6 +3059,18 @@ const ChatViewInner = memo(function ChatViewInner({
         // Question timed out - send answers as a normal user message
         clearPendingQuestionCallback()
         await sendUserMessage(formatAnswersAsText(answers))
+      } else if (displayQuestions.source === "codex-permission") {
+        const optionId = getCodexPermissionOptionId(answers)
+        const result = await trpcClient.codex.respondToolApproval.mutate({
+          subChatId,
+          toolUseId: displayQuestions.toolUseId,
+          ...(optionId ? { optionId } : { cancelled: true }),
+        })
+        if (!result.ok) {
+          toast.error("Codex permission response was not accepted")
+          return
+        }
+        clearPendingQuestionCallback()
       } else {
         // Question is still live - use tool approval path
         await trpcClient.claude.respondToolApproval.mutate({
@@ -2985,7 +3081,15 @@ const ChatViewInner = memo(function ChatViewInner({
         clearPendingQuestionCallback()
       }
     },
-    [displayQuestions, isQuestionExpired, clearPendingQuestionCallback, sendUserMessage, formatAnswersAsText],
+    [
+      displayQuestions,
+      isQuestionExpired,
+      clearPendingQuestionCallback,
+      sendUserMessage,
+      formatAnswersAsText,
+      getCodexPermissionOptionId,
+      subChatId,
+    ],
   )
 
   // Handle skipping questions
@@ -3000,21 +3104,32 @@ const ChatViewInner = memo(function ChatViewInner({
 
     const toolUseId = displayQuestions.toolUseId
 
-    // Clear UI immediately - don't wait for backend
-    // This ensures dialog closes even if stream was already aborted
-    clearPendingQuestionCallback()
-
     // Try to notify backend (may fail if already aborted - that's ok)
     try {
-      await trpcClient.claude.respondToolApproval.mutate({
-        toolUseId,
-        approved: false,
-        message: QUESTIONS_SKIPPED_MESSAGE,
-      })
+      if (displayQuestions.source === "codex-permission") {
+        const result = await trpcClient.codex.respondToolApproval.mutate({
+          subChatId,
+          toolUseId,
+          cancelled: true,
+        })
+        if (!result.ok) {
+          toast.error("Codex permission response was not accepted")
+          return
+        }
+      } else {
+        // Clear Claude question UI immediately; the stream may already be aborted.
+        clearPendingQuestionCallback()
+        await trpcClient.claude.respondToolApproval.mutate({
+          toolUseId,
+          approved: false,
+          message: QUESTIONS_SKIPPED_MESSAGE,
+        })
+      }
+      clearPendingQuestionCallback()
     } catch {
       // Stream likely already aborted - ignore
     }
-  }, [displayQuestions, isQuestionExpired, clearPendingQuestionCallback])
+  }, [displayQuestions, isQuestionExpired, clearPendingQuestionCallback, subChatId])
 
   // Ref to prevent double submit of question answer
   const isSubmittingQuestionAnswerRef = useRef(false)
@@ -3037,6 +3152,20 @@ const ChatViewInner = memo(function ChatViewInner({
         // 2. Get already selected answers from question component
         const selectedAnswers = questionRef.current?.getAnswers() || {}
         const formattedAnswers: Record<string, string> = { ...selectedAnswers }
+
+        if (displayQuestions.source === "codex-permission") {
+          const hasSelectedOption = Object.values(formattedAnswers).some(
+            (answer) => answer.trim().length > 0,
+          )
+          if (!hasSelectedOption) {
+            isSubmittingQuestionAnswerRef.current = false
+            return
+          }
+
+          await handleQuestionsAnswer(formattedAnswers)
+          clearInputAndDraft()
+          return
+        }
 
         // 3. Add custom text to the last question as "Other"
         const lastQuestion =
@@ -3083,7 +3212,16 @@ const ChatViewInner = memo(function ChatViewInner({
         isSubmittingQuestionAnswerRef.current = false
       }
     },
-    [displayQuestions, isQuestionExpired, clearPendingQuestionCallback, clearInputAndDraft, sendUserMessage, formatAnswersAsText, subChatId],
+    [
+      displayQuestions,
+      isQuestionExpired,
+      clearPendingQuestionCallback,
+      clearInputAndDraft,
+      sendUserMessage,
+      formatAnswersAsText,
+      subChatId,
+      handleQuestionsAnswer,
+    ],
   )
 
   // Memoize the callback to prevent ChatInputArea re-renders
@@ -4790,7 +4928,11 @@ const ChatViewInner = memo(function ChatViewInner({
               pendingQuestions={displayQuestions}
               onAnswer={handleQuestionsAnswer}
               onSkip={handleQuestionsSkip}
-              hasCustomText={inputHasContent}
+              hasCustomText={
+                displayQuestions.source === "codex-permission"
+                  ? false
+                  : inputHasContent
+              }
             />
           </div>
         </div>
@@ -4981,7 +5123,7 @@ export function ChatView({
     [chatId],
   )
   const [fileViewerPath, setFileViewerPath] = useAtom(fileViewerAtom)
-  const [fileViewerDisplayMode] = useAtom(fileViewerDisplayModeAtom)
+  const [fileViewerDisplayMode, setFileViewerDisplayMode] = useAtom(fileViewerDisplayModeAtom)
 
   // File search dialog (Cmd+P)
   const [fileSearchOpen, setFileSearchOpen] = useAtom(fileSearchDialogOpenAtom)
@@ -5650,13 +5792,36 @@ export function ChatView({
       filePath: string
       reportPath: string
       projectPath: string
+      recordExists: boolean
+      reportExists: boolean
     } | null>(null)
   const securityArtifactLocation =
-    securityRecordLocation ?? securityArtifactLocationOverride
+    securityArtifactLocationOverride ?? securityRecordLocation
 
   useEffect(() => {
     setSecurityArtifactLocationOverride(null)
   }, [chatId, activeSubChatId])
+
+  const openFileInSidebar = useCallback(
+    (filePath: string) => {
+      let resolvedFilePath = filePath
+      if (!filePath.startsWith("/") && securityArtifactLocation) {
+        if (isSecurityMiningRecordPath(filePath)) {
+          resolvedFilePath = securityArtifactLocation.filePath
+        } else if (isSecurityMiningReportPath(filePath)) {
+          resolvedFilePath = securityArtifactLocation.reportPath
+        }
+      }
+
+      setFileViewerDisplayMode("side-peek")
+      setFileViewerPath(resolvedFilePath)
+    },
+    [
+      securityArtifactLocation,
+      setFileViewerDisplayMode,
+      setFileViewerPath,
+    ],
+  )
 
   const ensureSecurityRecordMutation =
     trpc.securityMiningRecord.ensure.useMutation({
@@ -5665,26 +5830,10 @@ export function ChatView({
           filePath: record.filePath,
           reportPath: record.reportPath,
           projectPath: record.projectPath,
+          recordExists: true,
+          reportExists: record.reportExists,
         })
         await trpcClient.files.clearCache.mutate({ projectPath: record.projectPath }).catch(() => {
-          // React Query invalidation below still refreshes consumers if cache clearing fails.
-        })
-        await Promise.all([
-          trpcUtils.securityMiningRecord.location.invalidate(variables),
-          trpcUtils.files.search.invalidate(),
-        ])
-      },
-    })
-
-  const generateSecurityReportMutation =
-    trpc.securityMiningRecord.generateReport.useMutation({
-      onSuccess: async (report, variables) => {
-        setSecurityArtifactLocationOverride({
-          filePath: report.filePath,
-          reportPath: report.reportPath,
-          projectPath: report.projectPath,
-        })
-        await trpcClient.files.clearCache.mutate({ projectPath: report.projectPath }).catch(() => {
           // React Query invalidation below still refreshes consumers if cache clearing fails.
         })
         await Promise.all([
@@ -5705,14 +5854,7 @@ export function ChatView({
         chatId,
         subChatId: activeSubChatId,
       })
-      setFileViewerPath(record.filePath)
-      toast.success(
-        record.created ? t("chat.toast.vulnerabilityRecordCreated") : t("chat.toast.vulnerabilityRecordOpened"),
-        {
-          description: record.relativePath,
-          position: "top-center",
-        },
-      )
+      openFileInSidebar(record.filePath)
     } catch (error) {
       toast.error(t("chat.toast.openVulnerabilityRecordFailed"), {
         description: error instanceof Error ? error.message : t("common.unknownError"),
@@ -5723,39 +5865,20 @@ export function ChatView({
     activeSubChatId,
     chatId,
     ensureSecurityRecordMutation,
-    setFileViewerPath,
+    openFileInSidebar,
     t,
   ])
 
-  const handleGenerateSecurityMiningReport = useCallback(async () => {
-    if (!activeSubChatId) {
-      toast.error(t("chat.toast.noActiveChatTab"), { position: "top-center" })
+  const handleOpenSecurityMiningReport = useCallback(() => {
+    if (!securityArtifactLocation?.reportPath || !securityArtifactLocation.reportExists) {
+      toast.error(t("chat.toast.markdownReportUnavailable"), {
+        position: "top-center",
+      })
       return
     }
 
-    try {
-      const report = await generateSecurityReportMutation.mutateAsync({
-        chatId,
-        subChatId: activeSubChatId,
-      })
-      setFileViewerPath(report.reportPath)
-      toast.success(t("chat.toast.markdownReportGenerated"), {
-        description: report.reportRelativePath,
-        position: "top-center",
-      })
-    } catch (error) {
-      toast.error(t("chat.toast.generateMarkdownReportFailed"), {
-        description: error instanceof Error ? error.message : t("common.unknownError"),
-        position: "top-center",
-      })
-    }
-  }, [
-    activeSubChatId,
-    chatId,
-    generateSecurityReportMutation,
-    t,
-    setFileViewerPath,
-  ])
+    openFileInSidebar(securityArtifactLocation.reportPath)
+  }, [openFileInSidebar, securityArtifactLocation, t])
 
   // Direct PR creation mutation (push branch and open GitHub)
   const createPrMutation = trpc.changes.createPR.useMutation({
@@ -6187,20 +6310,36 @@ export function ChatView({
 
       const normalizedFilePath = normalizeViewerPath(data.filePath, worktreePath)
       const knownRecordPath = securityArtifactLocation?.filePath
+      const knownReportPath = securityArtifactLocation?.reportPath
       const isSecurityRecord =
         normalizedFilePath === knownRecordPath ||
         isSecurityMiningRecordPath(normalizedFilePath)
+      const isSecurityReport =
+        normalizedFilePath === knownReportPath ||
+        isSecurityMiningReportPath(normalizedFilePath)
 
-      if (!isSecurityRecord) return
+      if (!isSecurityRecord && !isSecurityReport) return
       if (activeSubChatId && data.subChatId !== activeSubChatId) return
 
-      setFileViewerPath(normalizedFilePath)
-      if (securityRecordAutoOpenedPathRef.current !== normalizedFilePath) {
+      setSecurityArtifactLocationOverride((current) =>
+        getSecurityArtifactLocationFromFilePath({
+          filePath: normalizedFilePath,
+          isSecurityRecord,
+          isSecurityReport,
+          current: current ?? securityArtifactLocation,
+        }) ?? current,
+      )
+
+      const shouldAutoOpenArtifact = shouldAutoOpenSecurityArtifact({
+        isSecurityRecord,
+        isSecurityReport,
+      })
+      if (
+        shouldAutoOpenArtifact &&
+        securityRecordAutoOpenedPathRef.current !== normalizedFilePath
+      ) {
+        openFileInSidebar(normalizedFilePath)
         securityRecordAutoOpenedPathRef.current = normalizedFilePath
-        toast.success(t("chat.toast.vulnerabilityRecordUpdated"), {
-          description: getViewerFileName(normalizedFilePath),
-          position: "top-center",
-        })
       }
 
       if (securityRecordQueryInput) {
@@ -6210,11 +6349,12 @@ export function ChatView({
     },
     [
       activeSubChatId,
+      openFileInSidebar,
       scheduleDiffRefresh,
+      securityArtifactLocation,
       securityArtifactLocation?.filePath,
+      securityArtifactLocation?.reportPath,
       securityRecordQueryInput,
-      setFileViewerPath,
-      t,
       trpcUtils,
       worktreePath,
     ],
@@ -6222,6 +6362,60 @@ export function ChatView({
 
   // Listen for file changes from Claude Write/Edit tools and refresh diff
   useFileChangeListener(worktreePath, { onChange: handleAgentFileChange })
+
+  trpc.files.watchChanges.useSubscription(
+    { projectPath: securityArtifactLocation?.projectPath || "" },
+    {
+      enabled: !!securityArtifactLocation?.projectPath && !!activeSubChatId,
+      onData: (change) => {
+        if (!securityArtifactLocation?.projectPath || !activeSubChatId) return
+
+        const filePath = normalizeViewerPath(
+          change.filename,
+          securityArtifactLocation.projectPath,
+        )
+        if (
+          !isSecurityMiningRecordPath(filePath) &&
+          !isSecurityMiningReportPath(filePath)
+        ) {
+          return
+        }
+
+        handleAgentFileChange({
+          filePath,
+          type: `fs-${change.eventType}`,
+          subChatId: activeSubChatId,
+        })
+      },
+    },
+  )
+
+  trpc.files.watchChanges.useSubscription(
+    { projectPath: originalProjectPath || "" },
+    {
+      enabled:
+        !!originalProjectPath &&
+        !!activeSubChatId &&
+        originalProjectPath !== securityArtifactLocation?.projectPath,
+      onData: (change) => {
+        if (!originalProjectPath || !activeSubChatId) return
+
+        const filePath = normalizeViewerPath(change.filename, originalProjectPath)
+        if (
+          !isSecurityMiningRecordPath(filePath) &&
+          !isSecurityMiningReportPath(filePath)
+        ) {
+          return
+        }
+
+        handleAgentFileChange({
+          filePath,
+          type: `project-fs-${change.eventType}`,
+          subChatId: activeSubChatId,
+        })
+      },
+    },
+  )
 
   // Subscribe to GitWatcher for real-time file system monitoring (chokidar on main process)
   useGitWatcher(worktreePath, { onChange: scheduleDiffRefresh, debounceMs: 200 })
@@ -7667,27 +7861,31 @@ Make sure to preserve all functionality from both branches when resolving confli
       !isMobileFullscreen)
 
   const fileViewerProjectPath = useMemo(() => {
-    if (!fileViewerPath) return worktreePath
-    if (!fileViewerPath.startsWith("/")) return worktreePath
-    if (
-      securityArtifactLocation &&
-      (fileViewerPath === securityArtifactLocation.filePath ||
-        fileViewerPath === securityArtifactLocation.reportPath)
-    ) {
-      return securityArtifactLocation.projectPath
-    }
-    if (worktreePath && fileViewerPath.startsWith(worktreePath)) return worktreePath
-    return worktreePath || securityArtifactLocation?.projectPath || null
+    return resolveFileViewerProjectPath({
+      fileViewerPath,
+      worktreePath,
+      originalProjectPath,
+      securityArtifactLocation,
+    })
   }, [
     fileViewerPath,
+    originalProjectPath,
     securityArtifactLocation,
     worktreePath,
   ])
+  const activeSubChatStreamingStatus = useStreamingStatusStore((state) =>
+    activeSubChatId ? state.statuses[activeSubChatId] ?? "ready" : "ready",
+  )
+  const isActiveSubChatStreaming =
+    activeSubChatStreamingStatus === "streaming" ||
+    activeSubChatStreamingStatus === "submitted"
+  const securityReportAvailable =
+    Boolean(securityArtifactLocation?.reportExists) && !isActiveSubChatStreaming
 
   // No early return - let the UI render with loading state handled by activeChat check below
 
   return (
-    <FileOpenProvider onOpenFile={setFileViewerPath}>
+    <FileOpenProvider onOpenFile={openFileInSidebar}>
     <TextSelectionProvider>
     {/* File Search Dialog (Cmd+P) */}
     {worktreePath && (
@@ -7791,28 +7989,25 @@ Make sure to preserve all functionality from both branches when resolving confli
                               {t("chat.toolbar.openVulnerabilityRecord")}
                             </TooltipContent>
                           </Tooltip>
-                          <Tooltip delayDuration={500}>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleGenerateSecurityMiningReport}
-                                disabled={generateSecurityReportMutation.isPending}
-                                className="h-6 px-2 gap-1.5 text-xs font-medium hover:bg-foreground/10 transition-colors rounded-md"
-                                aria-label={t("chat.toolbar.generateMarkdownReport")}
-                              >
-                                {generateSecurityReportMutation.isPending ? (
-                                  <IconSpinner className="h-3 w-3 animate-spin" />
-                                ) : (
+                          {securityReportAvailable && (
+                            <Tooltip delayDuration={500}>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={handleOpenSecurityMiningReport}
+                                  className="h-6 px-2 gap-1.5 text-xs font-medium hover:bg-foreground/10 transition-colors rounded-md"
+                                  aria-label={t("chat.toolbar.openMarkdownReport")}
+                                >
                                   <FileDown className="h-3.5 w-3.5" />
-                                )}
-                                <span>{t("chat.toolbar.exportReport")}</span>
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom">
-                              {t("chat.toolbar.generateMarkdownReport")}
-                            </TooltipContent>
-                          </Tooltip>
+                                  <span>{t("chat.toolbar.exportReport")}</span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom">
+                                {t("chat.toolbar.openMarkdownReport")}
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
                         </>
                       )}
                       {/* Open Locally button - desktop only, sandbox mode */}

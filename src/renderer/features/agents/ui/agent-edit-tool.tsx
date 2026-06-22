@@ -2,6 +2,7 @@
 
 import { memo, useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { useAtomValue, useSetAtom } from "jotai"
+import { extractCodexFileChanges, type CodexFileChangeSummary } from "../../../../shared/codex-file-change-stats"
 import { useCodeTheme } from "../../../lib/hooks/use-code-theme"
 import { highlightCode } from "../../../lib/themes/shiki-theme-loader"
 import {
@@ -214,6 +215,159 @@ const DiffLineRow = memo(
     prevProps.highlightedHtml === nextProps.highlightedHtml,
 )
 
+function AgentCodexFileChangesTool({
+  part,
+  changes,
+  messageId,
+  partIndex,
+  chatStatus,
+}: AgentEditToolProps & { changes: CodexFileChangeSummary[] }) {
+  const [expandedFiles, setExpandedFiles] = useState<Set<string>>(() => new Set())
+  const { isPending, isInterrupted } = getToolStatus(part, chatStatus)
+  const { t } = useI18n()
+  const selectedProject = useAtomValue(selectedProjectAtom)
+  const projectPath = selectedProject?.path
+  const onOpenFile = useFileOpen()
+
+  const toggleFile = useCallback((filePath: string) => {
+    setExpandedFiles((prev) => {
+      const next = new Set(prev)
+      if (next.has(filePath)) {
+        next.delete(filePath)
+      } else {
+        next.add(filePath)
+      }
+      return next
+    })
+  }, [])
+
+  if (isInterrupted) {
+    return <AgentToolInterrupted toolName={t("chat.tool.edit")} />
+  }
+
+  return (
+    <div className="mx-2 flex flex-col gap-1.5">
+      {changes.map((change, changeIndex) => {
+        const filePath = change.filePath
+        const displayPath = getDisplayPath(filePath, projectPath)
+        const filename = filePath.split("/").pop() || "file"
+        const FileIcon = getFileIconByExtension(filename, true)
+        const isExpanded = expandedFiles.has(filePath)
+        const hasVisibleContent = change.diffLines.length > 0
+
+        return (
+          <div
+            key={`${filePath}-${changeIndex}`}
+            data-message-id={messageId}
+            data-part-index={partIndex}
+            data-part-type={part.type}
+            data-tool-file-path={displayPath}
+            className="rounded-lg border border-border bg-muted/30 overflow-hidden"
+          >
+            <div
+              onClick={hasVisibleContent ? () => toggleFile(filePath) : undefined}
+              className={cn(
+                "flex items-center justify-between pl-2.5 pr-0.5 h-7",
+                hasVisibleContent && !isPending && "cursor-pointer hover:bg-muted/50 transition-colors duration-150",
+              )}
+            >
+              <div
+                onClick={(event) => {
+                  if (!onOpenFile) return
+                  event.stopPropagation()
+                  onOpenFile(filePath)
+                }}
+                className="flex items-center gap-1.5 text-xs truncate flex-1 min-w-0 cursor-pointer hover:text-foreground"
+              >
+                {FileIcon && (
+                  <FileIcon className="w-2.5 h-2.5 flex-shrink-0 text-muted-foreground" />
+                )}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="truncate text-foreground">{filename}</span>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="top"
+                    className="px-2 py-1.5 max-w-none flex items-center justify-center"
+                  >
+                    <span className="font-mono text-[10px] text-muted-foreground whitespace-nowrap leading-none">
+                      {displayPath}
+                    </span>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+
+              <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                {!isPending && (
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <span className="text-green-600 dark:text-green-400">
+                      +{change.additions}
+                    </span>
+                    {change.deletions > 0 && (
+                      <span className="text-red-600 dark:text-red-400">
+                        -{change.deletions}
+                      </span>
+                    )}
+                  </div>
+                )}
+                <div className="w-6 h-6 flex items-center justify-center">
+                  {isPending ? (
+                    <IconSpinner className="w-3 h-3" />
+                  ) : hasVisibleContent ? (
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        toggleFile(filePath)
+                      }}
+                      className="p-1 rounded-md hover:bg-accent transition-[background-color,transform] duration-150 ease-out active:scale-95"
+                    >
+                      <div className="relative w-4 h-4">
+                        <ExpandIcon
+                          className={cn(
+                            "absolute inset-0 w-4 h-4 text-muted-foreground transition-[opacity,transform] duration-200 ease-out",
+                            isExpanded ? "opacity-0 scale-75" : "opacity-100 scale-100",
+                          )}
+                        />
+                        <CollapseIcon
+                          className={cn(
+                            "absolute inset-0 w-4 h-4 text-muted-foreground transition-[opacity,transform] duration-200 ease-out",
+                            isExpanded ? "opacity-100 scale-100" : "opacity-0 scale-75",
+                          )}
+                        />
+                      </div>
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
+            {hasVisibleContent && (
+              <div
+                onClick={() => {
+                  if (!isExpanded && !isPending) toggleFile(filePath)
+                }}
+                className={cn(
+                  "border-t border-border transition-colors duration-150 font-mono text-xs",
+                  isExpanded ? "max-h-[200px] overflow-y-auto" : "h-[72px] overflow-hidden",
+                  !isExpanded && !isPending && "cursor-pointer hover:bg-muted/50",
+                )}
+              >
+                {change.diffLines.map((line, idx) => (
+                  <DiffLineRow
+                    key={`${line.type}-${idx}`}
+                    line={line}
+                    highlightedHtml={undefined}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export const AgentEditTool = memo(function AgentEditTool({
   part,
   messageId,
@@ -250,6 +404,7 @@ export const AgentEditTool = memo(function AgentEditTool({
 
   // Get structuredPatch from output (only available when complete)
   const structuredPatch = part.output?.structuredPatch
+  const codexFileChanges = useMemo(() => extractCodexFileChanges(part), [part])
 
   // Extract filename from path
   const filename = filePath ? filePath.split("/").pop() || "file" : ""
@@ -463,6 +618,18 @@ export const AgentEditTool = memo(function AgentEditTool({
     }
     return isInputStreaming ? t("chat.tool.editing") : t("chat.tool.edited")
   }, [isWriteMode, isInputStreaming, t])
+
+  if (codexFileChanges.length > 0) {
+    return (
+      <AgentCodexFileChangesTool
+        part={part}
+        changes={codexFileChanges}
+        messageId={messageId}
+        partIndex={partIndex}
+        chatStatus={chatStatus}
+      />
+    )
+  }
 
   // Show minimal view (no background/border) until we have the full file path
   // This prevents showing a large empty component while path is being streamed

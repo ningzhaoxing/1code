@@ -1,5 +1,6 @@
 import { useSetAtom } from "jotai"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { extractCodexFileChanges } from "../../../../shared/codex-file-change-stats"
 import { subChatFilesAtom, subChatToChatMapAtom, type SubChatFileChange } from "../atoms"
 // import { REPO_ROOT_PATH } from "@/lib/codesandbox-constants"
 const REPO_ROOT_PATH = "/workspace" // Desktop mock
@@ -104,6 +105,7 @@ export function useChangedFilesTracking(
   const [changedFiles, setChangedFiles] = useState<SubChatFileChange[]>([])
   const wasStreamingRef = useRef(false)
   const isInitializedRef = useRef(false)
+  const previousSubChatIdRef = useRef(subChatId)
 
   // Check if a file path is a session/plan file that should be excluded
   const isSessionFile = useCallback((filePath: string): boolean => {
@@ -126,11 +128,41 @@ export function useChangedFilesTracking(
           displayPath: string
         }
       >()
+      const codexFileStats = new Map<
+        string,
+        {
+          additions: number
+          deletions: number
+          displayPath: string
+        }
+      >()
 
       for (const msg of inputMessages) {
         if (msg.role !== "assistant") continue
         for (const part of msg.parts || []) {
           if (part.type === "tool-Edit" || part.type === "tool-Write") {
+            const codexFileChanges = extractCodexFileChanges(part)
+            if (codexFileChanges.length > 0) {
+              for (const change of codexFileChanges) {
+                const filePath = change.filePath
+                if (!filePath) continue
+                if (isSessionFile(filePath)) continue
+
+                const existing = codexFileStats.get(filePath)
+                if (existing) {
+                  existing.additions += change.additions
+                  existing.deletions += change.deletions
+                } else {
+                  codexFileStats.set(filePath, {
+                    additions: change.additions,
+                    deletions: change.deletions,
+                    displayPath: getDisplayPath(filePath),
+                  })
+                }
+              }
+              continue
+            }
+
             const filePath = part.input?.file_path
             if (!filePath) continue
 
@@ -175,6 +207,14 @@ export function useChangedFilesTracking(
           deletions: stats.deletions,
         })
       }
+      for (const [filePath, stats] of codexFileStats) {
+        result.push({
+          filePath,
+          displayPath: stats.displayPath,
+          additions: stats.additions,
+          deletions: stats.deletions,
+        })
+      }
 
       return result
     },
@@ -191,6 +231,14 @@ export function useChangedFilesTracking(
     },
     [calculateChangedFiles, messages],
   )
+
+  useEffect(() => {
+    if (previousSubChatIdRef.current === subChatId) return
+    previousSubChatIdRef.current = subChatId
+    wasStreamingRef.current = false
+    isInitializedRef.current = false
+    setChangedFiles([])
+  }, [subChatId])
 
   // Only recalculate when streaming ends (transition from true to false)
   // Also calculate on initial mount if not streaming

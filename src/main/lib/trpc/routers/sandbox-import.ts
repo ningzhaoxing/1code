@@ -12,6 +12,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
+import { syncDefaultProjectSkills } from "../../agent-skills/default-project-skills";
 
 const execAsync = promisify(exec);
 
@@ -562,6 +563,11 @@ export const sandboxImportRouter = router({
 						.get();
 
 			console.log(`[OPEN-LOCALLY] Project created/updated:`, { id: project.id, name: project.name });
+			const skillSyncResults = await syncDefaultProjectSkills({ projectPath: project.path });
+			const skillSyncFailures = skillSyncResults.filter((result) => !result.ok);
+			if (skillSyncFailures.length > 0) {
+				console.warn("[OPEN-LOCALLY] Failed to sync some default project skills:", skillSyncFailures);
+			}
 
 			// Create chat record (using the project path directly, no separate worktree needed
 			// since this is a fresh clone)

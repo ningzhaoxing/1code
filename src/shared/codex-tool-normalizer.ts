@@ -68,6 +68,41 @@ function getFirstParsedCmdValue(
   return match[key].trim()
 }
 
+function getShellCommand(value: unknown): string | undefined {
+  if (!isRecord(value)) return undefined
+  const rawCommand = value.command
+  if (typeof rawCommand === "string" && rawCommand.trim().length > 0) {
+    return rawCommand.trim()
+  }
+  if (Array.isArray(rawCommand)) {
+    const command = rawCommand
+      .filter((item): item is string => typeof item === "string")
+      .at(-1)
+      ?.trim()
+    if (command) return command
+  }
+
+  const parsedCmd = getFirstParsedCmdValue(
+    getParsedCmdEntriesFromPayload(value),
+    "cmd",
+  )
+  return parsedCmd
+}
+
+function inferShellToolDescriptor(
+  input: unknown,
+  output?: unknown,
+): CodexToolDescriptor | null {
+  const command = getShellCommand(input) || getShellCommand(output)
+  if (!command) return null
+
+  return {
+    canonicalToolName: "Bash",
+    detail: command,
+    isMcp: false,
+  }
+}
+
 function normalizeReadInputFromPayload(
   input: unknown,
   payload: unknown,
@@ -184,7 +219,12 @@ function normalizeCodexToolInput(
       }
     }
 
-    if (descriptor.canonicalToolName === "Read" && descriptor.detail) {
+    if (
+      (descriptor.canonicalToolName === "Read" ||
+        descriptor.canonicalToolName === "Edit" ||
+        descriptor.canonicalToolName === "Write") &&
+      descriptor.detail
+    ) {
       return { file_path: descriptor.detail }
     }
     if (descriptor.canonicalToolName === "Bash" && descriptor.detail) {
@@ -230,7 +270,11 @@ function normalizeCodexToolInput(
     normalizedInput.command = rawInput.command
   }
 
-  if (descriptor.canonicalToolName === "Read") {
+  if (
+    descriptor.canonicalToolName === "Read" ||
+    descriptor.canonicalToolName === "Edit" ||
+    descriptor.canonicalToolName === "Write"
+  ) {
     if (!normalizedInput.file_path) {
       if (typeof normalizedInput.path === "string" && normalizedInput.path.length > 0) {
         normalizedInput.file_path = normalizedInput.path
@@ -285,6 +329,14 @@ function normalizeCodexToolInput(
 }
 
 function getPartToolName(part: AnyRecord): string | null {
+  if (
+    part.toolName === "acp.acp_provider_agent_dynamic_tool" &&
+    isRecord(part.input) &&
+    typeof part.input.toolName === "string" &&
+    part.input.toolName.length > 0
+  ) {
+    return part.input.toolName
+  }
   if (typeof part.toolName === "string" && part.toolName.length > 0) {
     return part.toolName
   }
@@ -305,7 +357,9 @@ export function normalizeCodexToolPart(
   if (typeof part.type !== "string" || !part.type.startsWith("tool-")) return part
 
   const rawToolName = getPartToolName(part)
-  const descriptor = rawToolName ? parseCodexToolDescriptor(rawToolName) : null
+  const descriptor =
+    (rawToolName ? parseCodexToolDescriptor(rawToolName) : null) ||
+    inferShellToolDescriptor(part.input, part.output ?? part.result)
   const shouldNormalizeState =
     options?.normalizeState === true &&
     (part.state === "input-available" || part.state === "output-available")
@@ -397,7 +451,16 @@ export function normalizeCodexStreamChunk(chunk: unknown): unknown {
   }
   if (typeof chunk.toolName !== "string" || chunk.toolName.length === 0) return chunk
 
-  const descriptor = parseCodexToolDescriptor(chunk.toolName)
+  const inputToolDescriptor =
+    chunk.type === "tool-input-available" &&
+    isRecord(chunk.input) &&
+    typeof chunk.input.toolName === "string"
+      ? parseCodexToolDescriptor(chunk.input.toolName)
+      : null
+  const descriptor =
+    parseCodexToolDescriptor(chunk.toolName) ||
+    inputToolDescriptor ||
+    inferShellToolDescriptor(chunk.type === "tool-input-available" ? chunk.input : undefined)
   const hasCodexArgsWrapper =
     chunk.type === "tool-input-available" &&
     isRecord(chunk.input) &&

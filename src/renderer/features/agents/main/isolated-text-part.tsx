@@ -7,6 +7,7 @@ import { MemoizedMarkdown } from "../../../components/chat-markdown-renderer"
 import { getPerChatMessageKey, messageAtomFamily, isMessageStreamingAtomFamily } from "../stores/message-store"
 import { useSearchHighlight, useSearchQuery } from "../search"
 import { appStore } from "../../../lib/jotai-store"
+import { useFileOpen } from "../mentions"
 
 // ============================================================================
 // TEXT PART STORE - External store for text parts to avoid re-renders
@@ -254,6 +255,7 @@ export const IsolatedTextPart = memo(function IsolatedTextPart({
   visibleStepsCount,
 }: IsolatedTextPartProps) {
   const contentRef = useRef<HTMLDivElement>(null)
+  const onOpenFile = useFileOpen()
 
   // Use external store to subscribe to ONLY this text part
   // This prevents re-renders when other parts of the same message change
@@ -323,6 +325,7 @@ export const IsolatedTextPart = memo(function IsolatedTextPart({
           content={text}
           id={`${messageId}-${partIndex}`}
           size="sm"
+          onOpenFile={onOpenFile ?? undefined}
         />
       </div>
     </div>

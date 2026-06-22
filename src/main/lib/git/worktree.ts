@@ -14,6 +14,10 @@ import { checkGitLfsAvailable, getShellEnvironment } from "./shell-env";
 import { executeWorktreeSetup } from "./worktree-config";
 import type { WorktreeSetupResult } from "./worktree-config";
 import { generateWorktreeFolderName } from "./worktree-naming";
+import {
+	syncDefaultProjectSkills,
+	syncProjectInstalledSkillsToWorktree,
+} from "../agent-skills/default-project-skills";
 
 const execFileAsync = promisify(execFile);
 
@@ -938,6 +942,22 @@ export async function createWorktreeForChat(
 		const startPoint = branchType === "local" ? baseBranch : `origin/${baseBranch}`;
 
 		await createWorktree(projectPath, branch, worktreePath, startPoint);
+		const projectSkillSyncResults = await syncProjectInstalledSkillsToWorktree({
+			sourceProjectPath: projectPath,
+			worktreePath,
+		});
+		const projectSkillSyncFailures = projectSkillSyncResults.filter((result) => !result.ok);
+		if (projectSkillSyncFailures.length > 0) {
+			console.warn("[worktree] Failed to sync some project-installed skills:", projectSkillSyncFailures);
+		}
+
+		const skillSyncResults = await syncDefaultProjectSkills({
+			projectPath: worktreePath,
+		});
+		const skillSyncFailures = skillSyncResults.filter((result) => !result.ok);
+		if (skillSyncFailures.length > 0) {
+			console.warn("[worktree] Failed to sync some default skills:", skillSyncFailures);
+		}
 
 		// Run worktree setup commands in BACKGROUND (don't block chat creation)
 		// This allows the user to start chatting immediately while deps install

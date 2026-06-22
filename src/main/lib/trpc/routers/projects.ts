@@ -12,8 +12,19 @@ import { extname } from "node:path"
 import { getGitRemoteInfo } from "../../git"
 import { trackProjectOpened } from "../../analytics"
 import { getLaunchDirectory } from "../../cli"
+import { syncDefaultProjectSkills } from "../../agent-skills/default-project-skills"
 
 const execAsync = promisify(exec)
+
+async function syncDefaultSkillsForProject(projectPath: string | null | undefined) {
+  if (!projectPath) return
+
+  const results = await syncDefaultProjectSkills({ projectPath })
+  const failures = results.filter((result) => !result.ok)
+  if (failures.length > 0) {
+    console.warn("[Projects] Failed to sync some default project skills:", failures)
+  }
+}
 
 export const projectsRouter = router({
   /**
@@ -107,6 +118,8 @@ export const projectsRouter = router({
         hasGitRemote: !!gitInfo.remoteUrl,
       })
 
+      await syncDefaultSkillsForProject(updatedProject!.path)
+
       return updatedProject
     }
 
@@ -130,6 +143,8 @@ export const projectsRouter = router({
       hasGitRemote: !!gitInfo.remoteUrl,
     })
 
+    await syncDefaultSkillsForProject(newProject!.path)
+
     return newProject
   }),
 
@@ -150,13 +165,14 @@ export const projectsRouter = router({
         .get()
 
       if (existing) {
+        await syncDefaultSkillsForProject(existing.path)
         return existing
       }
 
       // Get git remote info
       const gitInfo = await getGitRemoteInfo(input.path)
 
-      return db
+      const newProject = db
         .insert(projects)
         .values({
           name,
@@ -168,6 +184,10 @@ export const projectsRouter = router({
         })
         .returning()
         .get()
+
+      await syncDefaultSkillsForProject(newProject!.path)
+
+      return newProject
     }),
 
   /**
@@ -291,6 +311,7 @@ export const projectsRouter = router({
           .get()
 
         if (existing) {
+          await syncDefaultSkillsForProject(existing.path)
           trackProjectOpened({
             id: existing.id,
             hasGitRemote: !!existing.gitRemoteUrl,
@@ -317,6 +338,7 @@ export const projectsRouter = router({
           id: newProject!.id,
           hasGitRemote: !!gitInfo.remoteUrl,
         })
+        await syncDefaultSkillsForProject(newProject!.path)
         return newProject
       }
 
@@ -348,6 +370,8 @@ export const projectsRouter = router({
         id: newProject!.id,
         hasGitRemote: !!gitInfo.remoteUrl,
       })
+
+      await syncDefaultSkillsForProject(newProject!.path)
 
       return newProject
     }),
@@ -427,6 +451,8 @@ export const projectsRouter = router({
           .returning()
           .get()
 
+        await syncDefaultSkillsForProject(updated!.path)
+
         return { success: true as const, project: updated }
       }
 
@@ -442,6 +468,8 @@ export const projectsRouter = router({
         })
         .returning()
         .get()
+
+      await syncDefaultSkillsForProject(project!.path)
 
       return { success: true as const, project }
     }),

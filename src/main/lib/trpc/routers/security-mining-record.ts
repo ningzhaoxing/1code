@@ -15,11 +15,15 @@ import { publicProcedure, router } from "../index"
 
 type LocationWithCreated = SecurityMiningRecordLocation & {
   created: boolean
+  recordExists: boolean
+  reportExists: boolean
 }
 
 type ReportGenerationResult = SecurityMiningRecordLocation & {
   byteLength: number
   generatedAt: string
+  recordExists: boolean
+  reportExists: boolean
 }
 
 async function getExistingDirectory(path: string | null | undefined): Promise<string | null> {
@@ -81,6 +85,15 @@ async function ensureLocationFile(
   }
 }
 
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await access(filePath, constants.F_OK)
+    return true
+  } catch {
+    return false
+  }
+}
+
 async function readTextFileIfExists(filePath: string): Promise<string> {
   try {
     return await readFile(filePath, "utf-8")
@@ -107,7 +120,12 @@ export const securityMiningRecordRouter = router({
   location: publicProcedure
     .input(securityMiningRecordInput)
     .query(async ({ input }) => {
-      return getLocationForChat(input)
+      const location = await getLocationForChat(input)
+      return {
+        ...location,
+        recordExists: await fileExists(location.filePath),
+        reportExists: await fileExists(location.reportPath),
+      }
     }),
 
   ensure: publicProcedure
@@ -115,7 +133,12 @@ export const securityMiningRecordRouter = router({
     .mutation(async ({ input }) => {
       const location = await getLocationForChat(input)
       const { created } = await ensureLocationFile(location)
-      return { ...location, created } satisfies LocationWithCreated
+      return {
+        ...location,
+        created,
+        recordExists: true,
+        reportExists: await fileExists(location.reportPath),
+      } satisfies LocationWithCreated
     }),
 
   generateReport: publicProcedure
@@ -165,6 +188,8 @@ export const securityMiningRecordRouter = router({
         ...location,
         byteLength: Buffer.byteLength(reportContent, "utf-8"),
         generatedAt: generatedAt.toISOString(),
+        recordExists: true,
+        reportExists: true,
       } satisfies ReportGenerationResult
     }),
 })
