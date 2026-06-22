@@ -1,8 +1,12 @@
 "use client"
 
 import { useAtomValue } from "jotai"
-import { ListTree, MoreHorizontal } from "lucide-react"
+import { ListTree, MoreHorizontal, WifiOff } from "lucide-react"
 import { memo, useCallback, useContext, useMemo, useState } from "react"
+import {
+  CODEX_TRANSPORT_DIAGNOSTIC_PART_TYPE,
+  type CodexTransportDiagnosticData,
+} from "../../../../shared/codex-transport-diagnostic"
 import { normalizeCodexToolPart } from "../../../../shared/codex-tool-normalizer"
 
 import {
@@ -353,6 +357,87 @@ function CollapsibleSteps({
   )
 }
 
+type Translate = ReturnType<typeof useI18n>["t"]
+
+function getCodexTransportDiagnosticCopy(
+  code: string | undefined,
+  fallback: Pick<CodexTransportDiagnosticData, "title" | "message"> | null,
+  t: Translate,
+): { title: string; message: string } {
+  switch (code) {
+    case "websocket_fallback":
+      return {
+        title: t("chat.codexTransport.websocketFallbackTitle"),
+        message: t("chat.codexTransport.websocketFallbackMessage"),
+      }
+    case "response_stream_disconnected":
+      return {
+        title: t("chat.codexTransport.streamDisconnectedTitle"),
+        message: t("chat.codexTransport.streamDisconnectedMessage"),
+      }
+    case "request_timeout":
+      return {
+        title: t("chat.codexTransport.requestTimeoutTitle"),
+        message: t("chat.codexTransport.requestTimeoutMessage"),
+      }
+    case "reconnecting":
+      return {
+        title: t("chat.codexTransport.reconnectingTitle"),
+        message: t("chat.codexTransport.reconnectingMessage"),
+      }
+    case "turn_error":
+      return {
+        title: t("chat.codexTransport.turnErrorTitle"),
+        message: t("chat.codexTransport.turnErrorMessage"),
+      }
+    default:
+      return {
+        title: fallback?.title || t("chat.codexTransport.turnErrorTitle"),
+        message: fallback?.message || t("chat.codexTransport.turnErrorMessage"),
+      }
+  }
+}
+
+function CodexTransportDiagnosticRow({
+  part,
+  t,
+}: {
+  part: { data?: Partial<CodexTransportDiagnosticData> }
+  t: Translate
+}) {
+  const data = part.data || {}
+  const copy = getCodexTransportDiagnosticCopy(
+    typeof data.code === "string" ? data.code : undefined,
+    typeof data.title === "string" && typeof data.message === "string"
+      ? { title: data.title, message: data.message }
+      : null,
+    t,
+  )
+  const raw = typeof data.raw === "string" ? data.raw : ""
+  const isError = data.level === "error"
+
+  return (
+    <div
+      className={cn(
+        "flex min-w-0 items-start gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground",
+        isError ? "bg-destructive/10" : "bg-muted/35",
+      )}
+      title={raw || copy.message}
+    >
+      <WifiOff
+        className={cn(
+          "mt-0.5 h-3.5 w-3.5 flex-shrink-0",
+          isError ? "text-destructive" : "text-amber-500",
+        )}
+      />
+      <div className="min-w-0 leading-5">
+        <span className="font-medium text-foreground/70">{copy.title}</span>
+        <span className="ml-1 break-words">{copy.message}</span>
+      </div>
+    </div>
+  )
+}
+
 // ============================================================================
 // ASSISTANT MESSAGE ITEM - MEMOIZED BY MESSAGE ID + PARTS LENGTH
 // ============================================================================
@@ -501,7 +586,7 @@ export const AssistantMessageItem = memo(function AssistantMessageItem({
   // Note: no useMemo — AI SDK mutates parts in-place, so the array reference
   // doesn't change and useMemo would return stale results.
   const messageParts = normalizeAcpParts(
-    (message?.parts || []).map((part) => normalizeCodexToolPart(part) as any),
+    (message?.parts || []).map((part: any) => normalizeCodexToolPart(part) as any),
   )
 
   const contentParts = useMemo(() =>
@@ -679,6 +764,10 @@ export const AssistantMessageItem = memo(function AssistantMessageItem({
   const renderPart = useCallback((part: any, idx: number, isFinal = false) => {
     if (part.type === "step-start") return null
     if (part.type === "tool-TaskOutput") return null
+
+    if (part.type === CODEX_TRANSPORT_DIAGNOSTIC_PART_TYPE) {
+      return <CodexTransportDiagnosticRow key={idx} part={part} t={t} />
+    }
 
     if (part.toolCallId && orphanToolCallIds.has(part.toolCallId)) {
       if (!orphanFirstToolCallIds.has(part.toolCallId)) return null
@@ -869,7 +958,7 @@ export const AssistantMessageItem = memo(function AssistantMessageItem({
     }
 
     return null
-  }, [nestedToolsMap, nestedToolIds, orphanToolCallIds, orphanFirstToolCallIds, orphanTaskGroups, collapseBeforeIndex, visibleStepsCount, status, isLastMessage, isStreaming, subChatId, message.id, planOpsSummary, shouldCollapse, lastCollapsedPlanOp])
+  }, [nestedToolsMap, nestedToolIds, orphanToolCallIds, orphanFirstToolCallIds, orphanTaskGroups, collapseBeforeIndex, visibleStepsCount, status, isLastMessage, isStreaming, subChatId, message.id, planOpsSummary, shouldCollapse, lastCollapsedPlanOp, t])
 
   if (!message) return null
 

@@ -18,6 +18,12 @@ import {
   normalizeCodexAssistantMessage,
   normalizeCodexStreamChunk,
 } from "../../../../shared/codex-tool-normalizer"
+import {
+  CODEX_TRANSPORT_DIAGNOSTIC_PART_TYPE,
+  getCodexTransportDiagnosticKey,
+  parseCodexAcpTransportDiagnostic,
+  type CodexTransportDiagnosticPart,
+} from "../../../../shared/codex-transport-diagnostic"
 import { getClaudeShellEnvironment } from "../../claude/env"
 import { resolveProjectPathFromWorktree } from "../../claude-config"
 import {
@@ -115,6 +121,9 @@ type ActiveCodexStream = {
   runId: string
   controller: AbortController
   cancelRequested: boolean
+  diagnostics: CodexTransportDiagnosticPart[]
+  diagnosticKeys: Set<string>
+  emitDiagnostic?: (chunk: CodexTransportDiagnosticPart) => void
 }
 
 const activeStreams = new Map<string, ActiveCodexStream>()
@@ -155,6 +164,7 @@ const loginSessions = new Map<string, CodexLoginSession>()
 const codexMcpCache = new Map<string, CodexMcpSnapshot>()
 let loggedCodexCliDevFallbackPath = false
 let codexAcpNoiseFilterInstalled = false
+let codexTransportDiagnosticSeq = 0
 
 const URL_CANDIDATE_REGEX = /https?:\/\/[^\s]+/g
 const ANSI_ESCAPE_REGEX = /\u001B\[[0-?]*[ -/]*[@-~]/g
@@ -290,6 +300,86 @@ function shouldSuppressCodexAcpStderrLine(line: string): boolean {
   )
 }
 
+function appendCodexTransportDiagnostics(
+  message: any,
+  diagnostics: CodexTransportDiagnosticPart[],
+): any {
+  if (!message || message.role !== "assistant" || diagnostics.length === 0) {
+    return message
+  }
+
+  const parts = Array.isArray(message.parts) ? message.parts : []
+  const existingDiagnosticIds = new Set(
+    parts
+      .filter(
+        (part: any) =>
+          part?.type === CODEX_TRANSPORT_DIAGNOSTIC_PART_TYPE &&
+          typeof part.id === "string",
+      )
+      .map((part: any) => part.id),
+  )
+  const missingDiagnostics = diagnostics.filter(
+    (diagnostic) => !existingDiagnosticIds.has(diagnostic.id),
+  )
+
+  if (missingDiagnostics.length === 0) {
+    return message
+  }
+
+  let insertIndex = 0
+  while (parts[insertIndex]?.type === "step-start") {
+    insertIndex += 1
+  }
+
+  return {
+    ...message,
+    parts: [
+      ...parts.slice(0, insertIndex),
+      ...missingDiagnostics,
+      ...parts.slice(insertIndex),
+    ],
+  }
+}
+
+function getCodexTransportDiagnosticsForRun(
+  subChatId: string,
+  runId: string,
+): CodexTransportDiagnosticPart[] {
+  const activeStream = activeStreams.get(subChatId)
+  if (activeStream?.runId !== runId) return []
+  return [...activeStream.diagnostics]
+}
+
+function emitCodexAcpTransportDiagnostic(line: string): void {
+  if (activeStreams.size === 0) return
+
+  const diagnostic = parseCodexAcpTransportDiagnostic(line)
+  if (!diagnostic) return
+
+  const diagnosticKey = getCodexTransportDiagnosticKey(diagnostic)
+  const timestamp = new Date().toISOString()
+
+  for (const stream of activeStreams.values()) {
+    if (!stream.emitDiagnostic || stream.diagnosticKeys.has(diagnosticKey)) {
+      continue
+    }
+
+    stream.diagnosticKeys.add(diagnosticKey)
+
+    const chunk: CodexTransportDiagnosticPart = {
+      type: CODEX_TRANSPORT_DIAGNOSTIC_PART_TYPE,
+      id: `codex-transport-${Date.now()}-${++codexTransportDiagnosticSeq}`,
+      data: {
+        ...diagnostic,
+        timestamp,
+      },
+    }
+
+    stream.diagnostics.push(chunk)
+    stream.emitDiagnostic(chunk)
+  }
+}
+
 function installCodexAcpNoiseFilter(): void {
   if (codexAcpNoiseFilterInstalled || process.env.DEBUG_CODEX_ACP_NOISE === "1") {
     return
@@ -321,8 +411,12 @@ function installCodexAcpNoiseFilter(): void {
       return originalStderrWrite(chunk as any, ...args)
     }
 
-    const filteredText = text
-      .split(/(?<=\n)/)
+    const lines = text.split(/(?<=\n)/)
+    for (const line of lines) {
+      emitCodexAcpTransportDiagnostic(line)
+    }
+
+    const filteredText = lines
       .filter((line) => !shouldSuppressCodexAcpStderrLine(line))
       .join("")
 
@@ -1868,6 +1962,8 @@ export const codexRouter = router({
           runId: input.runId,
           controller: abortController,
           cancelRequested: false,
+          diagnostics: [],
+          diagnosticKeys: new Set(),
         })
 
         let isActive = true
@@ -1879,6 +1975,13 @@ export const codexRouter = router({
           } catch {
             isActive = false
           }
+        }
+
+        const activeStreamForDiagnostics = activeStreams.get(input.subChatId)
+        if (activeStreamForDiagnostics?.runId === input.runId) {
+          // codex-acp stderr is surfaced through a shared process stderr hook,
+          // so diagnostics are broadcast to currently active Codex streams.
+          activeStreamForDiagnostics.emitDiagnostic = safeEmit
         }
 
         const safeComplete = () => {
@@ -2099,8 +2202,12 @@ export const codexRouter = router({
                         },
                       }
                     : responseMessage
+                  const responseWithDiagnostics = appendCodexTransportDiagnostics(
+                    responseWithUsage,
+                    getCodexTransportDiagnosticsForRun(input.subChatId, input.runId),
+                  )
                   const cleanedResponseMessage =
-                    cleanAssistantMessageForPersistence(responseWithUsage)
+                    cleanAssistantMessageForPersistence(responseWithDiagnostics)
 
                   if (!cleanedResponseMessage) {
                     persistSubChatMessages(messagesForStream)

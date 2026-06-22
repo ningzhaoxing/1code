@@ -4,6 +4,7 @@ import {
   normalizeCodexStreamChunk,
   normalizeCodexToolPart,
 } from "./codex-tool-normalizer"
+import { CODEX_TRANSPORT_DIAGNOSTIC_PART_TYPE } from "./codex-transport-diagnostic"
 
 describe("normalizeCodexStreamChunk", () => {
   test("normalizes Codex ACP proxy Run chunks to Claude-style Bash input", () => {
@@ -74,6 +75,23 @@ describe("normalizeCodexStreamChunk", () => {
     assert.equal(chunk.input.file_path, "/workspace/漏洞挖掘报告.md")
     assert.equal(chunk.input.old_string, "旧内容")
     assert.equal(chunk.input.new_string, "新内容")
+  })
+
+  test("passes Codex transport diagnostic data chunks through unchanged", () => {
+    const diagnosticChunk = {
+      type: CODEX_TRANSPORT_DIAGNOSTIC_PART_TYPE,
+      id: "codex-transport-test",
+      data: {
+        level: "warning",
+        code: "websocket_fallback",
+        title: "Codex transport fallback",
+        message: "WebSocket request timed out; using HTTPS transport.",
+        raw: "Falling back from WebSockets to HTTPS transport. request timed out",
+        timestamp: "2026-06-22T09:17:51.611Z",
+      },
+    }
+
+    assert.equal(normalizeCodexStreamChunk(diagnosticChunk), diagnosticChunk)
   })
 })
 
