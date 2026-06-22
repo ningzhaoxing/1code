@@ -205,10 +205,10 @@ export function AgentsDebugTab() {
 
       {/* System Info */}
       <div className="space-y-3">
-        <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+        <h4 className="font-mono text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
           {t("settings.debug.systemInfo")}
         </h4>
-        <div className="rounded-lg border bg-muted/30 divide-y">
+        <div className="rounded-[3px] border bg-muted/30 divide-y">
           <InfoRow label={t("settings.debug.version")} value={systemInfo?.version} isLoading={isLoading} />
           <InfoRow
             label={t("settings.debug.platform")}
@@ -240,7 +240,7 @@ export function AgentsDebugTab() {
                 disabled={!systemInfo?.userDataPath}
               >
                 {copiedPath ? (
-                  <Check className="h-3 w-3 text-green-500" />
+                  <Check className="h-3 w-3 text-tool-success" />
                 ) : (
                   <Copy className="h-3 w-3" />
                 )}
@@ -252,10 +252,10 @@ export function AgentsDebugTab() {
 
       {/* DB Stats */}
       <div className="space-y-3">
-        <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+        <h4 className="font-mono text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
           {t("settings.debug.database")}
         </h4>
-        <div className="rounded-lg border bg-muted/30 divide-y">
+        <div className="rounded-[3px] border bg-muted/30 divide-y">
           <InfoRow label={t("settings.debug.projects")} value={dbStats?.projects?.toString()} isLoading={isLoading} />
           <InfoRow label={t("settings.debug.chats")} value={dbStats?.chats?.toString()} isLoading={isLoading} />
           <InfoRow label={t("settings.debug.subChats")} value={dbStats?.subChats?.toString()} isLoading={isLoading} />
@@ -265,10 +265,10 @@ export function AgentsDebugTab() {
       {/* Developer Tools (dev mode only) */}
       {isDev && (
         <div className="space-y-3">
-          <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+          <h4 className="font-mono text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
             {t("settings.debug.developerTools")}
           </h4>
-          <div className="rounded-lg border bg-muted/30 divide-y">
+          <div className="rounded-[3px] border bg-muted/30 divide-y">
             <div className="flex items-center justify-between p-3">
               <div className="flex items-center gap-2">
                 <Scan className="h-4 w-4 text-muted-foreground" />
@@ -324,7 +324,7 @@ export function AgentsDebugTab() {
 
       {/* Quick Actions */}
       <div className="space-y-3">
-        <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+        <h4 className="font-mono text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
           {t("settings.debug.quickActions")}
         </h4>
         <div className="grid grid-cols-2 gap-2">
@@ -356,7 +356,7 @@ export function AgentsDebugTab() {
             disabled={isLoading}
           >
             {copiedInfo ? (
-              <Check className="h-4 w-4 mr-2 text-green-500" />
+              <Check className="h-4 w-4 mr-2 text-tool-success" />
             ) : (
               <Copy className="h-4 w-4 mr-2" />
             )}
@@ -367,7 +367,7 @@ export function AgentsDebugTab() {
 
       {/* Toast Testing */}
       <div className="space-y-3">
-        <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+        <h4 className="font-mono text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
           {t("settings.debug.toastTesting")}
         </h4>
         <div className="grid grid-cols-2 gap-2">
@@ -448,7 +448,7 @@ export function AgentsDebugTab() {
 
       {/* Data Management */}
       <div className="space-y-3">
-        <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+        <h4 className="font-mono text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
           {t("settings.debug.dataManagement")}
         </h4>
         <div className="grid grid-cols-3 gap-2">
@@ -516,11 +516,11 @@ function InfoRow({
       <span
         className={`text-sm font-medium ${
           status === "success"
-            ? "text-green-500"
+            ? "text-tool-success"
             : status === "warning"
-              ? "text-yellow-500"
+              ? "text-state-candidate"
               : status === "error"
-                ? "text-red-500"
+                ? "text-tool-fail"
                 : ""
         }`}
       >

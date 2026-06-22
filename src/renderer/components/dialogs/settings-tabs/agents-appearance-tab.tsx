@@ -384,7 +384,7 @@ export function AgentsAppearanceTab() {
       {/* Header - hidden on narrow screens since it's in the navigation bar */}
       {!isNarrowScreen && (
         <div className="flex flex-col space-y-1.5 text-center sm:text-left">
-          <h3 className="text-sm font-semibold text-foreground">
+          <h3 className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
             {t("settings.appearance.title")}
           </h3>
           <p className="text-xs text-muted-foreground">
@@ -394,7 +394,7 @@ export function AgentsAppearanceTab() {
       )}
 
       {/* Interface Theme Section */}
-      <div className="bg-background rounded-lg border border-border overflow-hidden">
+      <div className="bg-background rounded-[3px] border border-border overflow-hidden">
         {/* Main theme selector */}
         <div className="flex items-center justify-between p-4">
           <div className="flex flex-col space-y-1">
@@ -598,7 +598,7 @@ export function AgentsAppearanceTab() {
 
 
       {/* Display Options Section */}
-      <div className="bg-background rounded-lg border border-border overflow-hidden">
+      <div className="bg-background rounded-[3px] border border-border overflow-hidden">
         <div className="flex items-center justify-between p-4">
           <div className="flex flex-col space-y-1">
             <span className="text-sm font-medium text-foreground">

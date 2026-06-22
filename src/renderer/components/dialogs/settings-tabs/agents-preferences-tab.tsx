@@ -203,7 +203,7 @@ export function AgentsPreferencesTab() {
       {/* Header - hidden on narrow screens since it's in the navigation bar */}
       {!isNarrowScreen && (
         <div className="flex flex-col space-y-1.5 text-center sm:text-left">
-          <h3 className="text-sm font-semibold text-foreground">
+          <h3 className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
             {t("settings.preferences.title")}
           </h3>
           <p className="text-xs text-muted-foreground">
@@ -213,7 +213,7 @@ export function AgentsPreferencesTab() {
       )}
 
       {/* Language */}
-      <div className="bg-background rounded-lg border border-border overflow-hidden">
+      <div className="bg-background rounded-[3px] border border-border overflow-hidden">
         <div className="flex items-center justify-between gap-6 p-4">
           <div className="flex flex-col space-y-1">
             <span className="text-sm font-medium text-foreground">
@@ -250,7 +250,7 @@ export function AgentsPreferencesTab() {
       </div>
 
       {/* Agent Behavior */}
-      <div className="bg-background rounded-lg border border-border overflow-hidden">
+      <div className="bg-background rounded-[3px] border border-border overflow-hidden">
         <div className="flex items-center justify-between p-4">
           <div className="flex flex-col space-y-1">
             <span className="text-sm font-medium text-foreground">
@@ -312,7 +312,7 @@ export function AgentsPreferencesTab() {
       </div>
 
       {/* Notifications */}
-      <div className="bg-background rounded-lg border border-border overflow-hidden">
+      <div className="bg-background rounded-[3px] border border-border overflow-hidden">
         <div className="flex items-center justify-between p-4">
           <div className="flex flex-col space-y-1">
             <span className="text-sm font-medium text-foreground">
@@ -353,7 +353,7 @@ export function AgentsPreferencesTab() {
       </div>
 
       {/* Navigation */}
-      <div className="bg-background rounded-lg border border-border overflow-hidden">
+      <div className="bg-background rounded-[3px] border border-border overflow-hidden">
         <div className="flex items-center justify-between p-4">
           <div className="flex flex-col space-y-1">
             <span className="text-sm font-medium text-foreground">
@@ -518,7 +518,7 @@ export function AgentsPreferencesTab() {
       </div>
 
       {/* Privacy */}
-      <div className="bg-background rounded-lg border border-border overflow-hidden">
+      <div className="bg-background rounded-[3px] border border-border overflow-hidden">
         <div className="flex items-center justify-between gap-6 p-4">
           <div className="flex flex-col space-y-1">
             <span className="text-sm font-medium text-foreground">

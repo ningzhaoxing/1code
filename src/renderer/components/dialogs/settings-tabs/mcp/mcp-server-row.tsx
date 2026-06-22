@@ -9,13 +9,13 @@ import { useI18n } from "../../../../lib/i18n"
 function StatusDot({ status }: { status: string }) {
   switch (status) {
     case "connected":
-      return <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
+      return <span className="w-2 h-2 rounded-full bg-tool-success shrink-0" />
     case "failed":
-      return <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+      return <span className="w-2 h-2 rounded-full bg-tool-fail shrink-0" />
     case "needs-auth":
-      return <span className="w-2 h-2 rounded-full bg-yellow-500 shrink-0" />
+      return <span className="w-2 h-2 rounded-full bg-state-candidate shrink-0" />
     case "pending":
-      return <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shrink-0" />
+      return <span className="w-2 h-2 rounded-full bg-state-needs-human animate-pulse shrink-0" />
     case "disabled":
       return <span className="w-2 h-2 rounded-full bg-muted-foreground/30 shrink-0" />
     default:
@@ -83,7 +83,7 @@ export function McpServerRow({
   })()
 
   return (
-    <div className="rounded-lg border border-border bg-background overflow-hidden">
+    <div className="rounded-[3px] border border-border bg-background overflow-hidden">
       {/* Header row */}
       <button
         onClick={onToggle}
@@ -200,8 +200,8 @@ export function McpServerRow({
             className="overflow-hidden"
           >
             <div className="px-3 pb-2.5">
-              <div className="rounded-md border border-red-500/20 bg-red-500/5 px-2.5 py-2">
-                <p className="text-[11px] text-red-400 font-mono break-all">
+              <div className="rounded-md border border-tool-fail/20 bg-tool-fail/5 px-2.5 py-2">
+                <p className="text-[11px] text-tool-fail font-mono break-all">
                   {server.error}
                 </p>
               </div>

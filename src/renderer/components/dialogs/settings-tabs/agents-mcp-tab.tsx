@@ -55,11 +55,11 @@ export function McpStatusDot({
 
   switch (status) {
     case "connected":
-      return <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
+      return <span className="w-2 h-2 rounded-full bg-tool-success shrink-0" />
     case "failed":
-      return <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+      return <span className="w-2 h-2 rounded-full bg-tool-fail shrink-0" />
     case "needs-auth":
-      return <span className="w-2 h-2 rounded-full bg-yellow-500 shrink-0" />
+      return <span className="w-2 h-2 rounded-full bg-state-candidate shrink-0" />
     case "pending":
       return <LoadingDot isLoading={true} className="w-3 h-3 text-muted-foreground shrink-0" />
     default:
@@ -189,7 +189,7 @@ function McpServerDetail({
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
+              className="h-7 w-7 p-0 text-tool-fail hover:text-tool-fail hover:bg-tool-fail/10"
               onClick={onDelete}
               aria-label={t("settings.mcp.deleteServer")}
               title={t("settings.mcp.deleteServer")}
@@ -218,7 +218,7 @@ function McpServerDetail({
 
         {/* Connection Section */}
         <div>
-          <h5 className="text-xs font-medium text-foreground mb-2">{t("settings.mcp.connection")}</h5>
+          <h5 className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground mb-2">{t("settings.mcp.connection")}</h5>
           <div className="rounded-md border border-border bg-background overflow-hidden">
             <div className="divide-y divide-border">
               <div className="flex gap-3 px-3 py-2">
@@ -262,9 +262,9 @@ function McpServerDetail({
         {/* Error Section */}
         {server.error && (
           <div>
-            <h5 className="text-xs font-medium text-red-500 mb-2">{t("settings.mcp.error")}</h5>
-            <div className="rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2">
-              <p className="text-xs text-red-400 font-mono break-all select-text">{server.error}</p>
+            <h5 className="font-mono text-[11px] uppercase tracking-wide text-tool-fail mb-2">{t("settings.mcp.error")}</h5>
+            <div className="rounded-md border border-tool-fail/20 bg-tool-fail/5 px-3 py-2">
+              <p className="text-xs text-tool-fail font-mono break-all select-text">{server.error}</p>
             </div>
           </div>
         )}
@@ -272,7 +272,7 @@ function McpServerDetail({
         {/* Tools Section */}
         {hasTools && (
           <div>
-            <h5 className="text-xs font-medium text-foreground mb-3">
+            <h5 className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground mb-3">
               {hideToolsCount ? t("settings.mcp.tools") : `${t("settings.mcp.tools")} (${tools.length})`}
             </h5>
             <div className="grid gap-2">
@@ -280,7 +280,7 @@ function McpServerDetail({
                 const toolName = typeof tool === "string" ? tool : tool.name
                 const toolDesc = typeof tool === "string" ? undefined : tool.description
                 return (
-                  <div key={toolName || i} className="rounded-lg border border-border bg-background px-3.5 py-2.5">
+                  <div key={toolName || i} className="rounded-[3px] border border-border bg-background px-3.5 py-2.5">
                     <p className="text-[13px] font-medium text-foreground font-mono">{toolName}</p>
                     {toolDesc && (
                       <p className="text-xs text-muted-foreground leading-relaxed mt-1">{toolDesc}</p>
@@ -369,7 +369,7 @@ function CreateMcpServerForm({
     <div className="h-full overflow-y-auto">
       <div className="max-w-2xl mx-auto p-6 space-y-5">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">{t("settings.mcp.form.title")}</h3>
+          <h3 className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">{t("settings.mcp.form.title")}</h3>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={onCancel}>{t("settings.common.cancel")}</Button>
             <Button size="sm" onClick={handleSubmit} disabled={!canSave || isSaving}>
@@ -836,18 +836,18 @@ export function AgentsMcpTab() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={listKeyDown}
-              className="h-7 w-full rounded-lg text-sm bg-muted border border-input px-3 placeholder:text-muted-foreground/40 outline-none mr-1.5"
+              className="h-7 w-full rounded-[3px] text-sm bg-muted border border-input px-3 placeholder:text-muted-foreground/40 outline-none mr-1.5"
             />
             <button
               onClick={() => { setShowAddForm(true); setSelectedServerKey(null) }}
-              className="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors cursor-pointer"
+              className="h-7 w-7 shrink-0 flex items-center justify-center rounded-[3px] text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors cursor-pointer"
               title={t("settings.list.mcp.addTitle")}
             >
               <Plus className="h-4 w-4" />
             </button>
             <button
               onClick={() => { void handleRefresh() }}
-              className="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors cursor-pointer"
+              className="h-7 w-7 shrink-0 flex items-center justify-center rounded-[3px] text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors cursor-pointer"
               title={t("settings.list.mcp.refreshTitle")}
               aria-label={t("settings.list.mcp.refreshTitle")}
             >

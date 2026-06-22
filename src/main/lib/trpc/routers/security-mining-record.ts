@@ -128,6 +128,19 @@ export const securityMiningRecordRouter = router({
       }
     }),
 
+  reportStatus: publicProcedure
+    .input(securityMiningRecordInput)
+    .query(async ({ input }) => {
+      const location = await getLocationForChat(input)
+      const reportContent = await readTextFileIfExists(location.reportPath)
+      return {
+        exists: reportContent.length > 0,
+        byteLength: Buffer.byteLength(reportContent, "utf-8"),
+        reportPath: location.reportPath,
+        reportRelativePath: location.reportRelativePath,
+      }
+    }),
+
   ensure: publicProcedure
     .input(securityMiningRecordInput)
     .mutation(async ({ input }) => {

@@ -3,7 +3,11 @@ import { safeStorage, shell } from "electron"
 import { z } from "zod"
 import { getAuthManager } from "../../../index"
 import { getClaudeShellEnvironment } from "../../claude"
-import { getExistingClaudeToken } from "../../claude-token"
+import {
+  getExistingClaudeToken,
+  hasRunningClaudeCodeHostAuth,
+  hasExistingClaudeConfigAuth,
+} from "../../claude-token"
 import { getApiUrl } from "../../config"
 import {
   anthropicAccounts,
@@ -114,10 +118,12 @@ export const claudeCodeRouter = router({
    */
   hasExistingCliConfig: publicProcedure.query(() => {
     const shellEnv = getClaudeShellEnvironment()
-    const hasConfig = !!(shellEnv.ANTHROPIC_API_KEY || shellEnv.ANTHROPIC_AUTH_TOKEN || shellEnv.ANTHROPIC_BASE_URL)
+    const hasClaudeConfigAuth = hasExistingClaudeConfigAuth()
+    const hasClaudeCodeHostAuth = hasRunningClaudeCodeHostAuth()
+    const hasConfig = !!(shellEnv.ANTHROPIC_API_KEY || shellEnv.ANTHROPIC_AUTH_TOKEN || shellEnv.ANTHROPIC_BASE_URL || hasClaudeConfigAuth || hasClaudeCodeHostAuth)
     return {
       hasConfig,
-      hasApiKey: !!(shellEnv.ANTHROPIC_API_KEY || shellEnv.ANTHROPIC_AUTH_TOKEN),
+      hasApiKey: !!(shellEnv.ANTHROPIC_API_KEY || shellEnv.ANTHROPIC_AUTH_TOKEN || hasClaudeConfigAuth || hasClaudeCodeHostAuth),
       baseUrl: shellEnv.ANTHROPIC_BASE_URL || null,
     }
   }),
@@ -160,8 +166,8 @@ export const claudeCodeRouter = router({
       .where(eq(claudeCodeCredentials.id, "default"))
       .get()
 
-    const systemToken = getExistingClaudeToken()?.trim()
-    if (!cred?.oauthToken && systemToken) {
+    const hasSystemAuth = !!getExistingClaudeToken()?.trim() || hasExistingClaudeConfigAuth() || hasRunningClaudeCodeHostAuth()
+    if (!cred?.oauthToken && hasSystemAuth) {
       return {
         isConnected: true,
         connectedAt: null,

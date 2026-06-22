@@ -1633,7 +1633,7 @@ export function NewChatForm({
           {/* Title - only show when project is selected */}
           {validatedProject && (
             <div className="text-center">
-              <h1 className="text-2xl md:text-4xl font-medium tracking-tight">
+              <h1 className="font-mono text-xl md:text-3xl font-medium tracking-wide">
                 What do you want to get done?
               </h1>
             </div>
@@ -1646,7 +1646,7 @@ export function NewChatForm({
               <button
                 onClick={handleOpenFolder}
                 disabled={openFolder.isPending}
-                className="h-8 px-3 bg-primary text-primary-foreground rounded-lg text-sm font-medium transition-[background-color,transform] duration-150 hover:bg-primary/90 active:scale-[0.97] shadow-[0_0_0_0.5px_rgb(23,23,23),inset_0_0_0_1px_rgba(255,255,255,0.14)] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-8 px-3 bg-primary text-primary-foreground rounded-[3px] text-sm font-medium transition-[background-color,transform] duration-150 hover:bg-primary/90 active:scale-[0.97] shadow-[0_0_0_0.5px_rgb(23,23,23),inset_0_0_0_1px_rgba(255,255,255,0.14)] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {openFolder.isPending ? t("workspace.opening") : t("workspace.selectRepo")}
               </button>
@@ -1665,9 +1665,9 @@ export function NewChatForm({
               >
                 <PromptInput
                   className={cn(
-                    "border bg-input-background relative z-10 p-2 rounded-xl transition-[border-color,box-shadow] duration-150",
+                    "border border-border bg-input-background relative z-10 p-2 rounded-[3px] transition-[border-color,box-shadow] duration-150",
                     isDragOver && "ring-2 ring-primary/50 border-primary/50",
-                    isFocused && !isDragOver && "ring-2 ring-primary/50",
+                    isFocused && !isDragOver && "ring-2 ring-primary/50 border-primary/50",
                   )}
                   maxHeight={240}
                   onSubmit={handleSend}
@@ -1712,7 +1712,14 @@ export function NewChatForm({
                           }
                         }}
                       >
-                        <DropdownMenuTrigger className="flex items-center gap-1.5 px-2 py-1 text-sm text-muted-foreground hover:text-foreground transition-[background-color,color] duration-150 ease-out rounded-md hover:bg-muted/50 outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70">
+                        <DropdownMenuTrigger
+                          className={cn(
+                            "flex items-center gap-1.5 px-2 py-1 font-mono text-[11px] uppercase tracking-wide rounded-[3px] border transition-colors outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70",
+                            agentMode === "plan"
+                              ? "border-primary/40 bg-primary/10 text-primary hover:bg-primary/15"
+                              : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                          )}
+                        >
                           {agentMode === "plan" ? (
                             <PlanIcon className="h-3.5 w-3.5" />
                           ) : (
@@ -2104,7 +2111,7 @@ export function NewChatForm({
                                         className={cn(
                                           "text-[10px] px-1.5 py-0.5 rounded shrink-0",
                                           branch.type === "local"
-                                            ? "bg-blue-500/10 text-blue-500"
+                                            ? "bg-primary/10 text-primary"
                                             : "bg-orange-500/10 text-orange-500",
                                         )}
                                       >
@@ -2195,7 +2202,7 @@ export function NewChatForm({
 
       {/* Worktree config banner - fixed bottom-right corner */}
       {showWorktreeBanner && (
-        <div className="absolute bottom-4 right-4 max-w-sm p-3 pb-4 bg-muted/50 backdrop-blur-sm rounded-lg border border-border space-y-3 shadow-lg z-50">
+        <div className="absolute bottom-4 right-4 max-w-sm p-3 pb-4 bg-muted/50 backdrop-blur-sm rounded-[3px] border border-border space-y-3 shadow-sm z-50">
           <p className="text-sm text-muted-foreground">
             Configure a worktree setup script to install dependencies or copy
             environment variables.

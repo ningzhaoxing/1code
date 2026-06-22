@@ -58,6 +58,7 @@ export function MarkdownViewer({
 }: MarkdownViewerProps) {
   const { t } = useI18n()
   const fileName = getFileName(filePath)
+  const isFindingsRecord = fileName === "Findings.md" || fileName === "漏洞挖掘记录.md"
   const { resolvedTheme } = useTheme()
   const monacoTheme = getMonacoTheme(resolvedTheme || "dark")
 
@@ -102,14 +103,18 @@ export function MarkdownViewer({
     },
   )
 
+  const content = data?.ok ? data.content : ""
+
   const editorOptions = useMemo(
     () => ({
       ...defaultEditorOptions,
+      readOnly: true,
       wordWrap: wordWrap ? ("on" as const) : ("off" as const),
     }),
     [wordWrap],
   )
 
+  // Esc closes the viewer.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -170,8 +175,6 @@ export function MarkdownViewer({
     )
   }
 
-  const content = data?.ok ? data.content : ""
-
   return (
     <div className="flex flex-col h-full bg-background">
       <Header
@@ -187,12 +190,17 @@ export function MarkdownViewer({
         data-file-viewer-path={filePath}
       >
         {showPreview ? (
-          <div className="h-full overflow-auto p-6">
-            <ChatMarkdownRenderer
-              content={content}
-              size="md"
-            />
-          </div>
+          isFindingsRecord && !content.trim() ? (
+            <div className="h-full flex items-center justify-center p-6 text-center">
+              <p className="text-sm text-muted-foreground/70 max-w-[300px] leading-relaxed">
+                {t("files.findingsEmptyHint")}
+              </p>
+            </div>
+          ) : (
+            <div className="h-full overflow-auto p-6">
+              <ChatMarkdownRenderer content={content} size="md" />
+            </div>
+          )
         ) : (
           <Editor
             height="100%"
@@ -229,6 +237,17 @@ function Header({
 }) {
   const { t } = useI18n()
   const Icon = getFileIconByExtension(filePath)
+  // Friendly title for the security artifacts (hide the raw ".md"): the live
+  // Findings record + the generated report. Other files keep their real name.
+  const isFindingsRecord =
+    fileName === "Findings.md" || fileName === "漏洞挖掘记录.md"
+  const isSecurityReport = fileName === "漏洞挖掘报告.md"
+  const displayName = isFindingsRecord
+    ? "Findings"
+    : isSecurityReport
+      ? t("files.securityReportLabel")
+      : fileName
+  const displaySubLabel = isFindingsRecord ? t("files.findingsLiveHint") : null
   const [displayMode, setDisplayMode] = useAtom(fileViewerDisplayModeAtom)
   const preferredEditor = useAtomValue(preferredEditorAtom)
   const editorMeta = APP_META[preferredEditor]
@@ -304,7 +323,12 @@ function Header({
         </DropdownMenu>
         <div className="flex items-center gap-2 min-w-0 flex-1 ml-1">
           {Icon && <Icon className="h-3.5 w-3.5 flex-shrink-0" />}
-          <span className="text-sm font-medium truncate">{fileName}</span>
+          <span className="text-sm font-medium truncate">{displayName}</span>
+          {displaySubLabel && (
+            <span className="text-[11px] font-mono text-muted-foreground/50 flex-shrink-0 whitespace-nowrap">
+              · {displaySubLabel}
+            </span>
+          )}
         </div>
       </div>
       {/* Right side: Actions */}

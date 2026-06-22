@@ -135,12 +135,14 @@ import {
   pendingMentionAtom,
   pendingPlanApprovalsAtom,
   pendingPrMessageAtom,
+  pendingReportMessageAtom,
   pendingReviewMessageAtom,
   pendingUserQuestionsAtom,
   planEditRefetchTriggerAtomFamily,
   planSidebarOpenAtomFamily,
   QUESTIONS_SKIPPED_MESSAGE,
   selectedAgentChatIdAtom,
+  suppressFindingsInjectionAtomFamily,
   selectedCommitAtom,
   selectedDiffFilePathAtom,
   setLoading,
@@ -392,6 +394,9 @@ const agents = [
 const SECURITY_MINING_RECORD_FILENAME = "Findings.md"
 // Legacy filename kept so existing records still auto-open after the rename.
 const SECURITY_MINING_RECORD_FILENAME_LEGACY = "漏洞挖掘记录.md"
+// Agent-synthesized report filename (mirrors SECURITY_MINING_REPORT_FILENAME in
+// src/main/lib/security-mining-record/path.ts). Kept in sync manually so the
+// renderer doesn't import main-process code.
 const SECURITY_MINING_REPORT_FILENAME = "漏洞挖掘报告.md"
 
 type SecurityArtifactLocationState = {
@@ -431,8 +436,7 @@ function isSecurityMiningRecordPath(filePath: string): boolean {
 }
 
 function isSecurityMiningReportPath(filePath: string): boolean {
-  const fileName = getViewerFileName(filePath)
-  return fileName === SECURITY_MINING_REPORT_FILENAME
+  return getViewerFileName(filePath) === SECURITY_MINING_REPORT_FILENAME
 }
 
 function getSecurityArtifactLocationFromFilePath({
@@ -2751,6 +2755,30 @@ const ChatViewInner = memo(function ChatViewInner({
       })
     }
   }, [pendingReviewMessage, isStreaming, sendMessage, setPendingReviewMessage, subChatId])
+
+  // Watch for pending security-mining report message and send it as an agent turn.
+  // Reuses the same outer→inner programmatic-send mechanism as Review/PR.
+  const [pendingReportMessage, setPendingReportMessage] = useAtom(
+    pendingReportMessageAtom,
+  )
+
+  useEffect(() => {
+    if (pendingReportMessage?.subChatId === subChatId && !isStreaming) {
+      // Clear the pending message immediately to prevent double-sending
+      setPendingReportMessage(null)
+
+      // Send the report-synthesis instruction to the agent
+      sendMessage({
+        role: "user",
+        parts: [{ type: "text", text: pendingReportMessage.message }],
+      })
+
+      // Ensure the target sub-chat is focused after sending
+      const store = useAgentSubChatStore.getState()
+      store.addToOpenSubChats(subChatId)
+      store.setActiveSubChat(subChatId)
+    }
+  }, [pendingReportMessage, isStreaming, sendMessage, setPendingReportMessage, subChatId])
 
   // Watch for pending conflict resolution message and send it
   const [pendingConflictMessage, setPendingConflictMessage] = useAtom(
@@ -5337,7 +5365,13 @@ export function ChatView({
   }, [setDiffCache])
   const [diffMode, setDiffMode] = useAtom(diffViewModeAtom)
   const [diffDisplayMode, setDiffDisplayMode] = useAtom(diffViewDisplayModeAtom)
-  const subChatsSidebarMode = useAtomValue(agentsSubChatsSidebarModeAtom)
+  // Sub-chats always render as main-area tabs now. The nested "sidebar" sessions
+  // mode has been removed, so we coerce to "tabs" regardless of any value that
+  // may have been persisted in window-storage by an older build. This keeps the
+  // main-area tab bar (and its +/history controls) always visible for an active
+  // chat, never gated on the old mode toggle.
+  void useAtomValue(agentsSubChatsSidebarModeAtom)
+  const subChatsSidebarMode: "tabs" | "sidebar" = "tabs"
 
 
   // Force narrow width when switching to side-peek mode (from dialog/fullscreen)
@@ -5843,6 +5877,29 @@ export function ChatView({
       },
     })
 
+  // Deterministic (non-agent) report generator. Stage 2 made the agent-synthesized
+  // path the default for "导出报告"; this mutation + its backend proc are retained
+  // (intentionally not wired to the button) as a future "quick export" fallback.
+  const generateSecurityReportMutation =
+    trpc.securityMiningRecord.generateReport.useMutation({
+      onSuccess: async (report, variables) => {
+        setSecurityArtifactLocationOverride({
+          filePath: report.filePath,
+          reportPath: report.reportPath,
+          projectPath: report.projectPath,
+          recordExists: report.recordExists,
+          reportExists: report.reportExists,
+        })
+        await trpcClient.files.clearCache.mutate({ projectPath: report.projectPath }).catch(() => {
+          // React Query invalidation below still refreshes consumers if cache clearing fails.
+        })
+        await Promise.all([
+          trpcUtils.securityMiningRecord.location.invalidate(variables),
+          trpcUtils.files.search.invalidate(),
+        ])
+      },
+    })
+
   const handleOpenSecurityMiningRecord = useCallback(async () => {
     if (!activeSubChatId) {
       toast.error(t("chat.toast.noActiveChatTab"), { position: "top-center" })
@@ -5869,16 +5926,182 @@ export function ChatView({
     t,
   ])
 
-  const handleOpenSecurityMiningReport = useCallback(() => {
-    if (!securityArtifactLocation?.reportPath || !securityArtifactLocation.reportExists) {
-      toast.error(t("chat.toast.markdownReportUnavailable"), {
+  // Outer→inner programmatic-send bridge for the agent-synthesized report
+  // (same mechanism as Review/PR/conflict-resolution sends).
+  const setPendingReportMessage = useSetAtom(pendingReportMessageAtom)
+
+  // Track whether the user explicitly chose "重新生成" so we can bypass the
+  // "report already exists" guard on the next click without auto-regenerating.
+  const reportRegenerateRequestedRef = useRef(false)
+
+  // Build the agent instruction that synthesizes the report and Writes it to reportPath.
+  const buildSecurityReportPrompt = useCallback((reportPath: string) => {
+    return [
+      "请基于本次完整的挖掘过程（对话、工具调用结果、以及 Findings 记录文件）产出一份正式的漏洞研究报告，并用 Write 工具写入文件：",
+      reportPath,
+      "报告需覆盖：测试对象与授权范围、方法概述、已验证发现（每条含 影响/证据引用/复现要点/风险评级/修复建议）、未确认线索、免责声明。只输出写入该文件，不要在对话里重复整篇报告。",
+      "本次仅生成报告，请勿修改 Findings 记录文件。",
+    ].join("\n")
+  }, [])
+
+  // Ensure the record/location, then send a programmatic agent turn that writes
+  // the report. The file auto-opens when the agent Writes it (handleAgentFileChange).
+  const startAgentSecurityReport = useCallback(
+    async (subChatId: string) => {
+      try {
+        const record = await ensureSecurityRecordMutation.mutateAsync({
+          chatId,
+          subChatId,
+        })
+        // Focus the target sub-chat before queuing the send.
+        const store = useAgentSubChatStore.getState()
+        store.addToOpenSubChats(subChatId)
+        store.setActiveSubChat(subChatId)
+
+        // Suppress the always-on Findings-skill injection for this single report
+        // turn only (the report turn itself instructs the agent to Write the
+        // report file; injecting the Findings directive would conflict). The
+        // transport reads + resets this one-shot, keyed by the same subChatId.
+        appStore.set(suppressFindingsInjectionAtomFamily(subChatId), true)
+
+        setPendingReportMessage({
+          message: buildSecurityReportPrompt(record.reportPath),
+          subChatId,
+        })
+        toast.success(t("chat.toast.exportReportStarted"), {
+          description: record.reportRelativePath,
+          position: "top-center",
+        })
+      } catch (error) {
+        toast.error(t("chat.toast.exportReportStartFailed"), {
+          description:
+            error instanceof Error ? error.message : t("common.unknownError"),
+          position: "top-center",
+        })
+      }
+    },
+    [
+      chatId,
+      ensureSecurityRecordMutation,
+      setPendingReportMessage,
+      buildSecurityReportPrompt,
+      t,
+    ],
+  )
+
+  const handleGenerateSecurityMiningReport = useCallback(async () => {
+    // 1. No active sub-chat.
+    if (!activeSubChatId) {
+      toast.error(t("chat.toast.noActiveChatTab"), { position: "top-center" })
+      return
+    }
+
+    // 2. Agent currently streaming/running → refuse (button is also disabled).
+    if (useStreamingStatusStore.getState().isStreaming(activeSubChatId)) {
+      toast.error(t("chat.toast.exportReportWhileStreaming"), {
         position: "top-center",
       })
       return
     }
 
-    openFileInSidebar(securityArtifactLocation.reportPath)
-  }, [openFileInSidebar, securityArtifactLocation, t])
+    // 3. No conversation yet → nothing to report on.
+    const activeSubChat = agentSubChats.find((sc) => sc.id === activeSubChatId)
+    const messageList = Array.isArray(activeSubChat?.messages)
+      ? activeSubChat.messages
+      : []
+    if (messageList.length === 0) {
+      toast.error(t("chat.toast.exportReportNoConversation"), {
+        position: "top-center",
+      })
+      return
+    }
+
+    // 4. Report already exists with real content → open it, offer 重新生成.
+    //    The explicit-regenerate flag (set by the toast action) bypasses this.
+    if (!reportRegenerateRequestedRef.current) {
+      try {
+        const status = await trpcUtils.securityMiningRecord.reportStatus.fetch({
+          chatId,
+          subChatId: activeSubChatId,
+        })
+        if (status.exists && status.byteLength > 50) {
+          openFileInSidebar(status.reportPath)
+          toast.info(t("chat.toast.exportReportExists"), {
+            description: status.reportRelativePath,
+            position: "top-center",
+            action: {
+              label: t("chat.toast.exportReportRegenerate"),
+              onClick: () => {
+                reportRegenerateRequestedRef.current = true
+                void handleGenerateSecurityMiningReport()
+              },
+            },
+          })
+          return
+        }
+      } catch {
+        // Status check is best-effort; fall through to generation on failure.
+      }
+    }
+    // Consume the one-shot regenerate intent.
+    reportRegenerateRequestedRef.current = false
+
+    // 5. Generate via the agent (ensure location, then send the agent turn).
+    await startAgentSecurityReport(activeSubChatId)
+  }, [
+    activeSubChatId,
+    agentSubChats,
+    chatId,
+    openFileInSidebar,
+    trpcUtils,
+    startAgentSecurityReport,
+    t,
+  ])
+
+  // Findings opens at the start of local agent work; the transport injects the
+  // record protocol for matching security-mining prompts.
+
+  // Open-at-start: when the first agent message of a Findings-enabled session is
+  // sent, ensure the (possibly blank) record and open the right panel once per
+  // chat. Driven by the active sub-chat's streaming status transitioning to
+  // streaming/submitted. The auto-open-on-agent-write (handleAgentFileChange)
+  // still handles subsequent updates.
+  const activeSubChatIsStreaming = useStreamingStatusStore((state) =>
+    activeSubChatId ? state.isStreaming(activeSubChatId) : false,
+  )
+  const findingsOpenedForChatRef = useRef<string | null>(null)
+  // Reset the once-per-chat guard when switching chats.
+  useEffect(() => {
+    findingsOpenedForChatRef.current = null
+  }, [chatId])
+  useEffect(() => {
+    if (!activeSubChatIsStreaming) return
+    if (currentMode !== "agent") return
+    if (chatSourceMode !== "local") return
+    if (!activeSubChatId) return
+    if (findingsOpenedForChatRef.current === chatId) return
+    findingsOpenedForChatRef.current = chatId
+
+    void ensureSecurityRecordMutation
+      .mutateAsync({ chatId, subChatId: activeSubChatId })
+      .then((record) => {
+        setFileViewerPath(record.filePath)
+      })
+      .catch((error) => {
+        // Non-fatal: the manual Findings button remains available. Allow a
+        // retry on the next message by clearing the guard.
+        findingsOpenedForChatRef.current = null
+        console.error("[findings] Failed to open record at session start:", error)
+      })
+  }, [
+    activeSubChatIsStreaming,
+    currentMode,
+    chatSourceMode,
+    activeSubChatId,
+    chatId,
+    ensureSecurityRecordMutation,
+    setFileViewerPath,
+  ])
 
   // Direct PR creation mutation (push branch and open GitHub)
   const createPrMutation = trpc.changes.createPR.useMutation({
@@ -7873,15 +8096,6 @@ Make sure to preserve all functionality from both branches when resolving confli
     securityArtifactLocation,
     worktreePath,
   ])
-  const activeSubChatStreamingStatus = useStreamingStatusStore((state) =>
-    activeSubChatId ? state.statuses[activeSubChatId] ?? "ready" : "ready",
-  )
-  const isActiveSubChatStreaming =
-    activeSubChatStreamingStatus === "streaming" ||
-    activeSubChatStreamingStatus === "submitted"
-  const securityReportAvailable =
-    Boolean(securityArtifactLocation?.reportExists) && !isActiveSubChatStreaming
-
   // No early return - let the UI render with loading state handled by activeChat check below
 
   return (
@@ -7915,12 +8129,52 @@ Make sure to preserve all functionality from both branches when resolving confli
                   : `flex-shrink-0 ${CHAT_LAYOUT.headerPaddingSidebarClosed}`,
               )}
             >
-              {/* Gradient background - only when not absolute */}
+              {/* Solid workbench header bar (Operator Console): squared, hairline bottom border, card fill */}
               {(isMobileFullscreen || subChatsSidebarMode !== "sidebar") && (
-                <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-transparent" />
+                <div className="absolute inset-0 bg-card border-b border-border" />
               )}
-              <div className="pointer-events-auto flex items-center justify-between relative">
+              <div className="pointer-events-auto flex items-center justify-between relative min-h-[44px]">
                 <div className="flex-1 min-w-0 flex items-center gap-2">
+                  {/* Workbench target breadcrumb: REPO / branch (+ AGENT/PLAN status chip).
+                      Desktop only. Graceful: local "Desktop" workspaces with no repo/branch
+                      collapse to just the workspace name; renders nothing when no name at all. */}
+                  {!isMobileFullscreen && (() => {
+                    const repo =
+                      (agentChat as any)?.project?.gitRepo ||
+                      (agentChat as any)?.project?.name ||
+                      null
+                    const branch = agentChat?.branch || null
+                    const wsName = agentChat?.name || null
+                    // Prefer repo/branch; fall back to bare workspace name for local "Desktop".
+                    const crumbHead = repo || wsName
+                    if (!crumbHead) return null
+                    return (
+                      <div className="flex items-center gap-1.5 min-w-0 flex-shrink pl-1 pr-1.5 mr-0.5 font-mono text-[11px] leading-none select-none">
+                        <span className="truncate max-w-[160px] uppercase tracking-wide text-muted-foreground/70">
+                          {crumbHead}
+                        </span>
+                        {repo && branch && (
+                          <>
+                            <span aria-hidden className="text-muted-foreground/30">/</span>
+                            <span className="truncate max-w-[120px] tracking-wide text-foreground/80">
+                              {branch}
+                            </span>
+                          </>
+                        )}
+                        <span
+                          className={cn(
+                            "ml-0.5 px-1 py-px rounded-[3px] border uppercase tracking-wide text-[10px]",
+                            currentMode === "plan"
+                              ? "border-plan-mode/40 text-plan-mode"
+                              : "border-primary/40 text-primary",
+                          )}
+                        >
+                          {currentMode === "plan" ? "PLAN" : "AGENT"}
+                        </span>
+                        <span aria-hidden className="w-px h-[18px] bg-border ml-1" />
+                      </div>
+                    )
+                  })()}
                   {/* Mobile header - simplified with chat name as trigger */}
                   {isMobileFullscreen ? (
                     <MobileChatHeader
@@ -7967,6 +8221,8 @@ Make sure to preserve all functionality from both branches when resolving confli
                       />
                       {chatSourceMode === "local" && activeSubChatId && (
                         <>
+                          {/* Hairline divider before the security-workbench actions */}
+                          <span aria-hidden className="w-px h-[18px] bg-border ml-2 mr-0.5 flex-shrink-0" />
                           <Tooltip delayDuration={500}>
                             <TooltipTrigger asChild>
                               <Button
@@ -7974,7 +8230,7 @@ Make sure to preserve all functionality from both branches when resolving confli
                                 size="sm"
                                 onClick={handleOpenSecurityMiningRecord}
                                 disabled={ensureSecurityRecordMutation.isPending}
-                                className="h-6 px-2 gap-1.5 text-xs font-medium ml-2 hover:bg-foreground/10 transition-colors rounded-md"
+                                className="h-6 px-2 gap-1.5 font-mono text-[11px] uppercase tracking-wide rounded-[3px] border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                                 aria-label={t("chat.toolbar.openVulnerabilityRecord")}
                               >
                                 {ensureSecurityRecordMutation.isPending ? (
@@ -7989,25 +8245,33 @@ Make sure to preserve all functionality from both branches when resolving confli
                               {t("chat.toolbar.openVulnerabilityRecord")}
                             </TooltipContent>
                           </Tooltip>
-                          {securityReportAvailable && (
-                            <Tooltip delayDuration={500}>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={handleOpenSecurityMiningReport}
-                                  className="h-6 px-2 gap-1.5 text-xs font-medium hover:bg-foreground/10 transition-colors rounded-md"
-                                  aria-label={t("chat.toolbar.openMarkdownReport")}
-                                >
+                          <Tooltip delayDuration={500}>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleGenerateSecurityMiningReport}
+                                disabled={
+                                  activeSubChatIsStreaming ||
+                                  ensureSecurityRecordMutation.isPending
+                                }
+                                className="h-6 px-2 gap-1.5 font-mono text-[11px] uppercase tracking-wide rounded-[3px] border border-primary/40 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                                aria-label={t("chat.toolbar.generateMarkdownReport")}
+                              >
+                                {ensureSecurityRecordMutation.isPending ? (
+                                  <IconSpinner className="h-3 w-3 animate-spin" />
+                                ) : (
                                   <FileDown className="h-3.5 w-3.5" />
-                                  <span>{t("chat.toolbar.exportReport")}</span>
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent side="bottom">
-                                {t("chat.toolbar.openMarkdownReport")}
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
+                                )}
+                                <span>{t("chat.toolbar.exportReport")}</span>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">
+                              {activeSubChatIsStreaming
+                                ? t("chat.toolbar.exportReportBusy")
+                                : t("chat.toolbar.generateMarkdownReport")}
+                            </TooltipContent>
+                          </Tooltip>
                         </>
                       )}
                       {/* Open Locally button - desktop only, sandbox mode */}

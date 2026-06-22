@@ -189,9 +189,9 @@ export function EditMcpServerDialog({
             {/* Error */}
             {server.error && (
               <div>
-                <Label className="text-red-500">{t("settings.mcp.error")}</Label>
-                <div className="mt-1.5 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2">
-                  <p className="text-xs text-red-400 font-mono break-all">
+                <Label className="text-tool-fail">{t("settings.mcp.error")}</Label>
+                <div className="mt-1.5 rounded-md border border-tool-fail/20 bg-tool-fail/5 px-3 py-2">
+                  <p className="text-xs text-tool-fail font-mono break-all">
                     {server.error}
                   </p>
                 </div>
@@ -275,7 +275,7 @@ export function EditMcpServerDialog({
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                className="text-tool-fail hover:text-tool-fail hover:bg-tool-fail/10"
                 onClick={() => setShowDeleteConfirm(true)}
               >
                 <Trash2 className="h-3.5 w-3.5 mr-1.5" />

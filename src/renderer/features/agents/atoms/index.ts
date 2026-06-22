@@ -344,7 +344,7 @@ export const subChatModeAtomFamily = atomFamily((subChatId: string) =>
 
 // Model ID to full Claude model string mapping
 export const MODEL_ID_MAP: Record<string, string> = {
-  "opus-4-7": "claude-opus-4-7",
+  "opus-4-7": "opus",
   opus: "opus",
   sonnet: "sonnet",
   haiku: "haiku",
@@ -697,6 +697,21 @@ export const pendingPrMessageAtom = atom<{ message: string; subChatId: string } 
 // Pending Review message to send to chat
 // Set by ChatView when "Review" is clicked, consumed by ChatViewInner
 export const pendingReviewMessageAtom = atom<{ message: string; subChatId: string } | null>(null)
+
+// Pending security-mining report message to send to chat
+// Set by ChatView when "导出报告" is clicked (agent-synthesized report),
+// consumed by ChatViewInner which sends it as a normal agent turn.
+export const pendingReportMessageAtom = atom<{ message: string; subChatId: string } | null>(null)
+
+// One-shot, per-subChat suppression of the always-on Findings-skill injection.
+// Set to true right before enqueuing the "export report" turn (which itself
+// instructs the agent to Write the report file), so that single turn does NOT
+// also get the conflicting Findings live-record directive injected by the
+// transport. The transport reads this and resets it to false after one turn.
+// Transient session-only state — a plain atom (no storage) is intentional.
+export const suppressFindingsInjectionAtomFamily = atomFamily((subChatId: string) =>
+  atom(false),
+)
 
 // Pending merge conflict resolution message to send to chat
 // Set when user clicks "Fix Conflicts" button, consumed by ChatViewInner

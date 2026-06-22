@@ -130,7 +130,7 @@ function AccountRow({
               {t("settings.models.rename")}
             </DropdownMenuItem>
             <DropdownMenuItem
-              className="data-[highlighted]:bg-red-500/15 data-[highlighted]:text-red-400"
+              className="data-[highlighted]:bg-tool-fail/15 data-[highlighted]:text-tool-fail"
               onClick={onRemove}
             >
               {t("settings.models.remove")}
@@ -246,7 +246,7 @@ function AnthropicAccountsSection() {
   }
 
   return (
-    <div className="bg-background rounded-lg border border-border overflow-hidden divide-y divide-border">
+    <div className="bg-background rounded-[3px] border border-border overflow-hidden divide-y divide-border">
         {isAccountsLoading ? (
           <div className="p-4 text-center text-sm text-muted-foreground">
             {t("settings.models.loadingAccount")}
@@ -518,7 +518,7 @@ export function AgentsModelsTab() {
       {/* Header */}
       {!isNarrowScreen && (
         <div className="flex flex-col space-y-1.5 text-center sm:text-left">
-          <h3 className="text-sm font-semibold text-foreground">
+          <h3 className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
             {t("settings.models.title")}
           </h3>
         </div>
@@ -526,7 +526,7 @@ export function AgentsModelsTab() {
 
       {/* ===== Models Section ===== */}
       <div className="space-y-2">
-        <div className="bg-background rounded-lg border border-border overflow-hidden">
+        <div className="bg-background rounded-[3px] border border-border overflow-hidden">
           {/* Search */}
           <div className="px-1.5 pt-1.5 pb-0.5">
             <div className="flex items-center gap-1.5 h-7 px-1.5 rounded-md bg-muted/50">
@@ -578,7 +578,7 @@ export function AgentsModelsTab() {
         {/* Anthropic Accounts */}
         <div className="pb-2 flex items-center justify-between">
           <div>
-            <h4 className="text-sm font-medium text-foreground">
+            <h4 className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
               {t("settings.models.anthropic.title")}
             </h4>
             <p className="text-xs text-muted-foreground">
@@ -602,7 +602,7 @@ export function AgentsModelsTab() {
       <div className="space-y-2">
         <div className="pb-2 flex items-center justify-between">
           <div>
-            <h4 className="text-sm font-medium text-foreground">
+            <h4 className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
               {t("settings.models.codex.title")}
             </h4>
             <p className="text-xs text-muted-foreground">
@@ -611,7 +611,7 @@ export function AgentsModelsTab() {
           </div>
         </div>
 
-        <div className="bg-background rounded-lg border border-border overflow-hidden divide-y divide-border">
+        <div className="bg-background rounded-[3px] border border-border overflow-hidden divide-y divide-border">
           {showCodexLoading ? (
             <div className="p-4 text-center text-sm text-muted-foreground">
               {t("settings.models.loadingAccount")}
@@ -672,7 +672,7 @@ export function AgentsModelsTab() {
         </CollapsibleTrigger>
         <CollapsibleContent className="space-y-4 pt-3">
           {/* Codex API Key */}
-          <div className="bg-background rounded-lg border border-border overflow-hidden">
+          <div className="bg-background rounded-[3px] border border-border overflow-hidden">
             <div className="flex items-center justify-between gap-6 p-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2">
@@ -705,7 +705,7 @@ export function AgentsModelsTab() {
                     onClick={() => void handleRemoveCodexApiKey()}
                     disabled={isSavingCodexApiKey}
                     aria-label={t("settings.models.remove")}
-                    className="text-muted-foreground hover:text-red-600 hover:bg-red-500/10"
+                    className="text-muted-foreground hover:text-tool-fail hover:bg-tool-fail/10"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -715,7 +715,7 @@ export function AgentsModelsTab() {
           </div>
 
           {/* OpenAI API Key for Voice Input */}
-          <div className="bg-background rounded-lg border border-border overflow-hidden">
+          <div className="bg-background rounded-[3px] border border-border overflow-hidden">
             <div className="flex items-center justify-between gap-6 p-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2">
@@ -728,7 +728,7 @@ export function AgentsModelsTab() {
                       size="sm"
                       onClick={handleResetOpenAI}
                       disabled={setOpenAIKeyMutation.isPending}
-                      className="h-5 px-1.5 text-xs text-muted-foreground hover:text-red-600 hover:bg-red-500/10"
+                      className="h-5 px-1.5 text-xs text-muted-foreground hover:text-tool-fail hover:bg-tool-fail/10"
                     >
                       {t("settings.models.remove")}
                     </Button>
@@ -754,16 +754,16 @@ export function AgentsModelsTab() {
           {/* Override Model */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <h4 className="text-sm font-medium text-foreground">
+              <h4 className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
                 {t("settings.models.overrideModel")}
               </h4>
               {canReset && (
-                <Button variant="ghost" size="sm" onClick={handleReset} className="text-muted-foreground hover:text-red-600 hover:bg-red-500/10">
+                <Button variant="ghost" size="sm" onClick={handleReset} className="text-muted-foreground hover:text-tool-fail hover:bg-tool-fail/10">
                   {t("settings.models.reset")}
                 </Button>
               )}
             </div>
-            <div className="bg-background rounded-lg border border-border overflow-hidden">
+            <div className="bg-background rounded-[3px] border border-border overflow-hidden">
               <div className="flex items-center justify-between p-4">
                 <div className="flex-1">
                   <Label className="text-sm font-medium">

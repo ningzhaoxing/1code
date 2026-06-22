@@ -19,7 +19,6 @@ import {
   IconSpinner,
   PlanIcon,
   AgentIcon,
-  IconOpenSidebarRight,
   PinFilledIcon,
   DiffIcon,
   ClockIcon,
@@ -110,7 +109,7 @@ const SearchHistoryPopover = memo(forwardRef<SearchHistoryPopoverRef, SearchHist
       <div className="flex items-center gap-2 flex-1 min-w-0">
         <div className="flex-shrink-0 w-4 h-4 flex items-center justify-center relative">
           {hasPendingQuestion ? (
-            <QuestionIcon className="w-4 h-4 text-blue-500" />
+            <QuestionIcon className="w-4 h-4 text-state-needs-human" />
           ) : isLoading ? (
             <IconSpinner className="w-4 h-4 text-muted-foreground" />
           ) : mode === "plan" ? (
@@ -122,7 +121,7 @@ const SearchHistoryPopover = memo(forwardRef<SearchHistoryPopoverRef, SearchHist
             <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-popover flex items-center justify-center">
               <div className={cn(
                 "w-1.5 h-1.5 rounded-full",
-                hasPendingPlan ? "bg-amber-500" : "bg-[#307BD0]"
+                hasPendingPlan ? "bg-plan-mode" : "bg-state-needs-human"
               )} />
             </div>
           )}
@@ -232,9 +231,10 @@ export function SubChatSelector({
   const [loadingSubChats] = useAtom(loadingSubChatsAtom)
   const subChatUnseenChanges = useAtomValue(agentsSubChatUnseenChangesAtom)
   const setSubChatUnseenChanges = useSetAtom(agentsSubChatUnseenChangesAtom)
-  const [subChatsSidebarMode, setSubChatsSidebarMode] = useAtom(
-    agentsSubChatsSidebarModeAtom,
-  )
+  // Sub-chats always render as main-area tabs now. The atom is read-only here
+  // (kept so the history "/" hotkey effect stays scoped) and is never set to
+  // "sidebar" — that mode/path has been removed.
+  const subChatsSidebarMode = useAtomValue(agentsSubChatsSidebarModeAtom)
   const pendingQuestionsMap = useAtomValue(pendingUserQuestionsAtom)
 
   // Overview sidebar state - to check if widgets are visible
@@ -649,8 +649,8 @@ export function SubChatSelector({
         WebkitAppRegion: "drag",
       }}
     >
-      {/* Burger button - hidden when sub-chats sidebar is open (it moves into sidebar) */}
-      {onBackToChats && subChatsSidebarMode === "tabs" && (
+      {/* Burger button - re-opens the left chats list when the sidebar is collapsed */}
+      {onBackToChats && (
         <Button
           variant="ghost"
           size="icon"
@@ -665,27 +665,6 @@ export function SubChatSelector({
           <AlignJustify className="h-4 w-4" />
           <span className="sr-only">{t("chat.backToChats")}</span>
         </Button>
-      )}
-
-      {/* Open sidebar button - only on desktop when in tabs mode */}
-      {!isMobile && subChatsSidebarMode === "tabs" && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSubChatsSidebarMode("sidebar")}
-              className="h-6 w-6 p-0 hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] flex-shrink-0 rounded-md flex items-center justify-center"
-              style={{
-                // @ts-expect-error - WebKit-specific property
-                WebkitAppRegion: "no-drag",
-              }}
-            >
-              <IconOpenSidebarRight className="h-4 w-4 scale-x-[-1]" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">{t("chat.openPane")}</TooltipContent>
-        </Tooltip>
       )}
 
       <div
@@ -707,8 +686,7 @@ export function SubChatSelector({
           ref={tabsContainerRef}
           className={cn(
             "flex items-center px-1 py-1 -my-1 gap-1 flex-1 min-w-0 overflow-x-auto scrollbar-hide pr-12",
-            // Hide tabs when sidebar is open (desktop) or when only one chat exists
-            (subChatsSidebarMode === "sidebar" && !isMobile) && "hidden",
+            // Hide tabs when only one chat exists
             hasSingleChat && "invisible",
           )}
         >
@@ -771,13 +749,13 @@ export function SubChatSelector({
                           }
                         }}
                         className={cn(
-                          "group relative flex items-center text-sm rounded-md transition-colors duration-75 cursor-pointer h-6 flex-shrink-0",
+                          "group relative flex items-center text-sm rounded-[3px] transition-colors duration-75 cursor-pointer h-6 flex-shrink-0",
                           "outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70",
                           editingSubChatId === subChat.id
                             ? "overflow-visible px-0"
                             : "overflow-hidden px-1.5 py-0.5 whitespace-nowrap min-w-[50px] gap-1.5",
                           isActive
-                            ? "bg-muted text-foreground max-w-[180px]"
+                            ? "bg-muted text-foreground max-w-[180px] border-b-2 border-primary rounded-b-none"
                             : "hover:bg-muted/80 max-w-[150px]",
                           isInSplitPair && "border border-border/60",
                           isInSplitPair && !isActive && "bg-muted/40 hover:bg-muted/60",
@@ -790,7 +768,7 @@ export function SubChatSelector({
                           <div className="flex-shrink-0 w-3.5 h-3.5 flex items-center justify-center relative">
                             {hasPendingQuestion ? (
                               // Waiting for user answer: show question icon (highest priority)
-                              <QuestionIcon className="w-3.5 h-3.5 text-blue-500" />
+                              <QuestionIcon className="w-3.5 h-3.5 text-state-needs-human" />
                             ) : isLoading ? (
                               // Loading: show spinner
                               <IconSpinner className="w-3.5 h-3.5 text-muted-foreground" />
@@ -811,9 +789,9 @@ export function SubChatSelector({
                                     )}
                                   >
                                     {hasPendingPlan ? (
-                                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                      <div className="w-1.5 h-1.5 rounded-full bg-plan-mode" />
                                     ) : hasUnseen ? (
-                                      <div className="w-1.5 h-1.5 rounded-full bg-[#307BD0]" />
+                                      <div className="w-1.5 h-1.5 rounded-full bg-state-needs-human" />
                                     ) : isPinned ? (
                                       <PinFilledIcon className="w-2 h-2 text-muted-foreground" />
                                     ) : null}
@@ -854,7 +832,7 @@ export function SubChatSelector({
                           <div
                             data-truncate-gradient
                             className={cn(
-                              "absolute right-0 top-0 bottom-0 w-6 pointer-events-none z-[1] rounded-r-md opacity-100 group-hover:opacity-0 transition-opacity duration-200",
+                              "absolute right-0 top-0 bottom-0 w-6 pointer-events-none z-[1] rounded-r-[3px] opacity-100 group-hover:opacity-0 transition-opacity duration-200",
                               isActive
                                 ? "bg-gradient-to-l from-muted to-transparent"
                                 : "bg-gradient-to-l from-background to-transparent",
@@ -869,7 +847,7 @@ export function SubChatSelector({
                             <div className="absolute right-0 top-0 bottom-0 flex items-center justify-end pr-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
                               <div
                                 className={cn(
-                                  "absolute right-0 top-0 bottom-0 w-9 flex items-center justify-center rounded-r-md",
+                                  "absolute right-0 top-0 bottom-0 w-9 flex items-center justify-center rounded-r-[3px]",
                                   isActive
                                     ? "bg-[linear-gradient(to_left,hsl(var(--muted))_0%,hsl(var(--muted))_60%,transparent_100%)]"
                                     : "bg-[linear-gradient(to_left,color-mix(in_srgb,hsl(var(--muted))_80%,hsl(var(--background)))_0%,color-mix(in_srgb,hsl(var(--muted))_80%,hsl(var(--background)))_60%,transparent_100%)]",
@@ -923,8 +901,10 @@ export function SubChatSelector({
               })}
         </div>
 
-        {/* Plus button - absolute positioned on right with gradient cover */}
-        {(isMobile || (!isMobile && subChatsSidebarMode === "tabs")) && (
+        {/* Plus button - absolute positioned on right with gradient cover.
+            Always rendered (sub-chats always live as tabs now) so "new chat"
+            is never gated on sidebar/mode state. */}
+        {(
           <div className="absolute right-0 top-0 bottom-0 flex items-center z-20">
             {/* Gradient to cover content peeking from the left */}
             <div className="w-6 h-full bg-gradient-to-r from-transparent to-background" />
@@ -950,8 +930,9 @@ export function SubChatSelector({
         )}
       </div>
 
-      {/* Action buttons - always visible on mobile, on desktop only in tabs mode */}
-      {(isMobile || (!isMobile && subChatsSidebarMode === "tabs")) && (
+      {/* Action buttons (history) - always rendered so history is never gated
+          on sidebar/mode state. */}
+      {(
         <div
           className="flex items-center gap-1"
           style={{

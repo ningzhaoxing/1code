@@ -260,8 +260,8 @@ const ChatIcon = React.memo(function ChatIcon({
             className={cn(
               "absolute -bottom-1 -right-1 w-3 h-3 rounded-full flex items-center justify-center",
               isSelected
-                ? "bg-[#E8E8E8] dark:bg-[#1B1B1B]"
-                : "bg-[#F4F4F4] group-hover:bg-[#E8E8E8] dark:bg-[#101010] dark:group-hover:bg-[#1B1B1B]",
+                ? "bg-background"
+                : "bg-background",
             )}
           >
             {/* Priority: question > loader > amber dot (pending plan) > blue dot (unseen) */}
@@ -1681,6 +1681,7 @@ export function AgentsSidebar({
   const [selectedDraftId, setSelectedDraftId] = useAtom(selectedDraftIdAtom)
   const setShowNewChatForm = useSetAtom(showNewChatFormAtom)
   const setDesktopView = useSetAtom(desktopViewAtom)
+  const desktopView = useAtomValue(desktopViewAtom)
   const [loadingSubChats] = useAtom(loadingSubChatsAtom)
   const pendingQuestions = useAtomValue(pendingUserQuestionsAtom)
   // Use ref instead of state to avoid re-renders on hover
@@ -3111,6 +3112,11 @@ export function AgentsSidebar({
     },
     [],
   )
+
+  // Sub-chats (sessions) always render as main-area tabs now. The optional
+  // nested "sidebar" sessions panel has been removed to keep the left nav a
+  // single flat conversation list. (The subChatsSidebarMode atom is left in
+  // place for other readers, but is never set to "sidebar" anymore.)
 
   // Mobile fullscreen mode - render without ResizableSidebar wrapper
   const sidebarContent = (

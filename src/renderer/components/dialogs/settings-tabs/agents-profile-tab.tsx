@@ -86,13 +86,13 @@ export function AgentsProfileTab() {
       <div className="space-y-2">
         {/* Header - hidden on narrow screens since it's in the navigation bar */}
         {!isNarrowScreen && (
-          <div className="flex items-center justify-between pb-3 mb-4">
-            <h3 className="text-sm font-medium text-foreground">
+          <div className="flex items-center justify-between pb-3 mb-4 border-b border-border">
+            <h3 className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
               {t("settings.profile.title")}
             </h3>
           </div>
         )}
-        <div className="bg-background rounded-lg border border-border overflow-hidden">
+        <div className="bg-background rounded-[3px] border border-border overflow-hidden">
           {/* Full Name Field */}
           <div className="flex items-center justify-between p-4">
             <div className="flex-1">

@@ -111,8 +111,8 @@ function ItemDetail({
               <span className={cn(
                 "text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0",
                 item.kind === "skill"
-                  ? "bg-blue-500/10 text-blue-500"
-                  : "bg-orange-500/10 text-orange-500"
+                  ? "bg-state-needs-human/10 text-state-needs-human"
+                  : "bg-state-candidate/10 text-state-candidate"
               )}>
                 {item.kind === "skill" ? t("settings.skills.skill") : t("settings.skills.command")}
               </span>
@@ -135,7 +135,7 @@ function ItemDetail({
         <div className="space-y-1.5">
           <Label>{t("settings.common.description")}</Label>
           {isReadOnly ? (
-            <p className="text-sm text-foreground px-3 py-2 bg-muted/50 border border-border rounded-lg">
+            <p className="text-sm text-foreground px-3 py-2 bg-muted/50 border border-border rounded-[3px]">
               {item.description || <span className="text-muted-foreground">{t("settings.skills.noDescription")}</span>}
             </p>
           ) : (
@@ -153,7 +153,7 @@ function ItemDetail({
         {/* Usage */}
         <div className="space-y-1.5">
           <Label>{t("settings.common.usage")}</Label>
-          <div className="px-3 py-2 text-sm bg-muted/50 border border-border rounded-lg">
+          <div className="px-3 py-2 text-sm bg-muted/50 border border-border rounded-[3px]">
             <code className="text-xs text-foreground">
               {item.kind === "skill"
                 ? item.provider === "codex"
@@ -204,7 +204,7 @@ function ItemDetail({
           {viewMode === "rendered" || isReadOnly ? (
             <div
               className={cn(
-                "rounded-lg border border-border bg-background overflow-hidden px-4 py-3 min-h-[120px] transition-colors",
+                "rounded-[3px] border border-border bg-background overflow-hidden px-4 py-3 min-h-[120px] transition-colors",
                 !isReadOnly && "cursor-pointer hover:border-foreground/20",
               )}
               onClick={isReadOnly ? undefined : handleToggleViewMode}
@@ -236,7 +236,7 @@ function ItemDetail({
             <Button
               variant="ghost"
               size="sm"
-              className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+              className="text-tool-fail hover:text-tool-fail hover:bg-tool-fail/10"
               onClick={onDelete}
             >
               <Trash2 className="h-3.5 w-3.5 mr-1.5" />
@@ -304,7 +304,7 @@ function CreateItemForm({
     <div className="h-full overflow-y-auto">
       <div className="max-w-2xl mx-auto p-6 space-y-5">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">
+          <h3 className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
             {kind === "skill" ? t("settings.skills.newSkill") : t("settings.skills.newCommand")}
           </h3>
           <div className="flex items-center gap-2">
@@ -442,7 +442,7 @@ function SidebarListItem({
       <div className="flex items-center gap-1.5">
         <span className={cn(
           "text-[10px] font-medium shrink-0 w-3 text-center",
-          item.kind === "command" ? "text-orange-500/70" : "text-blue-500/70"
+          item.kind === "command" ? "text-state-candidate/70" : "text-state-needs-human/70"
         )}>
           {item.kind === "command" ? "/" : "@"}
         </span>
@@ -690,11 +690,11 @@ export function AgentsSkillsTab() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={listKeyDown}
-              className="h-7 w-full rounded-lg text-sm bg-muted border border-input px-3 placeholder:text-muted-foreground/40 outline-none"
+              className="h-7 w-full rounded-[3px] text-sm bg-muted border border-input px-3 placeholder:text-muted-foreground/40 outline-none"
             />
             <button
               onClick={() => { setShowAddForm(true); setSelectedItemId(null) }}
-              className="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors cursor-pointer"
+              className="h-7 w-7 shrink-0 flex items-center justify-center rounded-[3px] text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors cursor-pointer"
               title={t("settings.list.skills.addTitle")}
             >
               <Plus className="h-4 w-4" />
@@ -856,7 +856,7 @@ export function AgentsSkillsTab() {
             <AlertDialogAction
               onClick={handleDelete}
               disabled={isDeleting}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-tool-fail hover:bg-tool-fail/90 text-white"
             >
               {isDeleting ? t("settings.skills.deleting") : t("settings.common.delete")}
             </AlertDialogAction>

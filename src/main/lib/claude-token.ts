@@ -13,12 +13,26 @@ interface ClaudeCredentials {
   };
 }
 
+interface ClaudeConfig {
+  primaryApiKey?: string;
+}
+
 export interface ClaudeOAuthCredential {
   accessToken: string;
   refreshToken?: string;
   expiresAt?: number;
   scopes?: string[];
 }
+
+const CLAUDE_CODE_HOST_AUTH_ENV_KEYS = [
+  'CLAUDE_CODE_OAUTH_TOKEN',
+  'CLAUDE_CODE_OAUTH_SCOPES',
+  'CLAUDE_CODE_SUBSCRIPTION_TYPE',
+  'CLAUDE_CODE_RATE_LIMIT_TIER',
+  'CLAUDE_CODE_SDK_HAS_HOST_AUTH_REFRESH',
+  'CLAUDE_CODE_SDK_HAS_OAUTH_REFRESH',
+  'ANTHROPIC_BASE_URL',
+];
 
 /**
  * Read Claude OAuth credentials from system credential store
@@ -163,6 +177,74 @@ function readFromCredentialsFile(): ClaudeOAuthCredential | null {
     // File not found or parse error
   }
   return null;
+}
+
+/**
+ * Claude Code 2.x can store local auth in ~/.claude.json.
+ * Keep this as a boolean check so we do not expose or copy the API key.
+ */
+export function hasExistingClaudeConfigAuth(): boolean {
+  const configPath = join(homedir(), '.claude.json');
+
+  try {
+    if (!existsSync(configPath)) {
+      return false;
+    }
+
+    const content = readFileSync(configPath, 'utf-8');
+    const config: ClaudeConfig = JSON.parse(content);
+    return !!config.primaryApiKey?.trim();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Claude Desktop can launch local Claude Code with host-managed auth in env.
+ * Reuse only the required auth env keys and never log or persist their values.
+ */
+export function getRunningClaudeCodeHostAuthEnv(): Record<string, string> | null {
+  if (process.platform !== 'darwin') {
+    return null;
+  }
+
+  try {
+    const output = execSync('ps eww -axo command=', {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+      maxBuffer: 20 * 1024 * 1024,
+    });
+
+    const candidates = output
+      .split('\n')
+      .filter((line) => line.includes('CLAUDE_CODE_OAUTH_TOKEN='));
+
+    if (candidates.length === 0) {
+      return null;
+    }
+
+    const line =
+      candidates.find((candidate) =>
+        candidate.includes('/Applications/Claude.app') ||
+        candidate.includes('/Library/Application Support/Claude/claude-code'),
+      ) || candidates[0];
+
+    const env: Record<string, string> = {};
+    for (const key of CLAUDE_CODE_HOST_AUTH_ENV_KEYS) {
+      const match = line.match(new RegExp(`${key}=([^\\s]+)`));
+      if (match?.[1]) {
+        env[key] = match[1];
+      }
+    }
+
+    return env.CLAUDE_CODE_OAUTH_TOKEN ? env : null;
+  } catch {
+    return null;
+  }
+}
+
+export function hasRunningClaudeCodeHostAuth(): boolean {
+  return !!getRunningClaudeCodeHostAuthEnv()?.CLAUDE_CODE_OAUTH_TOKEN;
 }
 
 /**

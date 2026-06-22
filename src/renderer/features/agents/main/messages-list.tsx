@@ -932,6 +932,7 @@ interface SimpleIsolatedGroupProps {
     textContent: string
     imageParts: any[]
     skipTextMentionBlocks?: boolean
+    createdAt?: Date | string | null
   }>
   ToolCallComponent: React.ComponentType<{
     icon: any
@@ -1020,6 +1021,7 @@ export const SimpleIsolatedGroup = memo(function SimpleIsolatedGroup({
             textContent=""
             imageParts={imageParts}
             skipTextMentionBlocks
+            createdAt={(userMsg as any)?.createdAt}
           />
         </div>
       )}
@@ -1040,7 +1042,7 @@ export const SimpleIsolatedGroup = memo(function SimpleIsolatedGroup({
         {!textContent.trim() && (imageParts.length > 0 || textMentions.length > 0) ? (
           <div className="flex justify-start drop-shadow-[0_10px_20px_hsl(var(--background))]" data-user-bubble>
             <div className="space-y-2 w-full">
-              <div className="bg-input-background border px-3 py-2 rounded-xl text-sm text-muted-foreground italic">
+              <div className="bg-input-background border px-3 py-2 rounded-[3px] text-sm text-muted-foreground italic">
                 {(() => {
                   const parts: string[] = []
                   if (imageParts.length > 0) {
@@ -1069,6 +1071,7 @@ export const SimpleIsolatedGroup = memo(function SimpleIsolatedGroup({
             textContent={textContent}
             imageParts={[]}
             skipTextMentionBlocks
+            createdAt={(userMsg as any)?.createdAt}
           />
         )}
 

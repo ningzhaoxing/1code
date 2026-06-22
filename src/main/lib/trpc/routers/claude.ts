@@ -31,7 +31,10 @@ import {
   type McpServerConfig,
 } from "../../claude-config"
 import { anthropicAccounts, anthropicSettings, chats, claudeCodeCredentials, getDatabase, projects as projectsTable, subChats } from "../../db"
-import { getExistingClaudeToken } from "../../claude-token"
+import {
+  getExistingClaudeToken,
+  getRunningClaudeCodeHostAuthEnv,
+} from "../../claude-token"
 import { createRollbackStash } from "../../git/stash"
 import {
   ensureMcpTokensFresh,
@@ -1168,6 +1171,7 @@ export const claudeRouter = router({
               "claude-sessions",
               isUsingOllama ? input.chatId : input.subChatId,
             )
+            const claudeJsonSource = path.join(os.homedir(), ".claude.json")
 
             // MCP servers to pass to SDK (read from ~/.claude.json)
             let mcpServersForSdk: Record<string, any> | undefined
@@ -1197,6 +1201,10 @@ export const claudeRouter = router({
                 const settingsTarget = path.join(
                   isolatedConfigDir,
                   "settings.json",
+                )
+                const claudeJsonTarget = path.join(
+                  isolatedConfigDir,
+                  ".claude.json",
                 )
 
                 let symlinkSetupComplete = true
@@ -1270,6 +1278,12 @@ export const claudeRouter = router({
                   "settings.json",
                   "file",
                 )
+                await ensureSymlink(
+                  claudeJsonSource,
+                  claudeJsonTarget,
+                  ".claude.json",
+                  "file",
+                )
 
                 if (symlinkSetupComplete) {
                   symlinksCreated.add(cacheKey)
@@ -1284,7 +1298,6 @@ export const claudeRouter = router({
               // These will be passed directly to the SDK via options.mcpServers
               // Sources: ~/.claude.json, ~/.claude/.claude.json, ~/.claude/mcp.json, .mcp.json
               // OPTIMIZATION: Cache configs by file mtime to avoid re-parsing on every message
-              const claudeJsonSource = path.join(os.homedir(), ".claude.json")
               try {
                 const stats = await fs.stat(claudeJsonSource).catch(() => null)
                 const currentMtime = stats?.mtimeMs ?? 0
@@ -1414,12 +1427,21 @@ export const claudeRouter = router({
               )
             }
 
+            const claudeCodeHostAuthEnv = finalCustomConfig
+              ? null
+              : getRunningClaudeCodeHostAuthEnv()
+
             // Build final env - only add OAuth token if we have one AND no existing API config
             // Existing CLI config takes precedence over OAuth
             const finalEnv = {
               ...claudeEnv,
-              ...(claudeCodeToken &&
+              ...(claudeCodeHostAuthEnv &&
                 !hasExistingApiConfig && {
+                  ...claudeCodeHostAuthEnv,
+                }),
+              ...(claudeCodeToken &&
+                !hasExistingApiConfig &&
+                !claudeCodeHostAuthEnv?.CLAUDE_CODE_OAUTH_TOKEN && {
                   CLAUDE_CODE_OAUTH_TOKEN: claudeCodeToken,
                 }),
               // Re-enable CLAUDE_CONFIG_DIR now that we properly map MCP configs
@@ -1435,6 +1457,10 @@ export const claudeRouter = router({
             console.log(
               "[claude-auth] claudeCodeToken available:",
               !!claudeCodeToken,
+            )
+            console.log(
+              "[claude-auth] running Claude Code host auth available:",
+              !!claudeCodeHostAuthEnv?.CLAUDE_CODE_OAUTH_TOKEN,
             )
             console.log(
               "[claude-auth] Using CLAUDE_CODE_OAUTH_TOKEN:",
@@ -1787,7 +1813,10 @@ ${prompt}
                 includePartialMessages: true,
                 // Load skills from project and user directories (skip for Ollama - not supported)
                 ...(!isUsingOllama && {
-                  settingSources: ["project" as const, "user" as const],
+                  // Claude Code 2.1.45 can hang in SDK stream-json mode after
+                  // init when user-level settings/plugins are loaded. Project
+                  // settings are enough for this app's per-session config.
+                  settingSources: ["project" as const],
                 }),
                 canUseTool: async (
                   toolName: string,

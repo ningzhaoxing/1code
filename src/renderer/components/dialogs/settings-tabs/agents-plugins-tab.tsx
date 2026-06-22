@@ -82,11 +82,11 @@ function PluginDetail({
                 <div className="flex items-center gap-1.5">
                   <span className={cn(
                     "inline-block h-1.5 w-1.5 rounded-full",
-                    plugin.isDisabled ? "bg-muted-foreground/40" : "bg-emerald-500"
+                    plugin.isDisabled ? "bg-muted-foreground/40" : "bg-tool-success"
                   )} />
                   <span className={cn(
                     "text-sm font-medium",
-                    plugin.isDisabled ? "text-muted-foreground" : "text-emerald-500"
+                    plugin.isDisabled ? "text-muted-foreground" : "text-tool-success"
                   )}>
                     {plugin.isDisabled ? t("settings.common.disabled") : t("settings.common.active")}
                   </span>
@@ -121,7 +121,7 @@ function PluginDetail({
           {plugin.homepage && (
             <div className="space-y-1.5">
               <Label>{t("settings.plugins.homepage")}</Label>
-              <a href={plugin.homepage} target="_blank" rel="noopener noreferrer" className="block text-sm text-blue-400 hover:underline break-all">{plugin.homepage}</a>
+              <a href={plugin.homepage} target="_blank" rel="noopener noreferrer" className="block text-sm text-primary hover:underline break-all">{plugin.homepage}</a>
             </div>
           )}
           {plugin.tags && plugin.tags.length > 0 && (
@@ -240,7 +240,7 @@ function PluginDetail({
                         {isAuthenticating ? <Loader2 className="h-3 w-3 animate-spin" /> : t("settings.common.signIn")}
                       </Button>
                     ) : isConnected ? (
-                      <span className="text-[11px] text-emerald-500 shrink-0">{t("settings.common.connected")}</span>
+                      <span className="text-[11px] text-tool-success shrink-0">{t("settings.common.connected")}</span>
                     ) : serverStatus ? (
                       <span className="text-[11px] text-muted-foreground shrink-0">{serverStatus.status}</span>
                     ) : null}
@@ -465,7 +465,7 @@ export function AgentsPluginsTab() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={listKeyDown}
-              className="h-7 w-full rounded-lg text-sm bg-muted border border-input px-3 placeholder:text-muted-foreground/40 outline-none"
+              className="h-7 w-full rounded-[3px] text-sm bg-muted border border-input px-3 placeholder:text-muted-foreground/40 outline-none"
             />
           </div>
           {/* Plugin list */}

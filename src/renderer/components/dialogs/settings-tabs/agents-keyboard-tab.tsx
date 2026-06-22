@@ -191,7 +191,7 @@ function ShortcutListItem({
         isSelected
           ? "bg-foreground/5 text-foreground"
           : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
-        hasConflict && !isSelected && "bg-red-500/10"
+        hasConflict && !isSelected && "bg-tool-fail/10"
       )}
     >
       <span className="text-sm truncate">
@@ -286,11 +286,11 @@ function ShortcutDetailPanel({
         type="button"
         onClick={onStartRecording}
         className={cn(
-          "flex items-center justify-center gap-1 px-6 py-3 h-[52px] rounded-lg border-2 transition-shadow",
+          "flex items-center justify-center gap-1 px-6 py-3 h-[52px] rounded-[3px] border-2 transition-shadow",
           isRecording
             ? "border-primary bg-secondary ring-[3px] ring-primary/20"
             : conflictMessage
-              ? "border-red-500 bg-red-500/10"
+              ? "border-tool-fail bg-tool-fail/10"
               : "border-border bg-background hover:border-muted-foreground/50 hover:bg-secondary/50"
         )}
       >
@@ -328,7 +328,7 @@ function ShortcutDetailPanel({
 
       {/* Conflict warning - shown temporarily when trying to set conflicting hotkey */}
       {conflictMessage && (
-        <p className="text-xs text-red-500 mt-3 animate-pulse">
+        <p className="text-xs text-tool-fail mt-3 animate-pulse">
           {conflictMessage}
         </p>
       )}
@@ -339,7 +339,7 @@ function ShortcutDetailPanel({
           <button
             type="button"
             onClick={onReset}
-            className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary border border-border rounded-lg transition-colors"
+            className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary border border-border rounded-[3px] transition-colors"
           >
             <RotateCcw className="h-3 w-3" />
             <span>{t("settings.keyboard.resetTo")}</span>
@@ -598,7 +598,7 @@ export function AgentsKeyboardTab() {
               placeholder={t("settings.keyboard.search")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-7 w-full rounded-lg text-sm bg-muted border border-input px-3 placeholder:text-muted-foreground/40 outline-none"
+              className="h-7 w-full rounded-[3px] text-sm bg-muted border border-input px-3 placeholder:text-muted-foreground/40 outline-none"
             />
           </div>
 

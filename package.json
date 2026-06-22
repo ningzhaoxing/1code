@@ -164,6 +164,10 @@
         "to": "migrations"
       },
       {
+        "from": "skills",
+        "to": "skills"
+      },
+      {
         "from": "resources/bin/${platform}-${arch}",
         "to": "bin",
         "filter": [

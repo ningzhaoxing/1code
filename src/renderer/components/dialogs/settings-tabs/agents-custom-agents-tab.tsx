@@ -165,7 +165,7 @@ function AgentDetail({
               {agent.disallowedTools.map((tool) => (
                 <span
                   key={tool}
-                  className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-red-500/10 text-red-500 font-mono"
+                  className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-tool-fail/10 text-tool-fail font-mono"
                 >
                   {tool}
                 </span>
@@ -216,7 +216,7 @@ function CreateAgentForm({
     <div className="h-full overflow-y-auto">
       <div className="max-w-2xl mx-auto p-6 space-y-5">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">{t("settings.agents.new")}</h3>
+          <h3 className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">{t("settings.agents.new")}</h3>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={onCancel}>{t("settings.common.cancel")}</Button>
             <Button size="sm" onClick={() => onCreated({ name, description, prompt, model, source })} disabled={!canSave || isSaving}>
@@ -420,11 +420,11 @@ export function AgentsCustomAgentsTab() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={listKeyDown}
-              className="h-7 w-full rounded-lg text-sm bg-muted border border-input px-3 placeholder:text-muted-foreground/40 outline-none"
+              className="h-7 w-full rounded-[3px] text-sm bg-muted border border-input px-3 placeholder:text-muted-foreground/40 outline-none"
             />
             <button
               onClick={() => { setShowAddForm(true); setSelectedAgentName(null) }}
-              className="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors cursor-pointer"
+              className="h-7 w-7 shrink-0 flex items-center justify-center rounded-[3px] text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors cursor-pointer"
               title={t("settings.list.agents.addTitle")}
             >
               <Plus className="h-4 w-4" />

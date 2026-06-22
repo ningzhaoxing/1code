@@ -19,6 +19,7 @@ import {
   setupFocusUpdateCheck,
 } from "./lib/auto-updater"
 import { closeDatabase, initDatabase } from "./lib/db"
+import { installBundledSkills } from "./lib/install-skills"
 import {
   getLaunchDirectory,
   isCliInstalled,
@@ -952,6 +953,9 @@ if (gotTheLock) {
     } catch (error) {
       console.error("[App] Failed to initialize database:", error)
     }
+
+    // Install bundled skills into ~/.claude/skills (best-effort, never blocks startup)
+    installBundledSkills()
 
     // Create main window
     createMainWindow()

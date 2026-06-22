@@ -8,7 +8,6 @@ import {
   type CustomClaudeConfig,
   customClaudeConfigAtom,
   enableTasksAtom,
-  extendedThinkingEnabledAtom,
   historyEnabledAtom,
   normalizeCustomClaudeConfig,
   selectedOllamaModelAtom,
@@ -28,6 +27,7 @@ import {
   pendingAuthRetryMessageAtom,
   pendingUserQuestionsAtom,
   subChatModelIdAtomFamily,
+  suppressFindingsInjectionAtomFamily,
 } from "../atoms"
 import { useAgentSubChatStore } from "../stores/sub-chat-store"
 import type { AgentMessageMetadata } from "../ui/agent-message-usage"
@@ -231,12 +231,10 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
     const metadata = lastAssistant?.metadata as AgentMessageMetadata | undefined
     const sessionId = metadata?.sessionId
 
-    // Read extended thinking setting dynamically (so toggle applies to existing chats)
-    const thinkingEnabled = appStore.get(extendedThinkingEnabledAtom)
-    // Max thinking tokens for extended thinking mode
-    // SDK adds +1 internally, so 64000 becomes 64001 which exceeds Opus 4.5 limit
-    // Using 32000 to stay safely under the 64000 max output tokens limit
-    const maxThinkingTokens = thinkingEnabled ? 32_000 : undefined
+    // Extended thinking currently stalls Claude Code 2.1.45 when combined with
+    // SDK tool-permission callbacks. Do not pass deprecated maxThinkingTokens
+    // until this path is migrated safely.
+    const maxThinkingTokens = undefined
     const historyEnabled = appStore.get(historyEnabledAtom)
     const enableTasks = appStore.get(enableTasksAtom)
 
@@ -262,7 +260,19 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
         .allSubChats.find((subChat) => subChat.id === this.config.subChatId)
         ?.mode || this.config.mode
 
-    if (currentMode === "agent" && shouldUseSecurityMiningRecord(prompt)) {
+    // One-shot suppression: the "export report" turn instructs the agent to
+    // WRITE the report file, so we must NOT also inject the Findings live-record
+    // directive on that single turn (it would conflict). Read here, then always
+    // reset below so it only skips this one turn.
+    const suppressFindings = appStore.get(
+      suppressFindingsInjectionAtomFamily(this.config.subChatId),
+    )
+
+    if (
+      currentMode === "agent" &&
+      !suppressFindings &&
+      shouldUseSecurityMiningRecord(prompt)
+    ) {
       try {
         const record = await trpcClient.securityMiningRecord.ensure.mutate({
           chatId: this.config.chatId,
@@ -285,6 +295,14 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
       }
     }
 
+    // Reset the one-shot suppression so subsequent turns resume Findings injection.
+    if (suppressFindings) {
+      appStore.set(
+        suppressFindingsInjectionAtomFamily(this.config.subChatId),
+        false,
+      )
+    }
+
     // Stream debug logging
     const subId = this.config.subChatId.slice(-8)
     let chunkCount = 0
@@ -302,7 +320,7 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
             projectPath: this.config.projectPath, // Original project path for MCP config lookup
             mode: currentMode,
             sessionId,
-            ...(maxThinkingTokens && { maxThinkingTokens }),
+            ...(maxThinkingTokens ? { maxThinkingTokens } : {}),
             ...(modelString && { model: modelString }),
             ...(customConfig && { customConfig }),
             ...(selectedOllamaModel && { selectedOllamaModel }),

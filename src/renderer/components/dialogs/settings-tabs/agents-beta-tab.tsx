@@ -119,7 +119,7 @@ export function AgentsBetaTab() {
       {/* Header - hidden on narrow screens since it's in the navigation bar */}
       {!isNarrowScreen && (
         <div className="flex flex-col space-y-1.5 text-center sm:text-left">
-          <h3 className="text-sm font-semibold text-foreground">
+          <h3 className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
             {t("settings.beta.title")}
           </h3>
           <p className="text-xs text-muted-foreground">
@@ -129,7 +129,7 @@ export function AgentsBetaTab() {
       )}
 
       {/* Beta Features Section */}
-      <div className="bg-background rounded-lg border border-border overflow-hidden">
+      <div className="bg-background rounded-[3px] border border-border overflow-hidden">
         {/* Rollback Toggle */}
         <div className="flex items-center justify-between p-4">
           <div className="flex flex-col space-y-1">
@@ -191,12 +191,12 @@ export function AgentsBetaTab() {
       {showOfflineFeatures && (
         <div className="space-y-2">
           <div className="pb-2">
-            <h4 className="text-sm font-medium text-foreground">
+            <h4 className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
               {t("settings.beta.offlineSettings.title")}
             </h4>
           </div>
 
-          <div className="bg-background rounded-lg border border-border overflow-hidden">
+          <div className="bg-background rounded-[3px] border border-border overflow-hidden">
             <div className="p-4 space-y-4">
               {/* Status */}
               <div className="flex items-center justify-between gap-4">
@@ -219,8 +219,8 @@ export function AgentsBetaTab() {
                 <div className="flex items-center gap-1.5">
                   {ollamaStatus?.ollama.available ? (
                     <>
-                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                      <span className="text-sm text-emerald-500">
+                      <span className="h-2 w-2 rounded-full bg-tool-success" />
+                      <span className="text-sm text-tool-success">
                         {t("settings.beta.ollamaStatus.available")}
                       </span>
                     </>
@@ -346,7 +346,7 @@ export function AgentsBetaTab() {
       {/* Updates Section */}
       <div className="space-y-2">
         <div className="pb-2">
-          <h4 className="text-sm font-medium text-foreground">
+          <h4 className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
             {t("settings.beta.updates.title")}
           </h4>
           <p className="text-xs text-muted-foreground mt-1">
@@ -354,7 +354,7 @@ export function AgentsBetaTab() {
           </p>
         </div>
 
-        <div className="bg-background rounded-lg border border-border overflow-hidden">
+        <div className="bg-background rounded-[3px] border border-border overflow-hidden">
           <div className="flex items-center justify-between p-4">
             <div className="flex flex-col space-y-1">
               <span className="text-sm font-medium text-foreground">

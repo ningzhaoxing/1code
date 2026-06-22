@@ -43,7 +43,7 @@ export function DeleteServerConfirm({
           <AlertDialogAction
             onClick={onConfirm}
             disabled={isDeleting}
-            className="bg-red-600 hover:bg-red-700 text-white"
+            className="bg-tool-fail hover:bg-tool-fail/90 text-white"
           >
             {isDeleting ? t("settings.skills.deleting") : t("settings.common.delete")}
           </AlertDialogAction>

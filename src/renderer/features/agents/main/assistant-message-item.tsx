@@ -667,6 +667,15 @@ export const AssistantMessageItem = memo(function AssistantMessageItem({
     return `AGENT · ${shortModel}`
   }, [msgMetadata?.model])
 
+  // Lightweight HH:MM:SS from the message's existing createdAt. Omitted when absent.
+  const agentTimeLabel = useMemo(() => {
+    const raw = (message as any)?.createdAt
+    if (!raw) return null
+    const d = raw instanceof Date ? raw : new Date(raw)
+    if (Number.isNaN(d.getTime())) return null
+    return d.toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })
+  }, [(message as any)?.createdAt])
+
   const renderPart = useCallback((part: any, idx: number, isFinal = false) => {
     if (part.type === "step-start") return null
     if (part.type === "tool-TaskOutput") return null
@@ -874,6 +883,9 @@ export const AssistantMessageItem = memo(function AssistantMessageItem({
         {contentParts.length > 0 && (
           <span className="block font-mono text-[10px] leading-none tracking-wide text-muted-foreground/50 select-none">
             {agentLabel}
+            {agentTimeLabel && (
+              <span className="text-muted-foreground/50"> · {agentTimeLabel}</span>
+            )}
           </span>
         )}
         {shouldCollapse && visibleStepsCount > 0 && (
@@ -982,6 +994,20 @@ export const AssistantMessageItem = memo(function AssistantMessageItem({
             />
           </div>
           <div className="flex items-center gap-0.5">
+            {/* Inline OK/FAIL chip — surfaces resultSubtype (already on metadata).
+                Renders nothing when absent (Codex / success-less results stay clean). */}
+            {msgMetadata?.resultSubtype && (
+              <span
+                className={cn(
+                  "font-mono text-[10px] leading-none tracking-wide px-1 select-none flex-shrink-0",
+                  msgMetadata.resultSubtype === "success"
+                    ? "text-tool-success"
+                    : "text-tool-fail",
+                )}
+              >
+                {msgMetadata.resultSubtype === "success" ? "OK" : "FAIL"}
+              </span>
+            )}
             <AgentMessageUsage metadata={msgMetadata} isStreaming={isStreaming} isMobile={isMobile} />
             {onFork && (
               <DropdownMenu>

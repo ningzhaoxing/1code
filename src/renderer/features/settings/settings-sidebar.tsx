@@ -121,16 +121,16 @@ function TabButton({ tab, isActive, onClick }: TabButtonProps) {
     <button
       onClick={onClick}
       className={cn(
-        "inline-flex items-center whitespace-nowrap transition-colors duration-75 cursor-pointer w-full justify-start gap-2 text-left px-3 py-1.5 text-sm h-7 rounded-md",
+        "inline-flex items-center whitespace-nowrap transition-colors duration-75 cursor-pointer w-full justify-start gap-2 text-left py-1.5 text-sm h-7 rounded-[3px] font-mono",
         "outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70",
         isActive
-          ? "bg-foreground/5 text-foreground font-medium"
-          : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground font-medium"
+          ? "border-l-2 border-primary bg-primary/[0.08] text-foreground font-medium pl-[10px] pr-3"
+          : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground font-medium px-3"
       )}
     >
       <Icon
         className={cn(
-          "h-4 w-4",
+          "h-4 w-4 rounded-[3px]",
           isProjectTab ? "opacity-100" : isActive ? "opacity-100" : "opacity-50"
         )}
       />
@@ -206,7 +206,7 @@ export function SettingsSidebar() {
       <div className="px-2 pt-3 pb-2">
         <button
           onClick={handleBack}
-          className="inline-flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm h-7 rounded-md text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer"
+          className="inline-flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm h-7 rounded-[3px] text-muted-foreground hover:text-foreground font-mono font-medium transition-colors cursor-pointer"
         >
           <ChevronLeft className="h-4 w-4" />
           <span>{t("common.back")}</span>
@@ -217,6 +217,9 @@ export function SettingsSidebar() {
       <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent px-2 pb-4 space-y-4">
         {/* Main Tabs */}
         <div className="space-y-1">
+          <div className="px-3 pb-1 font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
+            General
+          </div>
           {mainTabs.map((tab) => (
             <TabButton
               key={tab.id}
@@ -228,10 +231,13 @@ export function SettingsSidebar() {
         </div>
 
         {/* Separator */}
-        <div className="border-t border-border/50 mx-2" />
+        <div className="border-t border-border mx-2" />
 
         {/* Advanced Tabs */}
         <div className="space-y-1">
+          <div className="px-3 pb-1 font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
+            Advanced
+          </div>
           {advancedTabs.map((tab) => (
             <TabButton
               key={tab.id}

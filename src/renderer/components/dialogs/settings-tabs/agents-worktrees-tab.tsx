@@ -188,7 +188,7 @@ export function AgentsWorktreesTab() {
       {/* Header */}
       {!isNarrowScreen && (
         <div className="flex flex-col space-y-1.5 text-center sm:text-left">
-          <h3 className="text-sm font-semibold text-foreground">Worktrees</h3>
+          <h3 className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">Worktrees</h3>
           <p className="text-xs text-muted-foreground">
             Configure setup commands that run when a new worktree is created
           </p>
@@ -198,10 +198,10 @@ export function AgentsWorktreesTab() {
       {/* Project Selection */}
       <div className="space-y-2">
         <div className="pb-2">
-          <h4 className="text-sm font-medium text-foreground">Project</h4>
+          <h4 className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">Project</h4>
         </div>
 
-        <div className="bg-background rounded-lg border border-border overflow-hidden">
+        <div className="bg-background rounded-[3px] border border-border overflow-hidden">
           <div className="p-4 flex items-center justify-between gap-6">
             <div className="flex-1">
               <Label className="text-sm font-medium">Select project</Label>
@@ -237,7 +237,7 @@ export function AgentsWorktreesTab() {
           {/* Config Location */}
           <div className="space-y-2">
             <div className="pb-2">
-              <h4 className="text-sm font-medium text-foreground">
+              <h4 className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
                 Config Location
               </h4>
               {configData?.path && (
@@ -247,7 +247,7 @@ export function AgentsWorktreesTab() {
               )}
             </div>
 
-            <div className="bg-background rounded-lg border border-border overflow-hidden">
+            <div className="bg-background rounded-[3px] border border-border overflow-hidden">
               <div className="p-4 flex items-center justify-between gap-6">
                 <div className="flex-1">
                   <Label className="text-sm font-medium">Save to</Label>
@@ -287,7 +287,7 @@ export function AgentsWorktreesTab() {
           <div className="space-y-2">
             <div className="pb-2 flex items-center justify-between">
               <div>
-                <h4 className="text-sm font-medium text-foreground">
+                <h4 className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
                   Setup Commands
                 </h4>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -317,7 +317,7 @@ export function AgentsWorktreesTab() {
               </Button>
             </div>
 
-            <div className="bg-background rounded-lg border border-border overflow-hidden">
+            <div className="bg-background rounded-[3px] border border-border overflow-hidden">
               <div className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-medium">All Platforms</Label>

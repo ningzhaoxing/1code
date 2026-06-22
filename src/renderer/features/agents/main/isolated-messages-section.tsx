@@ -34,6 +34,7 @@ interface IsolatedMessagesSectionProps {
     textContent: string
     imageParts: any[]
     skipTextMentionBlocks?: boolean
+    createdAt?: Date | string | null
   }>
   ToolCallComponent: React.ComponentType<{
     icon: any
