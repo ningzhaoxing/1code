@@ -8133,7 +8133,7 @@ Make sure to preserve all functionality from both branches when resolving confli
               {(isMobileFullscreen || subChatsSidebarMode !== "sidebar") && (
                 <div className="absolute inset-0 bg-card border-b border-border" />
               )}
-              <div className="pointer-events-auto flex items-center justify-between relative min-h-[44px]">
+              <div className="pointer-events-auto flex items-center justify-between relative min-h-[44px] window-drag-region">
                 <div className="flex-1 min-w-0 flex items-center gap-2">
                   {/* Workbench target breadcrumb: REPO / branch (+ AGENT/PLAN status chip).
                       Desktop only. Graceful: local "Desktop" workspaces with no repo/branch

@@ -520,7 +520,7 @@ export function SubChatSelector({
     const activeTabElement = tabRefs.current.get(activeSubChatId)
 
     if (activeTabElement) {
-      setTimeout(() => {
+      const scrollTimeoutId = window.setTimeout(() => {
         const containerRect = container.getBoundingClientRect()
         const tabRect = activeTabElement.getBoundingClientRect()
 
@@ -541,6 +541,8 @@ export function SubChatSelector({
           })
         }
       }, 0)
+
+      return () => window.clearTimeout(scrollTimeoutId)
     }
   }, [activeSubChatId, openSubChats])
 
@@ -643,7 +645,7 @@ export function SubChatSelector({
 
   return (
     <div
-      className="flex items-center gap-1 h-7 w-full"
+      className="flex items-center gap-1 h-7 w-full window-drag-region"
       style={{
         // @ts-expect-error - WebKit-specific property for Electron window dragging
         WebkitAppRegion: "drag",
@@ -669,10 +671,6 @@ export function SubChatSelector({
 
       <div
         className="relative flex-1 min-w-0 flex items-center"
-        style={{
-          // @ts-expect-error - WebKit-specific property
-          WebkitAppRegion: "no-drag",
-        }}
       >
         {/* Left gradient - visibility controlled via ref */}
         <div

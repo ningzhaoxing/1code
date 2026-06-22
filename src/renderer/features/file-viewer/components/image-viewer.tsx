@@ -73,7 +73,7 @@ export function ImageViewer({
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
-      <div className="@container flex items-center justify-between px-2 h-10 border-b border-border/50 bg-background flex-shrink-0">
+      <div className="@container flex items-center justify-between px-2 h-10 border-b border-border/50 bg-background flex-shrink-0 window-drag-region">
         {/* Left side: Close + mode switcher + file info */}
         <div className="flex items-center gap-1 min-w-0 flex-1">
           <Button
