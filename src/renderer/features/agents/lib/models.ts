@@ -6,6 +6,35 @@ export const CLAUDE_MODELS = [
 ]
 
 export type CodexThinkingLevel = "low" | "medium" | "high" | "xhigh"
+export type ClaudeThinkingLevel = Exclude<CodexThinkingLevel, "xhigh">
+
+export const CLAUDE_THINKINGS: ClaudeThinkingLevel[] = [
+  "low",
+  "medium",
+  "high",
+]
+
+const CLAUDE_MAX_THINKING_TOKENS: Record<ClaudeThinkingLevel, number> = {
+  low: 4_000,
+  medium: 32_000,
+  high: 128_000,
+}
+
+export function normalizeClaudeThinkingLevel(
+  thinking: CodexThinkingLevel,
+): ClaudeThinkingLevel {
+  if (thinking === "low" || thinking === "medium" || thinking === "high") {
+    return thinking
+  }
+
+  return "high"
+}
+
+export function getClaudeMaxThinkingTokens(
+  thinking: CodexThinkingLevel,
+): number {
+  return CLAUDE_MAX_THINKING_TOKENS[normalizeClaudeThinkingLevel(thinking)]
+}
 
 export const CODEX_MODELS = [
   {

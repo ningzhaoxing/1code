@@ -13,8 +13,7 @@ import {
   CommandList,
   CommandSeparator,
 } from "../../../components/ui/command"
-import { CheckIcon, ClaudeCodeIcon, IconChevronDown, ThinkingIcon } from "../../../components/ui/icons"
-import { Switch } from "../../../components/ui/switch"
+import { CheckIcon, ClaudeCodeIcon, IconChevronDown } from "../../../components/ui/icons"
 import { Checkbox } from "../../../components/ui/checkbox"
 import { Button } from "../../../components/ui/button"
 import {
@@ -71,8 +70,9 @@ interface AgentModelSelectorProps {
     recommendedOllamaModel?: string
     onSelectOllamaModel: (modelId: string) => void
     isConnected: boolean
-    thinkingEnabled: boolean
-    onThinkingChange: (enabled: boolean) => void
+    thinkings: CodexThinkingLevel[]
+    selectedThinking: CodexThinkingLevel
+    onSelectThinking: (thinking: CodexThinkingLevel) => void
   }
   codex: {
     models: CodexModelOption[]
@@ -97,7 +97,7 @@ function containsEventTarget(
   return target instanceof Node && !!element?.contains(target)
 }
 
-function CodexThinkingSubMenu({
+function ThinkingPrioritySubMenu({
   thinkings,
   selectedThinking,
   onSelectThinking,
@@ -580,25 +580,16 @@ export function AgentModelSelector({
             onValueChange={setSearch}
           />
 
-          {/* Claude thinking toggle */}
+          {/* Claude thinking priority selector */}
           {selectedAgentId === "claude-code" &&
             !claude.isOffline &&
             !claude.hasCustomModelConfig && (
             <>
-              <div
-                className="flex items-center justify-between min-h-[32px] py-[5px] px-1.5 mx-1"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex items-center gap-1.5">
-                  <ThinkingIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <span className="text-sm">{t("chat.model.thinking")}</span>
-                </div>
-                <Switch
-                  checked={claude.thinkingEnabled}
-                  onCheckedChange={claude.onThinkingChange}
-                  className="scale-75"
-                />
-              </div>
+              <ThinkingPrioritySubMenu
+                thinkings={claude.thinkings}
+                selectedThinking={claude.selectedThinking}
+                onSelectThinking={claude.onSelectThinking}
+              />
               <CommandSeparator />
             </>
           )}
@@ -609,7 +600,7 @@ export function AgentModelSelector({
             if (!selectedCodexModel) return null
             return (
               <>
-                <CodexThinkingSubMenu
+                <ThinkingPrioritySubMenu
                   thinkings={selectedCodexModel.thinkings}
                   selectedThinking={codex.selectedThinking}
                   onSelectThinking={codex.onSelectThinking}

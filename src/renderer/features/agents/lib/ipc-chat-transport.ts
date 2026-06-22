@@ -26,9 +26,11 @@ import {
   MODEL_ID_MAP,
   pendingAuthRetryMessageAtom,
   pendingUserQuestionsAtom,
+  subChatClaudeThinkingAtomFamily,
   subChatModelIdAtomFamily,
   suppressFindingsInjectionAtomFamily,
 } from "../atoms"
+import { getClaudeMaxThinkingTokens } from "./models"
 import { useAgentSubChatStore } from "../stores/sub-chat-store"
 import type { AgentMessageMetadata } from "../ui/agent-message-usage"
 import {
@@ -231,10 +233,9 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
     const metadata = lastAssistant?.metadata as AgentMessageMetadata | undefined
     const sessionId = metadata?.sessionId
 
-    // Extended thinking currently stalls Claude Code 2.1.45 when combined with
-    // SDK tool-permission callbacks. Do not pass deprecated maxThinkingTokens
-    // until this path is migrated safely.
-    const maxThinkingTokens = undefined
+    const selectedClaudeThinking = appStore.get(
+      subChatClaudeThinkingAtomFamily(this.config.subChatId),
+    )
     const historyEnabled = appStore.get(historyEnabledAtom)
     const enableTasks = appStore.get(enableTasksAtom)
 
@@ -246,6 +247,9 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
       customClaudeConfigAtom,
     ) as CustomClaudeConfig
     const customConfig = normalizeCustomClaudeConfig(storedCustomConfig)
+    const maxThinkingTokens = customConfig
+      ? undefined
+      : getClaudeMaxThinkingTokens(selectedClaudeThinking)
 
     // Get selected Ollama model for offline mode
     const selectedOllamaModel = appStore.get(selectedOllamaModelAtom)

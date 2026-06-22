@@ -148,6 +148,7 @@ import {
   setLoading,
   subChatFilesAtom,
   agentsSidebarOpenAtom,
+  subChatClaudeThinkingAtomFamily,
   subChatCodexModelIdAtomFamily,
   subChatCodexThinkingAtomFamily,
   subChatModelIdAtomFamily,
@@ -3710,6 +3711,10 @@ const ChatViewInner = memo(function ChatViewInner({
           appStore.get(subChatModelIdAtomFamily(subChatId)),
         )
         appStore.set(
+          subChatClaudeThinkingAtomFamily(newSubChat.id),
+          appStore.get(subChatClaudeThinkingAtomFamily(subChatId)),
+        )
+        appStore.set(
           subChatCodexModelIdAtomFamily(newSubChat.id),
           appStore.get(subChatCodexModelIdAtomFamily(subChatId)),
         )
@@ -4781,6 +4786,10 @@ const ChatViewInner = memo(function ChatViewInner({
         appStore.set(
           subChatModelIdAtomFamily(newId),
           appStore.get(subChatModelIdAtomFamily(subChatId)),
+        )
+        appStore.set(
+          subChatClaudeThinkingAtomFamily(newId),
+          appStore.get(subChatClaudeThinkingAtomFamily(subChatId)),
         )
         appStore.set(
           subChatCodexModelIdAtomFamily(newId),
@@ -7542,6 +7551,10 @@ Make sure to preserve all functionality from both branches when resolving confli
     appStore.set(
       subChatModelIdAtomFamily(newId),
       appStore.get(subChatModelIdAtomFamily(sourceSubChatId)),
+    )
+    appStore.set(
+      subChatClaudeThinkingAtomFamily(newId),
+      appStore.get(subChatClaudeThinkingAtomFamily(sourceSubChatId)),
     )
     appStore.set(
       subChatCodexModelIdAtomFamily(newId),

@@ -2039,7 +2039,7 @@ ${prompt}
                 }),
                 ...(resolvedModel && { model: resolvedModel }),
                 // fallbackModel: "claude-opus-4-5-20251101",
-                ...(input.maxThinkingTokens && {
+                ...(input.maxThinkingTokens && !isUsingOllama && {
                   maxThinkingTokens: input.maxThinkingTokens,
                 }),
               },

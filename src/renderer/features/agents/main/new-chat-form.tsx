@@ -31,6 +31,7 @@ import {
   agentsDebugModeAtom,
   justCreatedIdsAtom,
   lastSelectedAgentIdAtom,
+  lastSelectedClaudeThinkingAtom,
   lastSelectedCodexModelIdAtom,
   lastSelectedCodexThinkingAtom,
   lastSelectedBranchesAtom,
@@ -56,7 +57,6 @@ import {
   apiKeyOnboardingCompletedAtom,
   codexOnboardingCompletedAtom,
   customClaudeConfigAtom,
-  extendedThinkingEnabledAtom,
   hiddenModelsAtom,
   normalizeCustomClaudeConfig,
   showOfflineModeFeaturesAtom,
@@ -117,8 +117,11 @@ import {
   type DraftProject,
 } from "../lib/drafts"
 import {
+  CLAUDE_THINKINGS,
   CLAUDE_MODELS,
   CODEX_MODELS,
+  normalizeClaudeThinkingLevel,
+  type ClaudeThinkingLevel,
   type CodexThinkingLevel,
 } from "../lib/models"
 // import type { PlanType } from "@/lib/config/subscription-plans"
@@ -324,11 +327,11 @@ export function NewChatForm({
   const [lastSelectedCodexModelId, setLastSelectedCodexModelId] = useAtom(
     lastSelectedCodexModelIdAtom,
   )
+  const [lastSelectedClaudeThinking, setLastSelectedClaudeThinking] = useAtom(
+    lastSelectedClaudeThinkingAtom,
+  )
   const [lastSelectedCodexThinking, setLastSelectedCodexThinking] = useAtom(
     lastSelectedCodexThinkingAtom,
-  )
-  const [thinkingEnabled, setThinkingEnabled] = useAtom(
-    extendedThinkingEnabledAtom,
   )
 
   const [selectedModel, setSelectedModel] = useState(
@@ -343,6 +346,11 @@ export function NewChatForm({
       setSelectedModel(model)
     }
   }, [lastSelectedModelId])
+
+  const selectedClaudeThinking: ClaudeThinkingLevel =
+    normalizeClaudeThinkingLevel(
+      lastSelectedClaudeThinking as CodexThinkingLevel,
+    )
 
   const hiddenModels = useAtomValue(hiddenModelsAtom)
   const codexUiModels = useMemo(
@@ -1907,8 +1915,13 @@ export function NewChatForm({
                             recommendedOllamaModel: availableModels.recommendedModel,
                             onSelectOllamaModel: setSelectedOllamaModel,
                             isConnected: isClaudeConnected,
-                            thinkingEnabled,
-                            onThinkingChange: setThinkingEnabled,
+                            thinkings: CLAUDE_THINKINGS,
+                            selectedThinking: selectedClaudeThinking,
+                            onSelectThinking: (thinking) => {
+                              setLastSelectedClaudeThinking(
+                                normalizeClaudeThinkingLevel(thinking),
+                              )
+                            },
                           }}
                           codex={{
                             models: codexUiModels,
