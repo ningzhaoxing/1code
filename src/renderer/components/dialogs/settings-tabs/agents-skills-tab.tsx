@@ -370,7 +370,7 @@ function CreateItemForm({
                 {kind === "skill" ? (
                   <>
                     <SelectItem value="claude:user">Claude {t("settings.common.user")} (~/.claude/skills/)</SelectItem>
-                    <SelectItem value="codex:user">Codex {t("settings.common.user")} (~/.agents/skills/)</SelectItem>
+                    <SelectItem value="codex:user">Codex {t("settings.common.user")} (~/.1code/codex/skills/)</SelectItem>
                     {hasProject && (
                       <>
                         <SelectItem value="claude:project">

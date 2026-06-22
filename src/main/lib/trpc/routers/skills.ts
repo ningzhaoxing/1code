@@ -7,6 +7,7 @@ import matter from "gray-matter"
 import { discoverInstalledPlugins, getPluginComponentPaths } from "../../plugins"
 import { isDirentDirectory } from "../../fs/dirent"
 import { getEnabledPlugins } from "./claude-settings"
+import { getOneCodeCodexHome } from "../../agent-skills/default-project-skills"
 
 export interface FileSkill {
   name: string
@@ -23,6 +24,26 @@ const skillListProviderSchema = z.enum(["claude", "codex", "all"])
 
 type SkillProvider = z.infer<typeof skillProviderSchema>
 type SkillListProvider = z.infer<typeof skillListProviderSchema>
+
+function normalizeSkillName(name: string): string {
+  const safeName = name
+    .normalize("NFKC")
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{Letter}\p{Number}-]+/gu, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+
+  if (!safeName) {
+    throw new Error("Skill name must contain at least one letter or number")
+  }
+
+  return safeName
+}
+
+function getCodexUserSkillsDir(): string {
+  return path.join(getOneCodeCodexHome(), "skills")
+}
 
 /**
  * Parse SKILL.md frontmatter to extract name and description
@@ -151,11 +172,7 @@ const listSkillsProcedure = publicProcedure
 
     if (shouldListCodex) {
       skillPromises.push(
-        scanSkillsDirectory(
-          path.join(os.homedir(), ".agents", "skills"),
-          "user",
-          "codex",
-        ),
+        scanSkillsDirectory(getCodexUserSkillsDir(), "user", "codex"),
       )
 
       if (input?.cwd) {
@@ -249,10 +266,7 @@ export const skillsRouter = router({
     )
     .mutation(async ({ input }) => {
       const provider = input.provider ?? "claude"
-      const safeName = input.name.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "")
-      if (!safeName) {
-        throw new Error("Skill name must contain at least one alphanumeric character")
-      }
+      const safeName = normalizeSkillName(input.name)
 
       let targetDir: string
       if (input.source === "project") {
@@ -267,7 +281,7 @@ export const skillsRouter = router({
       } else {
         targetDir =
           provider === "codex"
-            ? path.join(os.homedir(), ".agents", "skills")
+            ? getCodexUserSkillsDir()
             : path.join(os.homedir(), ".claude", "skills")
       }
 

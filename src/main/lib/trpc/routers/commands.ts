@@ -50,6 +50,22 @@ function isValidEntryName(name: string): boolean {
   return !name.includes("..") && !name.includes("/") && !name.includes("\\")
 }
 
+function normalizeCommandName(name: string): string {
+  const safeName = name
+    .normalize("NFKC")
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{Letter}\p{Number}-]+/gu, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+
+  if (!safeName) {
+    throw new Error("Command name must contain at least one letter or number")
+  }
+
+  return safeName
+}
+
 /**
  * Recursively scan a directory for .md command files
  * Supports namespaces via nested folders: git/commit.md → git:commit
@@ -259,10 +275,7 @@ export const commandsRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      const safeName = input.name.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "")
-      if (!safeName) {
-        throw new Error("Command name must contain at least one alphanumeric character")
-      }
+      const safeName = normalizeCommandName(input.name)
 
       let targetDir: string
       if (input.source === "project") {

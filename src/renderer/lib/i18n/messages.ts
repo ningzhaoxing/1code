@@ -919,7 +919,7 @@ export const enMessages = {
   "settings.skills.skillType": "Skill (referenced via @mention)",
   "settings.skills.commandType": "Command (triggered via /slash)",
   "settings.skills.nameHint":
-    "Will be converted to kebab-case (lowercase letters, numbers, hyphens)",
+    "Will be converted to a safe name; letters and numbers are preserved, spaces become hyphens",
   "settings.skills.newSkillDescriptionPlaceholder": "What this skill does...",
   "settings.skills.newCommandDescriptionPlaceholder": "What this command does...",
   "settings.skills.toast.skillCreated": "Skill created",
@@ -2309,7 +2309,7 @@ const zhCNMessages: Record<TranslationKey, string> = {
   "settings.skills.deleting": "删除中...",
   "settings.skills.skillType": "技能（通过 @mention 引用）",
   "settings.skills.commandType": "命令（通过 /slash 触发）",
-  "settings.skills.nameHint": "会转换成 kebab-case（小写字母、数字和连字符）",
+  "settings.skills.nameHint": "会转换成安全名称：保留中英文和数字，空格会变成短横线",
   "settings.skills.newSkillDescriptionPlaceholder": "这个技能的用途...",
   "settings.skills.newCommandDescriptionPlaceholder": "这个命令的用途...",
   "settings.skills.toast.skillCreated": "技能已创建",
