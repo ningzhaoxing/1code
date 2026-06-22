@@ -13,6 +13,7 @@ import {
 import { join } from "path"
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from "fs"
 import { createIPCHandler } from "trpc-electron/main"
+import { isBuiltInAuthFlowDisabled } from "../auth-manager"
 import { createAppRouter } from "../lib/trpc/routers"
 import { getAuthManager, handleAuthCode, getBaseUrl } from "../index"
 import { registerGitWatcherIPC } from "../lib/git/watcher"
@@ -23,6 +24,8 @@ import { windowManager } from "./window-manager"
 
 // Flag to bypass close confirmation when app.quit() has already been confirmed
 let isQuitting = false
+
+type WindowOpenOptions = { chatId?: string; subChatId?: string }
 
 export function setIsQuitting(value: boolean): void {
   isQuitting = value
@@ -81,7 +84,7 @@ function registerIpcHandlers(): void {
   ipcMain.handle("app:set-badge", (event, count: number | null) => {
     const win = getWindowFromEvent(event)
     if (process.platform === "darwin") {
-      app.dock.setBadge(count ? String(count) : "")
+      app.dock?.setBadge(count ? String(count) : "")
     } else if (process.platform === "win32" && win) {
       // Windows: Update title with count as fallback
       if (count !== null && count > 0) {
@@ -545,6 +548,12 @@ function registerIpcHandlers(): void {
  * Show login page in a specific window
  */
 function showLoginPageInWindow(window: BrowserWindow): void {
+  if (isBuiltInAuthFlowDisabled()) {
+    console.log("[Main] Built-in login disabled, loading app in window", window.id)
+    loadAppInWindow(window)
+    return
+  }
+
   console.log("[Main] Showing login page in window", window.id)
 
   // In dev mode, login.html is in src/renderer, not out/renderer
@@ -566,6 +575,43 @@ export function showLoginPage(): void {
   const win = windowManager.getFocused() || windowManager.getAll()[0]
   if (!win) return
   showLoginPageInWindow(win)
+}
+
+function buildWindowParams(
+  window: BrowserWindow,
+  options: WindowOpenOptions | undefined,
+  params: URLSearchParams,
+): void {
+  const windowId = windowManager.getStableId(window)
+  params.set("windowId", windowId)
+  if (options?.chatId) params.set("chatId", options.chatId)
+  if (options?.subChatId) params.set("subChatId", options.subChatId)
+}
+
+function loadAppInWindow(window: BrowserWindow, options?: WindowOpenOptions): void {
+  const devServerUrl = process.env.ELECTRON_RENDERER_URL
+  const windowId = windowManager.getStableId(window)
+
+  if (devServerUrl) {
+    const url = new URL(devServerUrl)
+    buildWindowParams(window, options, url.searchParams)
+    window.loadURL(url.toString())
+
+    if (
+      !app.isPackaged &&
+      windowId === "main" &&
+      import.meta.env.MAIN_VITE_DISABLE_DEVTOOLS !== "1"
+    ) {
+      window.webContents.openDevTools()
+    }
+    return
+  }
+
+  const hashParams = new URLSearchParams()
+  buildWindowParams(window, options, hashParams)
+  window.loadFile(join(__dirname, "../renderer/index.html"), {
+    hash: hashParams.toString(),
+  })
 }
 
 // Singleton IPC handler (prevents duplicate handlers on macOS window recreation)
@@ -611,7 +657,7 @@ function getUseNativeFramePreference(): boolean {
  * @param options.chatId Open this chat in the new window
  * @param options.subChatId Open this sub-chat in the new window
  */
-export function createWindow(options?: { chatId?: string; subChatId?: string }): BrowserWindow {
+export function createWindow(options?: WindowOpenOptions): BrowserWindow {
   // Register IPC handlers before creating first window
   registerIpcHandlers()
 
@@ -780,61 +826,25 @@ export function createWindow(options?: { chatId?: string; subChatId?: string }):
     // windowManager handles cleanup via 'closed' event listener
   })
 
-  // Load the renderer - check auth first
-  const devServerUrl = process.env.ELECTRON_RENDERER_URL
+  // Load the renderer. The upstream 21st login screen is disabled while
+  // product-specific authentication is being rebuilt.
   const authManager = getAuthManager()
 
   console.log("[Main] ========== AUTH CHECK ==========")
   console.log("[Main] AuthManager exists:", !!authManager)
   const isAuth = authManager.isAuthenticated()
   console.log("[Main] isAuthenticated():", isAuth)
+  console.log("[Main] builtInAuthFlowDisabled():", isBuiltInAuthFlowDisabled())
   const user = authManager.getUser()
   console.log("[Main] getUser():", user ? user.email : "null")
   console.log("[Main] ================================")
 
-  if (isAuth) {
-    console.log("[Main] ✓ User authenticated, loading app")
-    // Get stable window ID from manager (assigned during register)
-    // "main" for first window, "window-2", "window-3", etc. for additional windows
-    const windowId = windowManager.getStableId(window)
-
-    // Build URL params including optional chatId/subChatId
-    const buildParams = (params: URLSearchParams) => {
-      params.set("windowId", windowId)
-      if (options?.chatId) params.set("chatId", options.chatId)
-      if (options?.subChatId) params.set("subChatId", options.subChatId)
-    }
-
-    if (devServerUrl) {
-      // Pass params via query for dev mode
-      const url = new URL(devServerUrl)
-      buildParams(url.searchParams)
-      window.loadURL(url.toString())
-      // Only open devtools for first window in development unless disabled locally.
-      if (
-        !app.isPackaged &&
-        windowId === "main" &&
-        import.meta.env.MAIN_VITE_DISABLE_DEVTOOLS !== "1"
-      ) {
-        window.webContents.openDevTools()
-      }
-    } else {
-      // Pass params via hash for production (file:// URLs)
-      const hashParams = new URLSearchParams()
-      buildParams(hashParams)
-      window.loadFile(join(__dirname, "../renderer/index.html"), {
-        hash: hashParams.toString(),
-      })
-    }
+  if (isAuth || isBuiltInAuthFlowDisabled()) {
+    console.log("[Main] Loading app")
+    loadAppInWindow(window, options)
   } else {
     console.log("[Main] ✗ Not authenticated, showing login page")
-    // In dev mode, login.html is in src/renderer
-    if (devServerUrl) {
-      const loginPath = join(app.getAppPath(), "src/renderer/login.html")
-      window.loadFile(loginPath)
-    } else {
-      window.loadFile(join(__dirname, "../renderer/login.html"))
-    }
+    showLoginPageInWindow(window)
   }
 
   // Log page load - traffic light visibility is managed by the renderer

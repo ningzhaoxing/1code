@@ -10,16 +10,25 @@ function getApiBaseUrl(): string {
   return import.meta.env.MAIN_VITE_API_URL || "https://21st.dev"
 }
 
+function isTruthyFlag(value: string | undefined): boolean {
+  const normalized = String(value || "").toLowerCase()
+  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on"
+}
+
+export function isBuiltInAuthFlowDisabled(): boolean {
+  return !isTruthyFlag(
+    import.meta.env.MAIN_VITE_ENABLE_BUILT_IN_AUTH ||
+      process.env.ONECODE_ENABLE_BUILT_IN_AUTH,
+  )
+}
+
 function isLocalAuthBypassEnabled(): boolean {
   if (app.isPackaged) return false
 
-  const value = String(
+  return isTruthyFlag(
     import.meta.env.MAIN_VITE_BYPASS_AUTH ||
-      process.env.ONECODE_BYPASS_AUTH ||
-      "",
-  ).toLowerCase()
-
-  return value === "1" || value === "true" || value === "yes" || value === "on"
+      process.env.ONECODE_BYPASS_AUTH,
+  )
 }
 
 const LOCAL_DEV_AUTH: AuthData = {
@@ -46,7 +55,11 @@ export class AuthManager {
     this.isDev = isDev
 
     // Schedule refresh if already authenticated
-    if (!isLocalAuthBypassEnabled() && this.store.isAuthenticated()) {
+    if (
+      !isBuiltInAuthFlowDisabled() &&
+      !isLocalAuthBypassEnabled() &&
+      this.store.isAuthenticated()
+    ) {
       this.scheduleRefresh()
     }
   }
@@ -68,6 +81,10 @@ export class AuthManager {
    * Called after receiving code via deep link
    */
   async exchangeCode(code: string): Promise<AuthData> {
+    if (isBuiltInAuthFlowDisabled()) {
+      throw new Error("Built-in auth flow is disabled")
+    }
+
     const response = await fetch(`${this.getApiUrl()}/api/auth/desktop/exchange`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -115,6 +132,10 @@ export class AuthManager {
       return LOCAL_DEV_AUTH.token
     }
 
+    if (isBuiltInAuthFlowDisabled()) {
+      return null
+    }
+
     if (!this.store.isAuthenticated()) {
       return null
     }
@@ -132,6 +153,10 @@ export class AuthManager {
   async refresh(): Promise<boolean> {
     if (isLocalAuthBypassEnabled()) {
       return true
+    }
+
+    if (isBuiltInAuthFlowDisabled()) {
+      return false
     }
 
     const refreshToken = this.store.getRefreshToken()
@@ -212,6 +237,10 @@ export class AuthManager {
       return true
     }
 
+    if (isBuiltInAuthFlowDisabled()) {
+      return false
+    }
+
     return this.store.isAuthenticated()
   }
 
@@ -223,6 +252,10 @@ export class AuthManager {
       return LOCAL_DEV_AUTH.user
     }
 
+    if (isBuiltInAuthFlowDisabled()) {
+      return null
+    }
+
     return this.store.getUser()
   }
 
@@ -232,6 +265,10 @@ export class AuthManager {
   getAuth(): AuthData | null {
     if (isLocalAuthBypassEnabled()) {
       return LOCAL_DEV_AUTH
+    }
+
+    if (isBuiltInAuthFlowDisabled()) {
+      return null
     }
 
     return this.store.load()
@@ -252,6 +289,11 @@ export class AuthManager {
    * Start auth flow by opening browser
    */
   startAuthFlow(mainWindow: BrowserWindow | null): void {
+    if (isBuiltInAuthFlowDisabled()) {
+      console.log("[Auth] Built-in auth flow is disabled; ignoring startAuthFlow")
+      return
+    }
+
     const { shell } = require("electron")
 
     let authUrl = `${this.getApiUrl()}/auth/desktop?auto=true`
