@@ -90,6 +90,13 @@ type FlatModelItem =
   | { type: "ollama"; modelName: string; isRecommended: boolean }
   | { type: "custom" }
 
+function containsEventTarget(
+  element: HTMLElement | null,
+  target: EventTarget | null,
+) {
+  return target instanceof Node && !!element?.contains(target)
+}
+
 function CodexThinkingSubMenu({
   thinkings,
   selectedThinking,
@@ -104,18 +111,25 @@ function CodexThinkingSubMenu({
   const subMenuRef = useRef<HTMLDivElement>(null)
   const [showSub, setShowSub] = useState(false)
   const [subPos, setSubPos] = useState({ top: 0, left: 0 })
-  const closeTimeout = useRef<ReturnType<typeof setTimeout>>()
+  const closeTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  const clearCloseTimeout = useCallback(() => {
+    if (closeTimeout.current !== undefined) {
+      clearTimeout(closeTimeout.current)
+      closeTimeout.current = undefined
+    }
+  }, [])
 
   const scheduleClose = useCallback(() => {
-    closeTimeout.current = setTimeout(() => setShowSub(false), 150)
-  }, [])
-
-  const cancelClose = useCallback(() => {
-    clearTimeout(closeTimeout.current)
-  }, [])
+    clearCloseTimeout()
+    closeTimeout.current = setTimeout(() => {
+      setShowSub(false)
+      closeTimeout.current = undefined
+    }, 150)
+  }, [clearCloseTimeout])
 
   const handleTriggerEnter = useCallback(() => {
-    cancelClose()
+    clearCloseTimeout()
     if (triggerRef.current) {
       const triggerRect = triggerRef.current.getBoundingClientRect()
       const popoverEl = triggerRef.current.closest(
@@ -127,12 +141,11 @@ function CodexThinkingSubMenu({
       })
     }
     setShowSub(true)
-  }, [cancelClose])
+  }, [clearCloseTimeout])
 
   const handleTriggerLeave = useCallback(
     (e: React.MouseEvent) => {
-      const related = e.relatedTarget as Node | null
-      if (subMenuRef.current?.contains(related)) return
+      if (containsEventTarget(subMenuRef.current, e.relatedTarget)) return
       scheduleClose()
     },
     [scheduleClose],
@@ -140,16 +153,15 @@ function CodexThinkingSubMenu({
 
   const handleSubLeave = useCallback(
     (e: React.MouseEvent) => {
-      const related = e.relatedTarget as Node | null
-      if (triggerRef.current?.contains(related)) return
+      if (containsEventTarget(triggerRef.current, e.relatedTarget)) return
       scheduleClose()
     },
     [scheduleClose],
   )
 
   useEffect(() => {
-    return () => clearTimeout(closeTimeout.current)
-  }, [])
+    return clearCloseTimeout
+  }, [clearCloseTimeout])
 
   return (
     <div className="py-1">
@@ -180,7 +192,7 @@ function CodexThinkingSubMenu({
         createPortal(
           <div
             ref={subMenuRef}
-            onMouseEnter={cancelClose}
+            onMouseEnter={clearCloseTimeout}
             onMouseLeave={handleSubLeave}
             className="fixed z-50 min-w-[180px] overflow-auto rounded-[10px] border border-border bg-popover text-sm text-popover-foreground shadow-lg py-1 animate-in fade-in-0 zoom-in-95 slide-in-from-left-2"
             style={{ top: subPos.top, left: subPos.left }}
@@ -189,6 +201,7 @@ function CodexThinkingSubMenu({
               const isSelected = selectedThinking === thinking
               return (
                 <button
+                  type="button"
                   key={thinking}
                   onClick={() => onSelectThinking(thinking)}
                   className="flex items-center justify-between gap-4 min-h-[32px] py-[5px] px-1.5 mx-1 w-[calc(100%-8px)] rounded-md text-sm cursor-default select-none outline-none dark:hover:bg-neutral-800 hover:text-foreground transition-colors"
@@ -223,18 +236,20 @@ function CrossProviderConfirmDialog({
   const { t } = useI18n()
   const [mounted, setMounted] = useState(false)
   const [dontShowAgain, setDontShowAgain] = useState(false)
+  const previousIsOpenRef = useRef(isOpen)
   const dontShowAgainRef = useRef(false)
   dontShowAgainRef.current = dontShowAgain
+
+  if (previousIsOpenRef.current !== isOpen) {
+    previousIsOpenRef.current = isOpen
+    if (isOpen) {
+      setDontShowAgain(false)
+    }
+  }
 
   useEffect(() => {
     setMounted(true)
   }, [])
-
-  useEffect(() => {
-    if (isOpen) {
-      setDontShowAgain(false)
-    }
-  }, [isOpen])
 
   useEffect(() => {
     if (!isOpen) return
@@ -542,6 +557,7 @@ export function AgentModelSelector({
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <button
+          type="button"
           className={cn(
             "flex items-center gap-1.5 px-2 py-1 text-sm text-muted-foreground transition-[background-color,color] duration-150 ease-out rounded-md outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70",
             "hover:text-foreground hover:bg-muted/50",
@@ -640,6 +656,7 @@ export function AgentModelSelector({
           {onOpenModelsSettings && (
             <div className="border-t border-border/50 py-1">
               <button
+                type="button"
                 onClick={() => {
                   onOpenModelsSettings()
                   handleOpenChange(false)
