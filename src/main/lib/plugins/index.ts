@@ -1,9 +1,9 @@
 import * as fs from "fs/promises"
 import type { Dirent } from "fs"
 import * as path from "path"
-import * as os from "os"
 import type { McpServerConfig } from "../claude-config"
 import { isDirentDirectory } from "../fs/dirent"
+import { getOneCodeClaudePluginsDir } from "../tooling/claude-home"
 
 export interface PluginInfo {
   name: string
@@ -51,7 +51,7 @@ export function clearPluginCache() {
 }
 
 /**
- * Discover all installed plugins from ~/.claude/plugins/marketplaces/
+ * Discover all installed plugins from ~/.1code/.claude/plugins/marketplaces/
  * Returns array of plugin info with paths to their component directories
  * Results are cached for 30 seconds to avoid repeated filesystem scans
  */
@@ -62,7 +62,7 @@ export async function discoverInstalledPlugins(): Promise<PluginInfo[]> {
   }
 
   const plugins: PluginInfo[] = []
-  const marketplacesDir = path.join(os.homedir(), ".claude", "plugins", "marketplaces")
+  const marketplacesDir = path.join(getOneCodeClaudePluginsDir(), "marketplaces")
 
   try {
     await fs.access(marketplacesDir)

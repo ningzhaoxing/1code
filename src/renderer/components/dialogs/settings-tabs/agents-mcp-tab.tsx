@@ -477,7 +477,7 @@ function CreateMcpServerForm({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="global">{t("settings.mcp.form.global")} (~/.claude.json)</SelectItem>
+                <SelectItem value="global">{t("settings.mcp.form.global")} (~/.1code/.claude/.claude.json)</SelectItem>
                 <SelectItem value="project">
                   {projectName
                     ? `${t("settings.mcp.form.project")}: ${projectName}`
@@ -555,6 +555,7 @@ export function AgentsMcpTab() {
   const updateMutation = trpc.claude.updateMcpServer.useMutation()
   const removeClaudeMcpMutation = trpc.claude.removeMcpServer.useMutation()
   const removeCodexMcpMutation = trpc.codex.removeMcpServer.useMutation()
+  const setToolingEnabledMutation = trpc.tooling.setEnabled.useMutation()
 
   const sortedGroupsByProvider = useMemo(() => {
     const statusOrder: Record<string, number> = {
@@ -743,12 +744,22 @@ export function AgentsMcpTab() {
   const handleToggleEnabled = async (item: ListedServer, enabled: boolean) => {
     if (item.provider !== "claude-code") return
     try {
-      await updateMutation.mutateAsync({
-        name: item.server.name,
-        scope: getScopeFromServer(item),
-        projectPath: item.projectPath ?? undefined,
-        disabled: !enabled,
-      })
+      const toolingItemId = String(
+        (item.server.config as Record<string, unknown>)._toolingItemId || "",
+      )
+      if (isOfficialServer(item) && toolingItemId) {
+        await setToolingEnabledMutation.mutateAsync({
+          itemId: toolingItemId,
+          enabled,
+        })
+      } else {
+        await updateMutation.mutateAsync({
+          name: item.server.name,
+          scope: getScopeFromServer(item),
+          projectPath: item.projectPath ?? undefined,
+          disabled: !enabled,
+        })
+      }
       toast.success(
         enabled
           ? t("settings.mcp.toast.enabled", { name: item.server.name })
@@ -802,7 +813,7 @@ export function AgentsMcpTab() {
       // Codex edit/delete currently supports global scope only.
       return !item.projectPath
     }
-    return !item.groupName.toLowerCase().includes("plugin")
+    return !item.groupName.toLowerCase().includes("plugin") && !isOfficialServer(item)
   }
 
   const getScopeFromServer = (item: ListedServer): ScopeType =>
@@ -811,6 +822,10 @@ export function AgentsMcpTab() {
   const isToggleableServer = (item: ListedServer): boolean =>
     item.provider === "claude-code" &&
     !item.groupName.toLowerCase().includes("plugin")
+
+  const isOfficialServer = (item: ListedServer): boolean =>
+    item.provider === "claude-code" &&
+    item.groupName.toLowerCase().includes("official")
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -1005,7 +1020,7 @@ export function AgentsMcpTab() {
             }
             isEditable={isEditableServer(selectedServer)}
             isToggleable={isToggleableServer(selectedServer)}
-            isToggling={updateMutation.isPending}
+            isToggling={updateMutation.isPending || setToolingEnabledMutation.isPending}
           />
         ) : isLoadingConfig ? (
           <div className="flex items-center justify-center h-full">

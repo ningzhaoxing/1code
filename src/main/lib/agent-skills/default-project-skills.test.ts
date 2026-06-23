@@ -18,7 +18,7 @@ describe("default project skill install helpers", () => {
         target: "claude-user",
         homeDir: "/home/user",
       }),
-      "/home/user/.claude/skills/security-mining-record",
+      "/home/user/.1code/.claude/skills/security-mining-record",
     )
     assert.equal(
       getSkillInstallTargetPath({

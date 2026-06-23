@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "skills": [
+    {
+      "id": "security-mining-record",
+      "name": "security-mining-record",
+      "displayName": "security-mining-record",
+      "providers": ["claude"],
+      "sourceDir": "security-mining-record",
+      "defaultEnabled": true,
+      "scope": "global"
+    },
+    {
+      "id": "vulnerability-research",
+      "name": "vulnerability-research",
+      "displayName": "vulnerability-research",
+      "providers": ["claude"],
+      "sourceDir": "vulnerability-research",
+      "defaultEnabled": true,
+      "scope": "global"
+    }
+  ],
+  "mcpServers": [
+    {
+      "id": "chrome-devtools",
+      "name": "chrome-devtools",
+      "nativeName": "chrome-devtools",
+      "displayName": "Chrome DevTools",
+      "description": "Inspect, debug, and automate Chrome through the Chrome DevTools MCP server.",
+      "providers": ["claude"],
+      "defaultEnabled": true,
+      "config": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "chrome-devtools-mcp@latest",
+          "--no-usage-statistics"
+        ],
+        "env": {
+          "CHROME_DEVTOOLS_MCP_NO_UPDATE_CHECKS": "true"
+        }
+      }
+    }
+  ]
+}

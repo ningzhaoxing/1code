@@ -215,17 +215,17 @@ export async function startMcpOAuth(
   serverName: string,
   projectPath: string
 ): Promise<{ success: boolean; error?: string }> {
-  // 1. Read server config from ~/.claude.json
+  // 1. Read server config from 1Code's private Claude config
   const config = await readClaudeConfig();
   let serverConfig = getMcpServerConfig(config, projectPath, serverName);
 
-  // Fallback: check plugin MCP servers if not found in ~/.claude.json
+  // Fallback: check plugin MCP servers if not found in 1Code's Claude config
   if (!serverConfig?.url) {
     const pluginMcpConfigs = await discoverPluginMcpServers();
     for (const pluginConfig of pluginMcpConfigs) {
       if (pluginConfig.mcpServers[serverName]) {
         serverConfig = pluginConfig.mcpServers[serverName];
-        // Save plugin server config to ~/.claude.json so token storage works
+        // Save plugin server config to 1Code's Claude config so token storage works
         await updateClaudeConfigAtomic((cfg) => {
           return updateMcpServerConfig(cfg, GLOBAL_MCP_PATH, serverName, {
             url: serverConfig!.url,
@@ -321,7 +321,7 @@ export async function handleMcpOAuthCallback(code: string, state: string): Promi
       pending.clientSecret
     );
 
-    // 3. Save to ~/.claude.json
+    // 3. Save to 1Code's Claude config
     await saveTokensToClaudeJson(pending.serverName, pending.projectPath, tokens, pending.clientId);
 
     // 4. Notify renderer (tools will be fetched on demand via tRPC)
@@ -400,7 +400,7 @@ export async function refreshMcpToken(
 
     const tokens = await craftOAuth.refreshAccessToken(oauth.refreshToken, oauth.clientId);
 
-    // Update ~/.claude.json with new tokens
+    // Update 1Code's Claude config with new tokens
     await saveTokensToClaudeJson(serverName, resolvedProjectPath, tokens, oauth.clientId);
 
     console.log(`[MCP Refresh] Successfully refreshed token for ${serverName}`);
@@ -459,7 +459,7 @@ export async function ensureMcpTokensFresh(
 }
 
 /**
- * Save OAuth tokens to ~/.claude.json atomically.
+ * Save OAuth tokens to 1Code's Claude config atomically.
  * Uses a mutex to prevent race conditions when multiple concurrent
  * token refreshes try to update the config simultaneously.
  */

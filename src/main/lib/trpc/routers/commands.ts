@@ -7,6 +7,7 @@ import matter from "gray-matter"
 import { discoverInstalledPlugins, getPluginComponentPaths } from "../../plugins"
 import { resolveDirentType } from "../../fs/dirent"
 import { getEnabledPlugins } from "./claude-settings"
+import { getOneCodeClaudeCommandsDir } from "../../tooling/claude-home"
 
 export interface FileCommand {
   name: string
@@ -180,7 +181,7 @@ function resolveCommandPath(displayPath: string, projectPath?: string): string {
 export const commandsRouter = router({
   /**
    * List all commands from filesystem
-   * - User commands: ~/.claude/commands/
+   * - User commands: ~/.1code/.claude/commands/
    * - Project commands: .claude/commands/ (relative to projectPath)
    */
   list: publicProcedure
@@ -192,7 +193,7 @@ export const commandsRouter = router({
         .optional(),
     )
     .query(async ({ input }) => {
-      const userCommandsDir = path.join(os.homedir(), ".claude", "commands")
+      const userCommandsDir = getOneCodeClaudeCommandsDir()
       const userCommandsPromise = scanCommandsDirectory(userCommandsDir, "user")
 
       let projectCommandsPromise = Promise.resolve<FileCommand[]>([])
@@ -284,7 +285,7 @@ export const commandsRouter = router({
         }
         targetDir = path.join(input.projectPath, ".claude", "commands")
       } else {
-        targetDir = path.join(os.homedir(), ".claude", "commands")
+        targetDir = getOneCodeClaudeCommandsDir()
       }
 
       const commandPath = path.join(targetDir, `${safeName}.md`)

@@ -4,19 +4,25 @@ import * as fs from "fs/promises"
 import * as path from "path"
 import * as os from "os"
 import matter from "gray-matter"
-import { discoverInstalledPlugins, getPluginComponentPaths } from "../../plugins"
 import { isDirentDirectory } from "../../fs/dirent"
-import { getEnabledPlugins } from "./claude-settings"
 import { getOneCodeCodexHome } from "../../agent-skills/default-project-skills"
+import { toolingCatalog } from "../../tooling/catalog"
+import { toolingStore } from "../../tooling/store"
+import type { ToolingSkillItem } from "../../tooling/types"
 
 export interface FileSkill {
+  itemId?: string
   name: string
   description: string
-  source: "user" | "project" | "plugin"
+  source: "official" | "user" | "project" | "plugin"
   provider: "claude" | "codex"
   pluginName?: string
   path: string
   content: string
+  enabled?: boolean
+  canEdit?: boolean
+  canDelete?: boolean
+  canToggle?: boolean
 }
 
 const skillProviderSchema = z.enum(["claude", "codex"])
@@ -43,6 +49,23 @@ function normalizeSkillName(name: string): string {
 
 function getCodexUserSkillsDir(): string {
   return path.join(getOneCodeCodexHome(), "skills")
+}
+
+function toolingSkillToFileSkill(skill: ToolingSkillItem): FileSkill {
+  return {
+    itemId: skill.id,
+    name: skill.name,
+    description: skill.description ?? "",
+    source: skill.source,
+    provider: skill.provider,
+    pluginName: skill.pluginName,
+    path: skill.location.displayPath,
+    content: skill.content ?? skill.skill.body ?? "",
+    enabled: skill.enabled,
+    canEdit: skill.canEdit,
+    canDelete: skill.canDelete,
+    canToggle: skill.canToggle,
+  }
 }
 
 /**
@@ -151,23 +174,19 @@ const listSkillsProcedure = publicProcedure
 
     if (shouldListClaude) {
       skillPromises.push(
-        scanSkillsDirectory(
-          path.join(os.homedir(), ".claude", "skills"),
-          "user",
-          "claude",
-        ),
-      )
-
-      if (input?.cwd) {
-        skillPromises.push(
-          scanSkillsDirectory(
-            path.join(input.cwd, ".claude", "skills"),
-            "project",
-            "claude",
-            input.cwd,
+        toolingCatalog
+          .list({
+            provider: "claude",
+            kind: "skill",
+            projectPath: input?.cwd,
+            includeContent: true,
+          })
+          .then((result) =>
+            result.items
+              .filter((item): item is ToolingSkillItem => item.kind === "skill")
+              .map(toolingSkillToFileSkill),
           ),
-        )
-      }
+      )
     }
 
     if (shouldListCodex) {
@@ -185,27 +204,6 @@ const listSkillsProcedure = publicProcedure
           ),
         )
       }
-    }
-
-    // Discover plugin skills
-    if (shouldListClaude) {
-      const [enabledPluginSources, installedPlugins] = await Promise.all([
-        getEnabledPlugins(),
-        discoverInstalledPlugins(),
-      ])
-      const enabledPlugins = installedPlugins.filter(
-        (p) => enabledPluginSources.includes(p.source),
-      )
-      const pluginSkillsPromises = enabledPlugins.map(async (plugin) => {
-        const paths = getPluginComponentPaths(plugin)
-        try {
-          const skills = await scanSkillsDirectory(paths.skills, "plugin", "claude")
-          return skills.map((skill) => ({ ...skill, pluginName: plugin.source }))
-        } catch {
-          return []
-        }
-      })
-      skillPromises.push(...pluginSkillsPromises)
     }
 
     // Scan all directories in parallel
@@ -235,10 +233,18 @@ function resolveSkillPath(displayPath: string): string {
   return displayPath
 }
 
+function looksLikeClaudeSkillPath(skillPath: string): boolean {
+  return (
+    skillPath.includes(`${path.sep}.claude${path.sep}skills${path.sep}`) ||
+    skillPath.startsWith(".claude/skills/") ||
+    skillPath.startsWith("~/.1code/.claude/skills/")
+  )
+}
+
 export const skillsRouter = router({
   /**
    * List all skills from filesystem
-   * - Claude user skills: ~/.claude/skills/
+   * - Claude user skills: ~/.1code/.claude/skills/
    * - Claude project skills: .claude/skills/ (relative to cwd)
    * - Codex user skills: ~/.agents/skills/
    * - Codex project skills: .agents/skills/ (relative to cwd)
@@ -266,6 +272,24 @@ export const skillsRouter = router({
     )
     .mutation(async ({ input }) => {
       const provider = input.provider ?? "claude"
+      if (provider === "claude") {
+        const created = await toolingStore.createSkill({
+          provider: "claude",
+          source: input.source,
+          projectPath: input.cwd,
+          name: input.name,
+          description: input.description,
+          content: input.content,
+        })
+
+        return {
+          name: created.nativeName,
+          path: created.nativePath,
+          source: input.source,
+          provider,
+        }
+      }
+
       const safeName = normalizeSkillName(input.name)
 
       let targetDir: string
@@ -279,10 +303,7 @@ export const skillsRouter = router({
           "skills",
         )
       } else {
-        targetDir =
-          provider === "codex"
-            ? getCodexUserSkillsDir()
-            : path.join(os.homedir(), ".claude", "skills")
+        targetDir = getCodexUserSkillsDir()
       }
 
       const skillDir = path.join(targetDir, safeName)
@@ -331,6 +352,19 @@ export const skillsRouter = router({
       })
     )
     .mutation(async ({ input }) => {
+      if (looksLikeClaudeSkillPath(input.path)) {
+        await toolingStore.updateClaudeSkillByPath({
+          skillPath: input.path,
+          projectPath: input.cwd,
+          patch: {
+            name: input.name,
+            description: input.description,
+            content: input.content,
+          },
+        })
+        return { success: true }
+      }
+
       const absolutePath = input.cwd && !input.path.startsWith("~") && !input.path.startsWith("/")
         ? path.join(input.cwd, input.path)
         : resolveSkillPath(input.path)
@@ -362,6 +396,14 @@ export const skillsRouter = router({
     .mutation(async ({ input }) => {
       if (input.path.includes("..")) {
         throw new Error("Invalid path")
+      }
+
+      if (looksLikeClaudeSkillPath(input.path)) {
+        await toolingStore.deleteClaudeSkillByPath({
+          skillPath: input.path,
+          projectPath: input.cwd,
+        })
+        return { success: true }
       }
 
       const absolutePath = input.cwd && !input.path.startsWith("~") && !input.path.startsWith("/")

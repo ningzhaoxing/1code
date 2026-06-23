@@ -1,25 +1,31 @@
 /**
- * Helpers for reading and writing ~/.claude.json configuration
+ * Helpers for reading and writing 1Code's private Claude configuration.
  */
 import { Mutex } from "async-mutex"
 import { eq } from "drizzle-orm"
-import { existsSync, readFileSync, writeFileSync } from "fs"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs"
 import * as fs from "fs/promises"
+import { createRequire } from "node:module"
 import * as os from "os"
 import * as path from "path"
-import { getDatabase } from "./db"
-import { chats, projects } from "./db/schema"
+import {
+  getOneCodeClaudeConfigPath,
+  getOneCodeClaudeDirConfigPath,
+  getOneCodeClaudeMcpPath,
+} from "./tooling/claude-home"
+
+const require = createRequire(import.meta.url)
 
 /**
- * Mutex for protecting read-modify-write operations on ~/.claude.json
+ * Mutex for protecting read-modify-write operations on 1Code's Claude config.
  * This prevents race conditions when multiple concurrent operations
  * (e.g., token refreshes for different MCP servers) try to update the config.
  */
 const configMutex = new Mutex()
 
-export const CLAUDE_CONFIG_PATH = path.join(os.homedir(), ".claude.json")
-export const CLAUDE_DIR_CONFIG_PATH = path.join(os.homedir(), ".claude", ".claude.json")
-export const CLAUDE_DIR_MCP_PATH = path.join(os.homedir(), ".claude", "mcp.json")
+export const CLAUDE_CONFIG_PATH = getOneCodeClaudeConfigPath()
+export const CLAUDE_DIR_CONFIG_PATH = getOneCodeClaudeDirConfigPath()
+export const CLAUDE_DIR_MCP_PATH = getOneCodeClaudeMcpPath()
 
 export interface McpServerConfig {
   command?: string
@@ -47,7 +53,7 @@ export interface ClaudeConfig {
 }
 
 /**
- * Read ~/.claude.json asynchronously
+ * Read 1Code's Claude config asynchronously.
  * Returns empty config if file doesn't exist or is invalid
  */
 export async function readClaudeConfig(): Promise<ClaudeConfig> {
@@ -60,7 +66,7 @@ export async function readClaudeConfig(): Promise<ClaudeConfig> {
 }
 
 /**
- * Read ~/.claude.json synchronously
+ * Read 1Code's Claude config synchronously.
  * Returns empty config if file doesn't exist or is invalid
  */
 export function readClaudeConfigSync(): ClaudeConfig {
@@ -73,21 +79,23 @@ export function readClaudeConfigSync(): ClaudeConfig {
 }
 
 /**
- * Write ~/.claude.json asynchronously
+ * Write 1Code's Claude config asynchronously.
  */
 export async function writeClaudeConfig(config: ClaudeConfig): Promise<void> {
+  await fs.mkdir(path.dirname(CLAUDE_CONFIG_PATH), { recursive: true })
   await fs.writeFile(CLAUDE_CONFIG_PATH, JSON.stringify(config, null, 2), "utf-8")
 }
 
 /**
- * Write ~/.claude.json synchronously
+ * Write 1Code's Claude config synchronously.
  */
 export function writeClaudeConfigSync(config: ClaudeConfig): void {
+  mkdirSync(path.dirname(CLAUDE_CONFIG_PATH), { recursive: true })
   writeFileSync(CLAUDE_CONFIG_PATH, JSON.stringify(config, null, 2), "utf-8")
 }
 
 /**
- * Execute a read-modify-write operation on ~/.claude.json atomically.
+ * Execute a read-modify-write operation on 1Code's Claude config atomically.
  * This is the ONLY safe way to update the config when concurrent writes are possible.
  *
  * Uses a mutex to ensure that only one read-modify-write cycle happens at a time,
@@ -109,7 +117,7 @@ export async function updateClaudeConfigAtomic(
 }
 
 /**
- * Check if ~/.claude.json exists
+ * Check if 1Code's Claude config exists.
  */
 export function claudeConfigExists(): boolean {
   return existsSync(CLAUDE_CONFIG_PATH)
@@ -140,7 +148,7 @@ export function getMcpServerConfig(
   projectPath: string | null,
   serverName: string
 ): McpServerConfig | undefined {
-  // Global MCP servers (root level mcpServers in ~/.claude.json)
+  // Global MCP servers (root level mcpServers in 1Code's Claude config)
   if (!projectPath || projectPath === GLOBAL_MCP_PATH) {
     return config.mcpServers?.[serverName]
   }
@@ -160,7 +168,7 @@ export function updateMcpServerConfig(
   serverName: string,
   update: Partial<McpServerConfig>
 ): ClaudeConfig {
-  // Global MCP servers (root level mcpServers in ~/.claude.json)
+  // Global MCP servers (root level mcpServers in 1Code's Claude config)
   if (!projectPath || projectPath === GLOBAL_MCP_PATH) {
     config.mcpServers = config.mcpServers || {}
     config.mcpServers[serverName] = {
@@ -249,6 +257,8 @@ export function resolveProjectPathFromWorktree(
       return null
     }
 
+    const { getDatabase } = require("./db") as typeof import("./db")
+    const { chats, projects } = require("./db/schema") as typeof import("./db/schema")
     const db = getDatabase()
 
     // Strategy 1: Legacy lookup - folder name is a projectId
@@ -294,7 +304,7 @@ export function resolveProjectPathFromWorktree(
 
 // ============================================================================
 // Additional MCP config sources (matching Claude Code CLI behavior)
-// Sources: .mcp.json (project), ~/.claude/.claude.json, ~/.claude/mcp.json
+// Sources: .mcp.json (project), ~/.1code/.claude/.claude.json, ~/.1code/.claude/mcp.json
 // ============================================================================
 
 /**
@@ -398,7 +408,7 @@ export async function readProjectMcpJson(
 }
 
 /**
- * Read ~/.claude/.claude.json (v2.0.8+ user-scope config, same format as ~/.claude.json)
+ * Read 1Code's Claude dir config.
  */
 export async function readClaudeDirConfig(): Promise<ClaudeConfig> {
   try {
@@ -406,14 +416,14 @@ export async function readClaudeDirConfig(): Promise<ClaudeConfig> {
     return JSON.parse(content)
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-      console.error("[claude-config] Failed to read ~/.claude/.claude.json:", error)
+      console.error("[claude-config] Failed to read 1Code Claude .claude.json:", error)
     }
     return {}
   }
 }
 
 /**
- * Read ~/.claude/mcp.json (user-scope MCP definitions only)
+ * Read 1Code's Claude mcp.json (user-scope MCP definitions only)
  * Format: { "mcpServers": { "name": { ... } } } or flat { "name": { ... } }
  */
 export async function readClaudeDirMcpJson(): Promise<Record<string, McpServerConfig>> {
@@ -434,7 +444,7 @@ export async function readClaudeDirMcpJson(): Promise<Record<string, McpServerCo
     return servers
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-      console.error("[claude-config] Failed to read ~/.claude/mcp.json:", error)
+      console.error("[claude-config] Failed to read 1Code Claude mcp.json:", error)
     }
     return {}
   }
@@ -442,7 +452,7 @@ export async function readClaudeDirMcpJson(): Promise<Record<string, McpServerCo
 
 /**
  * Get merged global MCP servers from all user-level sources.
- * Precedence (highest first): ~/.claude.json > ~/.claude/.claude.json > ~/.claude/mcp.json
+ * Precedence (highest first): ~/.1code/.claude/.claude.json > ~/.1code/.claude/mcp.json
  */
 export async function getMergedGlobalMcpServers(
   claudeConfig?: ClaudeConfig,
@@ -462,7 +472,7 @@ export async function getMergedGlobalMcpServers(
 
 /**
  * Get merged MCP servers for a specific project from per-project configs.
- * Precedence (highest first): ~/.claude.json per-project > ~/.claude/.claude.json per-project
+ * Precedence (highest first): ~/.1code/.claude/.claude.json per-project
  * Note: Does NOT include .mcp.json (caller handles that separately for caching)
  */
 export async function getMergedLocalProjectMcpServers(

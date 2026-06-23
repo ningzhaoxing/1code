@@ -1,10 +1,10 @@
 import * as fs from "fs/promises"
 import * as path from "path"
-import * as os from "os"
 import { z } from "zod"
 import { router, publicProcedure } from "../index"
+import { getOneCodeClaudeSettingsPath } from "../../tooling/claude-home"
 
-const CLAUDE_SETTINGS_PATH = path.join(os.homedir(), ".claude", "settings.json")
+const CLAUDE_SETTINGS_PATH = getOneCodeClaudeSettingsPath()
 
 // Cache for enabled plugins to avoid repeated filesystem reads
 let enabledPluginsCache: { plugins: string[]; timestamp: number } | null = null
@@ -95,7 +95,7 @@ export async function isPluginMcpApproved(pluginSource: string, serverName: stri
 
 /**
  * Write Claude settings.json file
- * Creates the .claude directory if it doesn't exist
+ * Creates the 1Code Claude directory if it doesn't exist
  */
 async function writeClaudeSettings(settings: Record<string, unknown>): Promise<void> {
   const dir = path.dirname(CLAUDE_SETTINGS_PATH)

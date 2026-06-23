@@ -2,7 +2,6 @@ import { observable } from "@trpc/server/observable"
 import { eq } from "drizzle-orm"
 import { app, BrowserWindow, safeStorage } from "electron"
 import * as fs from "fs/promises"
-import * as os from "os"
 import path from "path"
 import { z } from "zod"
 import { setConnectionMethod } from "../../analytics"
@@ -23,10 +22,7 @@ import {
   readClaudeConfig,
   readClaudeDirConfig,
   readProjectMcpJson,
-  removeMcpServerConfig,
   resolveProjectPathFromWorktree,
-  updateMcpServerConfig,
-  writeClaudeConfig,
   type ClaudeConfig,
   type McpServerConfig,
 } from "../../claude-config"
@@ -46,6 +42,12 @@ import {
 } from "../../mcp-auth"
 import { fetchOAuthMetadata, getMcpBaseUrl } from "../../oauth"
 import { discoverPluginMcpServers } from "../../plugins"
+import { toolingCatalog } from "../../tooling/catalog"
+import { getOneCodeClaudeConfigPath } from "../../tooling/claude-home"
+import { ClaudeAdapter } from "../../tooling/providers/claude/claude-adapter"
+import { buildOfficialMcpServersForSettings } from "../../tooling/providers/claude/claude-official-mcp-settings"
+import { toolingStore } from "../../tooling/store"
+import type { ToolingMcpItem } from "../../tooling/types"
 import { publicProcedure, router } from "../index"
 import { buildAgentsOption } from "./agent-utils"
 import {
@@ -302,7 +304,7 @@ function mcpCacheKey(scope: string | null, serverName: string): string {
 // Cache for symlinks (track which subChatIds have already set up symlinks)
 const symlinksCreated = new Set<string>()
 
-// Cache for MCP config (avoid re-reading ~/.claude.json on every message)
+// Cache for MCP config (avoid re-reading 1Code's Claude config on every message)
 const mcpConfigCache = new Map<
   string,
   {
@@ -319,6 +321,8 @@ const projectMcpJsonCache = new Map<
     mtime: number
   }
 >()
+
+const claudeRuntimeAdapter = new ClaudeAdapter()
 
 /**
  * Read .mcp.json with mtime-based caching
@@ -354,7 +358,7 @@ const pendingToolApprovals = new Map<
     resolve: (decision: {
       approved: boolean
       message?: string
-      updatedInput?: unknown
+      updatedInput?: Record<string, unknown>
     }) => void
   }
 >()
@@ -564,13 +568,35 @@ export async function getAllMcpConfigHandler() {
       }>
     }> = []
 
-    // Read ~/.claude/.claude.json once for reuse across global + project merging
+    // Read 1Code's Claude config once for reuse across global + project merging
     let claudeDirConfig: ClaudeConfig = {}
     try {
       claudeDirConfig = await readClaudeDirConfig()
     } catch { /* ignore */ }
 
-    // Global MCPs (merged from ~/.claude.json + ~/.claude/.claude.json + ~/.claude/mcp.json)
+    const officialMcpItems = (await toolingCatalog.list({
+      provider: "claude",
+      kind: "mcp",
+    })).items.filter(
+      (item): item is ToolingMcpItem =>
+        item.kind === "mcp" && item.source === "official",
+    )
+    if (officialMcpItems.length > 0) {
+      groupTasks.push({
+        groupName: "Official",
+        projectPath: null,
+        promise: (async () => {
+          const start = Date.now()
+          const mcpServers = await buildOfficialMcpServersForSettings(
+            officialMcpItems,
+            (servers) => convertServers(servers, null),
+          )
+          return { mcpServers, duration: Date.now() - start }
+        })(),
+      })
+    }
+
+    // Global MCPs from 1Code's private Claude user-scope config
     const mergedGlobalServers = await getMergedGlobalMcpServers(config, claudeDirConfig)
     if (Object.keys(mergedGlobalServers).length > 0) {
       groupTasks.push({
@@ -594,7 +620,7 @@ export async function getAllMcpConfigHandler() {
       })
     }
 
-    // Project MCPs from ~/.claude.json + ~/.claude/.claude.json (per-project configs)
+    // Project MCPs from 1Code's private Claude user-scope config
     // Collect all known project paths from both configs
     const allProjectPaths = new Set<string>()
     if (config.projects) {
@@ -711,7 +737,7 @@ export async function getAllMcpConfigHandler() {
           await Promise.all(
             Object.entries(pluginConfig.mcpServers).map(
               async ([name, serverConfig]) => {
-                // Skip servers that have been promoted to ~/.claude.json (e.g., after OAuth)
+                // Skip servers that have been promoted to 1Code's Claude config (e.g., after OAuth)
                 if (globalServerNames.includes(name)) return null
 
                 const configObj = serverConfig as Record<string, unknown>
@@ -1052,7 +1078,6 @@ export const claudeRouter = router({
             }
 
             const transform = createTransformer({
-              emitSdkMessageUuid: historyEnabled,
               isUsingOllama,
             })
 
@@ -1172,132 +1197,26 @@ export const claudeRouter = router({
               "claude-sessions",
               isUsingOllama ? input.chatId : input.subChatId,
             )
-            const claudeJsonSource = path.join(os.homedir(), ".claude.json")
+            const claudeJsonSource = getOneCodeClaudeConfigPath()
+            const runtimeContext = await claudeRuntimeAdapter.buildRuntimeContext({
+              cwd: input.cwd,
+              projectPath: input.projectPath,
+              subChatId: input.subChatId,
+              chatId: input.chatId,
+              isUsingOllama,
+              userDataDir: app.getPath("userData"),
+              symlinkCache: symlinksCreated,
+            })
 
-            // MCP servers to pass to SDK (read from ~/.claude.json)
+            // MCP servers to pass to SDK (read from 1Code's Claude config)
             let mcpServersForSdk: Record<string, any> | undefined
 
-            // Ensure isolated config dir exists and symlink selected ~/.claude/ assets
-            // This is needed because SDK looks for these under $CLAUDE_CONFIG_DIR/
-            // OPTIMIZATION: Only create symlinks once per subChatId (cached)
+            // Ensure runtime config assets and official MCPs are prepared by the
+            // provider adapter. The router keeps existing MCP merge/cache logic.
             try {
-              await fs.mkdir(isolatedConfigDir, { recursive: true })
-
-              // Only create symlinks if not already created for this config dir
-              const cacheKey = isUsingOllama ? input.chatId : input.subChatId
-              if (!symlinksCreated.has(cacheKey)) {
-                const homeClaudeDir = path.join(os.homedir(), ".claude")
-                const symlinkType =
-                  process.platform === "win32" ? "junction" : "dir"
-
-                const skillsSource = path.join(homeClaudeDir, "skills")
-                const skillsTarget = path.join(isolatedConfigDir, "skills")
-                const commandsSource = path.join(homeClaudeDir, "commands")
-                const commandsTarget = path.join(isolatedConfigDir, "commands")
-                const agentsSource = path.join(homeClaudeDir, "agents")
-                const agentsTarget = path.join(isolatedConfigDir, "agents")
-                const pluginsSource = path.join(homeClaudeDir, "plugins")
-                const pluginsTarget = path.join(isolatedConfigDir, "plugins")
-                const settingsSource = path.join(homeClaudeDir, "settings.json")
-                const settingsTarget = path.join(
-                  isolatedConfigDir,
-                  "settings.json",
-                )
-                const claudeJsonTarget = path.join(
-                  isolatedConfigDir,
-                  ".claude.json",
-                )
-
-                let symlinkSetupComplete = true
-                let symlinkSetupHadErrors = false
-
-                const ensureSymlink = async (
-                  sourcePath: string,
-                  targetPath: string,
-                  label: string,
-                  targetKind: "dir" | "file",
-                ) => {
-                  try {
-                    const sourceExists = await fs
-                      .stat(sourcePath)
-                      .then(() => true)
-                      .catch(() => false)
-                    const targetExists = await fs
-                      .lstat(targetPath)
-                      .then(() => true)
-                      .catch(() => false)
-
-                    if (sourceExists && !targetExists) {
-                      if (targetKind === "dir") {
-                        await fs.symlink(sourcePath, targetPath, symlinkType)
-                      } else {
-                        await fs.symlink(sourcePath, targetPath)
-                      }
-                    }
-
-                    // Keep rechecking on next request when source is not created yet.
-                    if (!sourceExists && !targetExists) {
-                      symlinkSetupComplete = false
-                    }
-                  } catch (symlinkErr) {
-                    symlinkSetupComplete = false
-                    symlinkSetupHadErrors = true
-                    console.warn(
-                      `[claude] Failed to symlink ${label}:`,
-                      (symlinkErr as Error).message,
-                    )
-                  }
-                }
-
-                await ensureSymlink(
-                  skillsSource,
-                  skillsTarget,
-                  "skills directory",
-                  "dir",
-                )
-                await ensureSymlink(
-                  commandsSource,
-                  commandsTarget,
-                  "commands directory",
-                  "dir",
-                )
-                await ensureSymlink(
-                  agentsSource,
-                  agentsTarget,
-                  "agents directory",
-                  "dir",
-                )
-                await ensureSymlink(
-                  pluginsSource,
-                  pluginsTarget,
-                  "plugins directory",
-                  "dir",
-                )
-                await ensureSymlink(
-                  settingsSource,
-                  settingsTarget,
-                  "settings.json",
-                  "file",
-                )
-                await ensureSymlink(
-                  claudeJsonSource,
-                  claudeJsonTarget,
-                  ".claude.json",
-                  "file",
-                )
-
-                if (symlinkSetupComplete) {
-                  symlinksCreated.add(cacheKey)
-                } else if (symlinkSetupHadErrors) {
-                  console.warn(
-                    "[claude] Symlink setup incomplete, will retry on next request",
-                  )
-                }
-              }
-
               // Read MCP servers from all sources for the original project path
               // These will be passed directly to the SDK via options.mcpServers
-              // Sources: ~/.claude.json, ~/.claude/.claude.json, ~/.claude/mcp.json, .mcp.json
+              // Sources: 1Code Claude config, 1Code Claude mcp.json, .mcp.json
               // OPTIMIZATION: Cache configs by file mtime to avoid re-parsing on every message
               try {
                 const stats = await fs.stat(claudeJsonSource).catch(() => null)
@@ -1321,7 +1240,7 @@ export const claudeRouter = router({
                   claudeConfig = {}
                 }
 
-                // Read ~/.claude/.claude.json once for reuse
+                // Read 1Code's Claude config once for reuse
                 let chatClaudeDirConfig: ClaudeConfig = {}
                 try {
                   chatClaudeDirConfig = await readClaudeDirConfig()
@@ -1366,9 +1285,12 @@ export const claudeRouter = router({
                   }
                 }
 
-                // Priority: project > global > plugin
+                const officialServers = runtimeContext.sdkOptions.mcpServers || {}
+
+                // Priority: project > global > official > plugin
                 const allServers = {
                   ...pluginServers,
+                  ...officialServers,
                   ...globalServers,
                   ...projectServers,
                 }
@@ -1410,7 +1332,7 @@ export const claudeRouter = router({
               }
             } catch (mkdirErr) {
               console.error(
-                `[claude] Failed to setup isolated config dir:`,
+                `[claude] Failed to setup runtime MCP config:`,
                 mkdirErr,
               )
             }
@@ -1434,7 +1356,7 @@ export const claudeRouter = router({
 
             // Build final env - only add OAuth token if we have one AND no existing API config
             // Existing CLI config takes precedence over OAuth
-            const finalEnv = {
+            const finalEnv: Record<string, string | undefined> = {
               ...claudeEnv,
               ...(claudeCodeHostAuthEnv &&
                 !hasExistingApiConfig && {
@@ -1445,8 +1367,7 @@ export const claudeRouter = router({
                 !claudeCodeHostAuthEnv?.CLAUDE_CODE_OAUTH_TOKEN && {
                   CLAUDE_CODE_OAUTH_TOKEN: claudeCodeToken,
                 }),
-              // Re-enable CLAUDE_CONFIG_DIR now that we properly map MCP configs
-              CLAUDE_CONFIG_DIR: isolatedConfigDir,
+              ...runtimeContext.env,
             }
 
             // Log auth method being used
@@ -1787,8 +1708,9 @@ ${prompt}
                   preset: "claude_code" as const,
                 }
 
-            const queryOptions = {
-              prompt: finalQueryPrompt,
+            type ClaudeQueryParams = Parameters<typeof claudeQuery>[0]
+            const queryOptions: ClaudeQueryParams = {
+              prompt: finalQueryPrompt as ClaudeQueryParams["prompt"],
               options: {
                 abortController, // Must be inside options!
                 cwd: input.cwd,
@@ -1817,7 +1739,9 @@ ${prompt}
                   // Claude Code 2.1.45 can hang in SDK stream-json mode after
                   // init when user-level settings/plugins are loaded. Project
                   // settings are enough for this app's per-session config.
-                  settingSources: ["project" as const],
+                  settingSources: runtimeContext.sdkOptions.settingSources ?? [
+                    "project" as const,
+                  ],
                 }),
                 canUseTool: async (
                   toolName: string,
@@ -1911,19 +1835,19 @@ ${prompt}
                           : ""
                       if (!/\.md$/i.test(filePath)) {
                         return {
-                          behavior: "deny",
+                          behavior: "deny" as const,
                           message:
                             'Only ".md" files can be modified in plan mode.',
                         }
                       }
                     } else if (toolName == "ExitPlanMode") {
                       return {
-                        behavior: "deny",
+                        behavior: "deny" as const,
                         message: `IMPORTANT: DONT IMPLEMENT THE PLAN UNTIL THE EXPLIT COMMAND. THE PLAN WAS **ONLY** PRESENTED TO USER, FINISH CURRENT MESSAGE AS SOON AS POSSIBLE`,
                       }
                     } else if (PLAN_MODE_BLOCKED_TOOLS.has(toolName)) {
                       return {
-                        behavior: "deny",
+                        behavior: "deny" as const,
                         message: `Tool "${toolName}" blocked in plan mode.`,
                       }
                     }
@@ -1941,7 +1865,7 @@ ${prompt}
                     const response = await new Promise<{
                       approved: boolean
                       message?: string
-                      updatedInput?: unknown
+                      updatedInput?: Record<string, unknown>
                     }>((resolve) => {
                       const timeoutId = setTimeout(() => {
                         pendingToolApprovals.delete(toolUseID)
@@ -1982,9 +1906,9 @@ ${prompt}
                         type: "ask-user-question-result",
                         toolUseId: toolUseID,
                         result: errorMessage,
-                      } as UIMessageChunk)
+                      } as unknown as UIMessageChunk)
                       return {
-                        behavior: "deny",
+                        behavior: "deny" as const,
                         message: errorMessage,
                       }
                     }
@@ -2001,14 +1925,14 @@ ${prompt}
                       type: "ask-user-question-result",
                       toolUseId: toolUseID,
                       result: answerResult,
-                    } as UIMessageChunk)
+                    } as unknown as UIMessageChunk)
                     return {
-                      behavior: "allow",
+                      behavior: "allow" as const,
                       updatedInput: response.updatedInput,
                     }
                   }
                   return {
-                    behavior: "allow",
+                    behavior: "allow" as const,
                     updatedInput: toolInput,
                   }
                 },
@@ -2961,16 +2885,22 @@ ${prompt}
         updatedInput: z.unknown().optional(),
       }),
     )
-    .mutation(({ input }) => {
-      const pending = pendingToolApprovals.get(input.toolUseId)
-      if (!pending) {
-        return { ok: false }
-      }
-      pending.resolve({
-        approved: input.approved,
-        message: input.message,
-        updatedInput: input.updatedInput,
-      })
+	    .mutation(({ input }) => {
+	      const pending = pendingToolApprovals.get(input.toolUseId)
+	      if (!pending) {
+	        return { ok: false }
+	      }
+	      const updatedInput =
+	        typeof input.updatedInput === "object" &&
+	        input.updatedInput !== null &&
+	        !Array.isArray(input.updatedInput)
+	          ? (input.updatedInput as Record<string, unknown>)
+	          : undefined
+	      pending.resolve({
+	        approved: input.approved,
+	        message: input.message,
+	        updatedInput,
+	      })
       pendingToolApprovals.delete(input.toolUseId)
       return { ok: true }
     }),
@@ -3026,63 +2956,12 @@ ${prompt}
       }),
     )
     .mutation(async ({ input }) => {
-      const serverName = input.name.trim()
+      const created = await toolingStore.createMcpServer({
+        provider: "claude",
+        ...input,
+      })
 
-      if (input.transport === "stdio" && !input.command?.trim()) {
-        throw new Error("Command is required for stdio servers")
-      }
-      if (input.transport === "http" && !input.url?.trim()) {
-        throw new Error("URL is required for HTTP servers")
-      }
-      if (input.scope === "project" && !input.projectPath) {
-        throw new Error("Project path required for project-scoped servers")
-      }
-
-      const serverConfig: McpServerConfig = {}
-      if (input.transport === "stdio") {
-        serverConfig.command = input.command!.trim()
-        if (input.args && input.args.length > 0) {
-          serverConfig.args = input.args
-        }
-        if (input.env && Object.keys(input.env).length > 0) {
-          serverConfig.env = input.env
-        }
-      } else {
-        serverConfig.url = input.url!.trim()
-        if (input.authType) {
-          serverConfig.authType = input.authType
-        }
-        if (input.bearerToken) {
-          serverConfig.headers = {
-            Authorization: `Bearer ${input.bearerToken}`,
-          }
-        }
-      }
-
-      // Check existence before writing
-      const existingConfig = await readClaudeConfig()
-      const projectPath = input.projectPath
-      if (input.scope === "project" && projectPath) {
-        if (existingConfig.projects?.[projectPath]?.mcpServers?.[serverName]) {
-          throw new Error(
-            `Server "${serverName}" already exists in this project`,
-          )
-        }
-      } else {
-        if (existingConfig.mcpServers?.[serverName]) {
-          throw new Error(`Server "${serverName}" already exists`)
-        }
-      }
-
-      const config = updateMcpServerConfig(
-        existingConfig,
-        input.scope === "project" ? (projectPath ?? null) : null,
-        serverName,
-        serverConfig,
-      )
-      await writeClaudeConfig(config)
-
-      return { success: true, name: serverName }
+      return { success: true, name: created.name }
     }),
 
   updateMcpServer: publicProcedure
@@ -3105,77 +2984,23 @@ ${prompt}
       }),
     )
     .mutation(async ({ input }) => {
-      const config = await readClaudeConfig()
-      const projectPath =
-        input.scope === "project" ? input.projectPath : undefined
+      const itemRef = toolingStore.claudeMcpItemRefFromScope({
+        scope: input.scope,
+        name: input.name,
+        projectPath: input.projectPath,
+      })
+      await toolingStore.updateMcpServer(itemRef.id, {
+        newName: input.newName,
+        command: input.command,
+        args: input.args,
+        env: input.env,
+        url: input.url,
+        authType: input.authType,
+        bearerToken: input.bearerToken,
+        disabled: input.disabled,
+      })
 
-      // Check server exists
-      let servers: Record<string, McpServerConfig> | undefined
-      if (projectPath) {
-        servers = config.projects?.[projectPath]?.mcpServers
-      } else {
-        servers = config.mcpServers
-      }
-      if (!servers?.[input.name]) {
-        throw new Error(`Server "${input.name}" not found`)
-      }
-
-      const existing = servers[input.name]
-
-      // Handle rename: create new, remove old
-      if (input.newName && input.newName !== input.name) {
-        if (servers[input.newName]) {
-          throw new Error(`Server "${input.newName}" already exists`)
-        }
-        const updated = removeMcpServerConfig(
-          config,
-          projectPath ?? null,
-          input.name,
-        )
-        const finalConfig = updateMcpServerConfig(
-          updated,
-          projectPath ?? null,
-          input.newName,
-          existing,
-        )
-        await writeClaudeConfig(finalConfig)
-        return { success: true, name: input.newName }
-      }
-
-      // Build update object from provided fields
-      const update: Partial<McpServerConfig> = {}
-      if (input.command !== undefined) update.command = input.command
-      if (input.args !== undefined) update.args = input.args
-      if (input.env !== undefined) update.env = input.env
-      if (input.url !== undefined) update.url = input.url
-      if (input.disabled !== undefined) update.disabled = input.disabled
-
-      // Handle bearer token
-      if (input.bearerToken) {
-        update.authType = "bearer"
-        update.headers = { Authorization: `Bearer ${input.bearerToken}` }
-      }
-
-      // Handle authType changes
-      if (input.authType) {
-        update.authType = input.authType
-        if (input.authType === "none") {
-          // Clear auth-related fields
-          update.headers = undefined
-          update._oauth = undefined
-        }
-      }
-
-      const merged = { ...existing, ...update }
-      const updatedConfig = updateMcpServerConfig(
-        config,
-        projectPath ?? null,
-        input.name,
-        merged,
-      )
-      await writeClaudeConfig(updatedConfig)
-
-      return { success: true, name: input.name }
+      return { success: true, name: input.newName ?? input.name }
     }),
 
   removeMcpServer: publicProcedure
@@ -3187,27 +3012,12 @@ ${prompt}
       }),
     )
     .mutation(async ({ input }) => {
-      const config = await readClaudeConfig()
-      const projectPath =
-        input.scope === "project" ? input.projectPath : undefined
-
-      // Check server exists
-      let servers: Record<string, McpServerConfig> | undefined
-      if (projectPath) {
-        servers = config.projects?.[projectPath]?.mcpServers
-      } else {
-        servers = config.mcpServers
-      }
-      if (!servers?.[input.name]) {
-        throw new Error(`Server "${input.name}" not found`)
-      }
-
-      const updated = removeMcpServerConfig(
-        config,
-        projectPath ?? null,
-        input.name,
-      )
-      await writeClaudeConfig(updated)
+      const itemRef = toolingStore.claudeMcpItemRefFromScope({
+        scope: input.scope,
+        name: input.name,
+        projectPath: input.projectPath,
+      })
+      await toolingStore.deleteMcpServer(itemRef.id)
 
       return { success: true }
     }),
@@ -3222,35 +3032,15 @@ ${prompt}
       }),
     )
     .mutation(async ({ input }) => {
-      const config = await readClaudeConfig()
-      const projectPath =
-        input.scope === "project" ? input.projectPath : undefined
-
-      // Check server exists
-      let servers: Record<string, McpServerConfig> | undefined
-      if (projectPath) {
-        servers = config.projects?.[projectPath]?.mcpServers
-      } else {
-        servers = config.mcpServers
-      }
-      if (!servers?.[input.name]) {
-        throw new Error(`Server "${input.name}" not found`)
-      }
-
-      const existing = servers[input.name]
-      const updated: McpServerConfig = {
-        ...existing,
+      const itemRef = toolingStore.claudeMcpItemRefFromScope({
+        scope: input.scope,
+        name: input.name,
+        projectPath: input.projectPath,
+      })
+      await toolingStore.updateMcpServer(itemRef.id, {
         authType: "bearer",
-        headers: { Authorization: `Bearer ${input.token}` },
-      }
-
-      const updatedConfig = updateMcpServerConfig(
-        config,
-        projectPath ?? null,
-        input.name,
-        updated,
-      )
-      await writeClaudeConfig(updatedConfig)
+        bearerToken: input.token,
+      })
 
       return { success: true }
     }),

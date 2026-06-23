@@ -22,7 +22,7 @@ interface FileAgent {
   tools?: string[]
   disallowedTools?: string[]
   model?: "sonnet" | "opus" | "haiku" | "inherit"
-  source: "user" | "project"
+  source: "user" | "project" | "plugin"
   path: string
 }
 
@@ -268,7 +268,7 @@ function CreateAgentForm({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="user">{t("settings.common.user")} (~/.claude/agents/)</SelectItem>
+                <SelectItem value="user">{t("settings.common.user")} (~/.1code/.claude/agents/)</SelectItem>
                 <SelectItem value="project">{t("settings.common.project")} (.claude/agents/)</SelectItem>
               </SelectContent>
             </Select>
@@ -376,6 +376,13 @@ export function AgentsCustomAgentsTab() {
     agent: FileAgent,
     data: { description: string; prompt: string; model?: FileAgent["model"] },
   ) => {
+    if (agent.source === "plugin") {
+      toast.error(t("settings.agents.toast.saveFailed"), {
+        description: agent.name,
+      })
+      return
+    }
+
     try {
       await updateMutation.mutateAsync({
         originalName: agent.name,

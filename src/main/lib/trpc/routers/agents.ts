@@ -2,7 +2,6 @@ import { z } from "zod"
 import { router, publicProcedure } from "../index"
 import * as fs from "fs/promises"
 import * as path from "path"
-import * as os from "os"
 import {
   parseAgentMd,
   generateAgentMd,
@@ -12,6 +11,7 @@ import {
 } from "./agent-utils"
 import { discoverInstalledPlugins, getPluginComponentPaths } from "../../plugins"
 import { getEnabledPlugins } from "./claude-settings"
+import { getOneCodeClaudeAgentsDir } from "../../tooling/claude-home"
 
 // Shared procedure for listing agents
 const listAgentsProcedure = publicProcedure
@@ -23,7 +23,7 @@ const listAgentsProcedure = publicProcedure
       .optional(),
   )
   .query(async ({ input }) => {
-    const userAgentsDir = path.join(os.homedir(), ".claude", "agents")
+    const userAgentsDir = getOneCodeClaudeAgentsDir()
     const userAgentsPromise = scanAgentsDirectory(userAgentsDir, "user")
 
     let projectAgentsPromise = Promise.resolve<FileAgent[]>([])
@@ -65,7 +65,7 @@ const listAgentsProcedure = publicProcedure
 export const agentsRouter = router({
   /**
    * List all agents from filesystem
-   * - User agents: ~/.claude/agents/
+   * - User agents: ~/.1code/.claude/agents/
    * - Project agents: .claude/agents/ (relative to cwd)
    */
   list: listAgentsProcedure,
@@ -83,7 +83,7 @@ export const agentsRouter = router({
     .query(async ({ input }) => {
       const locations = [
         {
-          dir: path.join(os.homedir(), ".claude", "agents"),
+          dir: getOneCodeClaudeAgentsDir(),
           source: "user" as const,
         },
         ...(input.cwd
@@ -169,7 +169,7 @@ export const agentsRouter = router({
         }
         targetDir = path.join(input.cwd, ".claude", "agents")
       } else {
-        targetDir = path.join(os.homedir(), ".claude", "agents")
+        targetDir = getOneCodeClaudeAgentsDir()
       }
 
       // Ensure directory exists
@@ -239,7 +239,7 @@ export const agentsRouter = router({
         }
         targetDir = path.join(input.cwd, ".claude", "agents")
       } else {
-        targetDir = path.join(os.homedir(), ".claude", "agents")
+        targetDir = getOneCodeClaudeAgentsDir()
       }
 
       const originalPath = path.join(targetDir, `${safeOriginalName}.md`)
@@ -312,7 +312,7 @@ export const agentsRouter = router({
         }
         targetDir = path.join(input.cwd, ".claude", "agents")
       } else {
-        targetDir = path.join(os.homedir(), ".claude", "agents")
+        targetDir = getOneCodeClaudeAgentsDir()
       }
 
       const agentPath = path.join(targetDir, `${safeName}.md`)

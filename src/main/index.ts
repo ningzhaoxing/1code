@@ -878,7 +878,7 @@ if (gotTheLock) {
           },
         },
       ])
-      app.dock.setMenu(dockMenu)
+      app.dock?.setMenu(dockMenu)
     }
 
     // Set update state and rebuild menu
@@ -954,8 +954,8 @@ if (gotTheLock) {
       console.error("[App] Failed to initialize database:", error)
     }
 
-    // Install bundled skills into ~/.claude/skills (best-effort, never blocks startup)
-    installBundledSkills()
+    // Install bundled skills into ~/.1code/.claude/skills (best-effort, never blocks startup)
+    void installBundledSkills()
 
     // Create main window
     createMainWindow()

@@ -15,6 +15,70 @@ async function pathExists(filePath: string): Promise<boolean> {
 }
 
 describe("skills router", () => {
+  test("creates Claude user skills in the OneCode Claude home", async () => {
+    const oldHome = process.env.HOME
+    const root = await mkdtemp(join(tmpdir(), "onecode-claude-skills-router-"))
+    const homeDir = join(root, "home")
+
+    process.env.HOME = homeDir
+
+    try {
+      const caller = skillsRouter.createCaller({ getWindow: () => null })
+      const created = await caller.create({
+        name: "Claude User Skill",
+        description: "Test Claude runtime skill",
+        content: "Use this skill for Claude tests.",
+        source: "user",
+        provider: "claude",
+      })
+
+      const expectedPath = join(
+        homeDir,
+        ".1code",
+        ".claude",
+        "skills",
+        "claude-user-skill",
+        "SKILL.md",
+      )
+      const legacyClaudePath = join(
+        homeDir,
+        ".claude",
+        "skills",
+        "claude-user-skill",
+        "SKILL.md",
+      )
+
+      assert.equal(created.path, expectedPath)
+      assert.equal(await pathExists(expectedPath), true)
+      assert.equal(await pathExists(legacyClaudePath), false)
+      assert.match(await readFile(expectedPath, "utf-8"), /name: claude-user-skill/)
+
+      const listed = await caller.list({ provider: "claude" })
+      assert.deepEqual(
+        listed.map((skill) => ({
+          name: skill.name,
+          source: skill.source,
+          provider: skill.provider,
+          path: skill.path,
+        })),
+        [
+          {
+            name: "claude-user-skill",
+            source: "user",
+            provider: "claude",
+            path: expectedPath,
+          },
+        ],
+      )
+    } finally {
+      if (oldHome === undefined) {
+        delete process.env.HOME
+      } else {
+        process.env.HOME = oldHome
+      }
+    }
+  })
+
   test("creates Codex user skills in the OneCode Codex home", async () => {
     const oldHome = process.env.HOME
     const oldCodexHome = process.env.CODEX_HOME

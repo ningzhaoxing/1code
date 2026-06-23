@@ -5,6 +5,7 @@ import matter from "gray-matter"
 import { discoverInstalledPlugins, getPluginComponentPaths } from "../../plugins"
 import { resolveDirentType } from "../../fs/dirent"
 import { getEnabledPlugins } from "./claude-settings"
+import { getOneCodeClaudeAgentsDir } from "../../tooling/claude-home"
 
 // Valid model values for agents
 export const VALID_AGENT_MODELS = ["sonnet", "opus", "haiku", "inherit"] as const
@@ -164,14 +165,14 @@ export function generateAgentMd(agent: {
 
 /**
  * Load agent definition from filesystem by name
- * Searches in user (~/.claude/agents/) and project (.claude/agents/) directories
+ * Searches in 1Code user (~/.1code/.claude/agents/) and project (.claude/agents/) directories
  */
 export async function loadAgent(
   name: string,
   cwd?: string
 ): Promise<ParsedAgent | null> {
   const locations = [
-    path.join(os.homedir(), ".claude", "agents"),
+    getOneCodeClaudeAgentsDir(),
     ...(cwd ? [path.join(cwd, ".claude", "agents")] : []),
   ]
 
@@ -263,12 +264,12 @@ export async function scanAgentsDirectory(
           const parsed = parseAgentMd(content, entry.name)
 
           if (parsed.description && parsed.prompt) {
-            // For project agents, show relative path; for user agents, show ~/.claude/... path
+            // For project agents, show relative path; for user agents, show ~/... path
             let displayPath: string
             if (source === "project" && basePath) {
               displayPath = path.relative(basePath, agentPath)
             } else {
-              // For user agents, show ~/.claude/agents/... format
+              // For user agents, show a home-relative path.
               const homeDir = os.homedir()
               displayPath = agentPath.startsWith(homeDir)
                 ? "~" + agentPath.slice(homeDir.length)

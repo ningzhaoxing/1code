@@ -1,19 +1,21 @@
 import { app } from "electron"
-import { copyFileSync, existsSync, mkdirSync } from "fs"
-import { homedir } from "os"
-import { dirname, join } from "path"
+import { join } from "path"
+import {
+  loadAndApplyOfficialContentManifest,
+  officialRegistry,
+  type OfficialRegistry,
+} from "./tooling/official-registry"
+import { syncOfficialClaudeSkills } from "./tooling/official-sync"
 
 /**
  * Skills bundled with the app that should be installed into the user's
- * ~/.claude/skills directory on startup. The record is written (overwritten)
+ * 1Code Claude skills directory on startup. The record is written (overwritten)
  * on every launch so it stays current with the installed app version.
  *
  * Source layout:
  *   dev:      <appPath>/skills/<name>/SKILL.md   (app.getAppPath() = repo root)
  *   packaged: <resourcesPath>/skills/<name>/SKILL.md  (electron-builder extraResources)
  */
-const BUNDLED_SKILLS = ["security-mining-record", "vulnerability-research"] as const
-
 function resolveBundledSkillsRoot(): string {
   // In packaged builds the `skills` dir is shipped via electron-builder
   // extraResources (mapped to <resources>/skills). In dev it lives at the
@@ -24,34 +26,38 @@ function resolveBundledSkillsRoot(): string {
 }
 
 /**
- * Copy bundled skills into ~/.claude/skills. Best-effort: any failure is
- * logged and swallowed so it can never block app startup.
+ * Sync bundled official skills into ~/.1code/.claude/skills. Best-effort: any
+ * failure is logged and swallowed so it can never block app startup.
  */
-export function installBundledSkills(): void {
+export async function installBundledSkills(): Promise<void> {
   try {
     const sourceRoot = resolveBundledSkillsRoot()
-    const targetRoot = join(homedir(), ".claude", "skills")
+    let registry: OfficialRegistry | undefined
 
-    for (const skillName of BUNDLED_SKILLS) {
-      try {
-        const sourceFile = join(sourceRoot, skillName, "SKILL.md")
-        if (!existsSync(sourceFile)) {
-          console.warn(
-            `[install-skills] Source SKILL.md not found, skipping: ${sourceFile}`,
-          )
-          continue
-        }
+    try {
+      await loadAndApplyOfficialContentManifest(join(sourceRoot, "official-content.json"))
+      registry = officialRegistry
+    } catch (error) {
+      console.warn(
+        "[install-skills] Failed to load official-content.json, using fallback manifest:",
+        error instanceof Error ? error.message : error,
+      )
+    }
 
-        const targetFile = join(targetRoot, skillName, "SKILL.md")
-        mkdirSync(dirname(targetFile), { recursive: true })
-        // Overwrite to keep the skill in sync with the app version.
-        copyFileSync(sourceFile, targetFile)
-        console.log(`[install-skills] Installed skill: ${skillName}`)
-      } catch (error) {
-        // Per-skill failure must not abort the remaining skills or startup.
-        console.error(
-          `[install-skills] Failed to install skill "${skillName}":`,
-          error,
+    const results = await syncOfficialClaudeSkills({
+      sourceRoot,
+      registry,
+      allowAdoptExistingOfficialContent: true,
+    })
+
+    for (const result of results) {
+      if (result.ok) {
+        console.log(
+          `[install-skills] ${result.action} official skill: ${result.name}`,
+        )
+      } else {
+        console.warn(
+          `[install-skills] ${result.action} official skill "${result.name}": ${result.error || result.targetPath}`,
         )
       }
     }

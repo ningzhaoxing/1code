@@ -21,7 +21,7 @@ import {
 export interface SkillData {
   name: string
   description: string
-  source: "user" | "project"
+  source: "official" | "user" | "project" | "plugin"
   path: string
 }
 

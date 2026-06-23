@@ -2,6 +2,7 @@ import { access, cp, mkdir, readdir, readFile } from "node:fs/promises"
 import { constants } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, isAbsolute, join, resolve } from "node:path"
+import { getOneCodeClaudeSkillsDir } from "../tooling/claude-home"
 
 export type DefaultSkillInstallTarget =
   | "claude-user"
@@ -130,7 +131,7 @@ export function getSkillInstallTargetPath({
 
   switch (target) {
     case "claude-user":
-      return join(homeDir, ".claude", "skills", skillName)
+      return join(getOneCodeClaudeSkillsDir(homeDir), skillName)
     case "claude-project":
       return projectPath ? join(projectPath, ".claude", "skills", skillName) : null
     case "codex-user":

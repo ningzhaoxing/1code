@@ -11,6 +11,7 @@ import { Label } from "../../ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select"
 import { Textarea } from "../../ui/textarea"
 import { Button } from "../../ui/button"
+import { Switch } from "../../ui/switch"
 import { ResizableSidebar } from "../../ui/resizable-sidebar"
 import { ChatMarkdownRenderer } from "../../chat-markdown-renderer"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../ui/tooltip"
@@ -30,15 +31,20 @@ import { useI18n } from "../../../lib/i18n"
 // --- Unified Item Type ---
 interface UnifiedItem {
   id: string
+  itemId?: string
   kind: "skill" | "command"
   name: string
   description: string
-  source: "user" | "project" | "plugin"
+  source: "official" | "user" | "project" | "plugin"
   provider?: "claude" | "codex"
   pluginName?: string
   path: string
   content: string
   argumentHint?: string
+  enabled?: boolean
+  canEdit?: boolean
+  canDelete?: boolean
+  canToggle?: boolean
 }
 
 type SkillProvider = "claude" | "codex"
@@ -50,19 +56,23 @@ function ItemDetail({
   item,
   onSave,
   onDelete,
+  onToggleEnabled,
   isSaving,
+  isToggling,
 }: {
   item: UnifiedItem
   onSave: (data: { description: string; content: string }) => void
   onDelete?: () => void
+  onToggleEnabled?: (enabled: boolean) => void
   isSaving: boolean
+  isToggling?: boolean
 }) {
   const { t } = useI18n()
   const [description, setDescription] = useState(item.description)
   const [content, setContent] = useState(item.content)
   const [viewMode, setViewMode] = useState<"rendered" | "editor">("rendered")
 
-  const isReadOnly = item.source === "plugin"
+  const isReadOnly = item.canEdit === false
 
   // Reset local state when item changes
   useEffect(() => {
@@ -128,6 +138,14 @@ function ItemDetail({
             <Button size="sm" onClick={handleSave} disabled={isSaving}>
               {isSaving ? t("settings.common.saving") : t("settings.common.save")}
             </Button>
+          )}
+          {item.canToggle && onToggleEnabled && (
+            <Switch
+              checked={item.enabled !== false}
+              onCheckedChange={onToggleEnabled}
+              disabled={isToggling}
+              aria-label={t("settings.common.enabled")}
+            />
           )}
         </div>
 
@@ -231,7 +249,7 @@ function ItemDetail({
         </div>
 
         {/* Delete */}
-        {!isReadOnly && onDelete && (
+        {item.canDelete !== false && onDelete && (
           <div className="pt-2 border-t border-border">
             <Button
               variant="ghost"
@@ -369,7 +387,7 @@ function CreateItemForm({
               <SelectContent>
                 {kind === "skill" ? (
                   <>
-                    <SelectItem value="claude:user">Claude {t("settings.common.user")} (~/.claude/skills/)</SelectItem>
+                    <SelectItem value="claude:user">Claude {t("settings.common.user")} (~/.1code/.claude/skills/)</SelectItem>
                     <SelectItem value="codex:user">Codex {t("settings.common.user")} (~/.1code/codex/skills/)</SelectItem>
                     {hasProject && (
                       <>
@@ -388,7 +406,7 @@ function CreateItemForm({
                   </>
                 ) : (
                   <>
-                    <SelectItem value="user">{t("settings.common.user")} (~/.claude/commands/)</SelectItem>
+                    <SelectItem value="user">{t("settings.common.user")} (~/.1code/.claude/commands/)</SelectItem>
                     <SelectItem value="project">
                       {projectName
                         ? `${t("settings.common.project")}: ${projectName}`
@@ -436,7 +454,8 @@ function SidebarListItem({
         "w-full text-left py-1.5 px-2 rounded-md transition-colors duration-150 cursor-pointer outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70 focus-visible:-outline-offset-2",
         isSelected
           ? "bg-foreground/5 text-foreground"
-          : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+          : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
+        item.enabled === false && "opacity-55"
       )}
     >
       <div className="flex items-center gap-1.5">
@@ -481,9 +500,28 @@ export function AgentsSkillsTab() {
 
   const selectedProject = useAtomValue(selectedProjectAtom)
 
-  // Fetch skills
-  const { data: skills = [], isLoading: isLoadingSkills, refetch: refetchSkills } = trpc.skills.list.useQuery(
-    selectedProject?.path ? { cwd: selectedProject.path, provider: "all" } : { provider: "all" },
+  // Fetch Claude skills through the unified tooling model. Codex stays on the
+  // legacy skills router until the Codex adapter is implemented.
+  const {
+    data: claudeToolingSkills,
+    isLoading: isLoadingClaudeSkills,
+    refetch: refetchClaudeSkills,
+  } = trpc.tooling.list.useQuery(
+    {
+      provider: "claude",
+      kind: "skill",
+      projectPath: selectedProject?.path,
+      includeContent: true,
+    },
+  )
+  const {
+    data: codexSkills = [],
+    isLoading: isLoadingCodexSkills,
+    refetch: refetchCodexSkills,
+  } = trpc.skills.list.useQuery(
+    selectedProject?.path
+      ? { cwd: selectedProject.path, provider: "codex" }
+      : { provider: "codex" },
   )
 
   // Fetch commands
@@ -491,27 +529,51 @@ export function AgentsSkillsTab() {
     selectedProject?.path ? { projectPath: selectedProject.path } : undefined,
   )
 
-  const isLoading = isLoadingSkills || isLoadingCommands
+  const isLoading = isLoadingClaudeSkills || isLoadingCodexSkills || isLoadingCommands
 
   const refetchAll = useCallback(async () => {
-    await Promise.all([refetchSkills(), refetchCommands()])
-  }, [refetchSkills, refetchCommands])
+    await Promise.all([refetchClaudeSkills(), refetchCodexSkills(), refetchCommands()])
+  }, [refetchClaudeSkills, refetchCodexSkills, refetchCommands])
 
   // Delete confirmation dialog state
   const [deletingItem, setDeletingItem] = useState<UnifiedItem | null>(null)
 
   // Mutations
-  const updateSkillMutation = trpc.skills.update.useMutation()
-  const createSkillMutation = trpc.skills.create.useMutation()
-  const deleteSkillMutation = trpc.skills.delete.useMutation()
+  const updateToolingSkillMutation = trpc.tooling.updateSkill.useMutation()
+  const createToolingSkillMutation = trpc.tooling.createSkill.useMutation()
+  const deleteToolingSkillMutation = trpc.tooling.deleteSkill.useMutation()
+  const updateLegacySkillMutation = trpc.skills.update.useMutation()
+  const createLegacySkillMutation = trpc.skills.create.useMutation()
+  const deleteLegacySkillMutation = trpc.skills.delete.useMutation()
+  const setToolingEnabledMutation = trpc.tooling.setEnabled.useMutation()
   const updateCommandMutation = trpc.commands.update.useMutation()
   const createCommandMutation = trpc.commands.create.useMutation()
   const deleteCommandMutation = trpc.commands.delete.useMutation()
 
   // Build unified items
   const allItems = useMemo<UnifiedItem[]>(() => {
-    const skillItems: UnifiedItem[] = skills.map((s) => ({
-      id: `skill:${s.provider}:${s.source}:${s.name}`,
+    const claudeSkillItems: UnifiedItem[] = (claudeToolingSkills?.items || []).flatMap((s) => {
+      if (s.kind !== "skill") return []
+      return [{
+        id: s.id,
+        itemId: s.id,
+        kind: "skill" as const,
+        name: s.name,
+        description: s.description ?? "",
+        source: s.source,
+        provider: s.provider,
+        pluginName: s.pluginName,
+        path: s.location.displayPath,
+        content: s.skill.body ?? s.content ?? "",
+        enabled: s.enabled,
+        canEdit: s.canEdit,
+        canDelete: s.canDelete,
+        canToggle: s.canToggle,
+      }]
+    })
+    const codexSkillItems: UnifiedItem[] = codexSkills.map((s) => ({
+      id: s.itemId ?? `skill:${s.provider}:${s.source}:${s.name}`,
+      itemId: s.itemId,
       kind: "skill" as const,
       name: s.name,
       description: s.description,
@@ -520,6 +582,10 @@ export function AgentsSkillsTab() {
       pluginName: s.pluginName,
       path: s.path,
       content: s.content,
+      enabled: s.enabled,
+      canEdit: s.canEdit,
+      canDelete: s.canDelete,
+      canToggle: s.canToggle,
     }))
     const cmdItems: UnifiedItem[] = commands.map((c) => ({
       id: `cmd:${c.source}:${c.name}`,
@@ -531,9 +597,11 @@ export function AgentsSkillsTab() {
       path: c.path,
       content: c.content,
       argumentHint: c.argumentHint,
+      canEdit: c.source !== "plugin",
+      canDelete: c.source !== "plugin",
     }))
-    return [...skillItems, ...cmdItems]
-  }, [skills, commands])
+    return [...claudeSkillItems, ...codexSkillItems, ...cmdItems]
+  }, [claudeToolingSkills?.items, codexSkills, commands])
 
   // Filter by search
   const filteredItems = useMemo(() => {
@@ -545,13 +613,14 @@ export function AgentsSkillsTab() {
   }, [allItems, searchQuery])
 
   // Group by source
+  const officialItems = filteredItems.filter((i) => i.source === "official")
   const userItems = filteredItems.filter((i) => i.source === "user")
   const projectItems = filteredItems.filter((i) => i.source === "project")
   const pluginItems = filteredItems.filter((i) => i.source === "plugin")
 
   const allItemIds = useMemo(
-    () => [...userItems, ...projectItems, ...pluginItems].map((i) => i.id),
-    [userItems, projectItems, pluginItems]
+    () => [...officialItems, ...userItems, ...projectItems, ...pluginItems].map((i) => i.id),
+    [officialItems, userItems, projectItems, pluginItems]
   )
 
   const { containerRef: listRef, onKeyDown: listKeyDown } = useListKeyboardNav({
@@ -573,7 +642,23 @@ export function AgentsSkillsTab() {
   }) => {
     try {
       if (data.kind === "skill") {
-        const result = await createSkillMutation.mutateAsync({
+        if (data.provider === "claude") {
+          const result = await createToolingSkillMutation.mutateAsync({
+            name: data.name,
+            description: data.description,
+            content: data.content,
+            source: data.source,
+            provider: "claude",
+            projectPath: selectedProject?.path,
+          })
+          toast.success(t("settings.skills.toast.skillCreated"), { description: result.name })
+          setShowAddForm(false)
+          await refetchAll()
+          setSelectedItemId(result.id)
+          return
+        }
+
+        const result = await createLegacySkillMutation.mutateAsync({
           name: data.name,
           description: data.description,
           content: data.content,
@@ -602,7 +687,7 @@ export function AgentsSkillsTab() {
       const message = error instanceof Error ? error.message : t("settings.skills.toast.createFailed")
       toast.error(t("settings.skills.toast.createFailed"), { description: message })
     }
-  }, [createSkillMutation, createCommandMutation, selectedProject?.path, refetchAll, t])
+  }, [createToolingSkillMutation, createLegacySkillMutation, createCommandMutation, selectedProject?.path, refetchAll, t])
 
   const handleSave = useCallback(async (
     item: UnifiedItem,
@@ -610,13 +695,22 @@ export function AgentsSkillsTab() {
   ) => {
     try {
       if (item.kind === "skill") {
-        await updateSkillMutation.mutateAsync({
-          path: item.path,
-          name: item.name,
-          description: data.description,
-          content: data.content,
-          cwd: selectedProject?.path,
-        })
+        if (item.provider === "claude" && item.itemId) {
+          await updateToolingSkillMutation.mutateAsync({
+            itemId: item.itemId,
+            name: item.name,
+            description: data.description,
+            content: data.content,
+          })
+        } else {
+          await updateLegacySkillMutation.mutateAsync({
+            path: item.path,
+            name: item.name,
+            description: data.description,
+            content: data.content,
+            cwd: selectedProject?.path,
+          })
+        }
       } else {
         await updateCommandMutation.mutateAsync({
           path: item.path,
@@ -634,16 +728,22 @@ export function AgentsSkillsTab() {
       const message = error instanceof Error ? error.message : t("settings.skills.toast.saveFailed")
       toast.error(t("settings.skills.toast.saveFailed"), { description: message })
     }
-  }, [updateSkillMutation, updateCommandMutation, selectedProject?.path, refetchAll, t])
+  }, [updateToolingSkillMutation, updateLegacySkillMutation, updateCommandMutation, selectedProject?.path, refetchAll, t])
 
   const handleDelete = useCallback(async () => {
     if (!deletingItem) return
     try {
       if (deletingItem.kind === "skill") {
-        await deleteSkillMutation.mutateAsync({
-          path: deletingItem.path,
-          cwd: selectedProject?.path,
-        })
+        if (deletingItem.provider === "claude" && deletingItem.itemId) {
+          await deleteToolingSkillMutation.mutateAsync({
+            itemId: deletingItem.itemId,
+          })
+        } else {
+          await deleteLegacySkillMutation.mutateAsync({
+            path: deletingItem.path,
+            cwd: selectedProject?.path,
+          })
+        }
       } else {
         await deleteCommandMutation.mutateAsync({
           path: deletingItem.path,
@@ -659,11 +759,31 @@ export function AgentsSkillsTab() {
       const message = error instanceof Error ? error.message : t("settings.skills.toast.deleteFailed")
       toast.error(t("settings.skills.toast.deleteFailed"), { description: message })
     }
-  }, [deletingItem, deleteSkillMutation, deleteCommandMutation, selectedProject?.path, refetchAll, t])
+  }, [deletingItem, deleteToolingSkillMutation, deleteLegacySkillMutation, deleteCommandMutation, selectedProject?.path, refetchAll, t])
 
-  const isSaving = updateSkillMutation.isPending || updateCommandMutation.isPending
-  const isCreating = createSkillMutation.isPending || createCommandMutation.isPending
-  const isDeleting = deleteSkillMutation.isPending || deleteCommandMutation.isPending
+  const handleToggleEnabled = useCallback(async (item: UnifiedItem, enabled: boolean) => {
+    if (!item.itemId) return
+    try {
+      await setToolingEnabledMutation.mutateAsync({
+        itemId: item.itemId,
+        enabled,
+      })
+      toast.success(
+        enabled
+          ? t("settings.mcp.toast.enabled", { name: item.name })
+          : t("settings.mcp.toast.disabled", { name: item.name }),
+      )
+      await refetchAll()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t("settings.mcp.toast.toggleFailed")
+      toast.error(t("settings.mcp.toast.toggleFailed"), { description: message })
+    }
+  }, [setToolingEnabledMutation, refetchAll, t])
+
+  const isSaving = updateToolingSkillMutation.isPending || updateLegacySkillMutation.isPending || updateCommandMutation.isPending
+  const isCreating = createToolingSkillMutation.isPending || createLegacySkillMutation.isPending || createCommandMutation.isPending
+  const isDeleting = deleteToolingSkillMutation.isPending || deleteLegacySkillMutation.isPending || deleteCommandMutation.isPending
+  const isToggling = setToolingEnabledMutation.isPending
   const totalCount = allItems.length
 
   return (
@@ -732,6 +852,25 @@ export function AgentsSkillsTab() {
               </div>
             ) : (
               <div className="space-y-3">
+                {/* Official */}
+                {officialItems.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-2 mb-1">
+                      {t("settings.common.official")}
+                    </p>
+                    <div className="space-y-0.5">
+                      {officialItems.map((item) => (
+                        <SidebarListItem
+                          key={item.id}
+                          item={item}
+                          isSelected={selectedItemId === item.id}
+                          onSelect={setSelectedItemId}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* User */}
                 {userItems.length > 0 && (
                   <div>
@@ -809,8 +948,14 @@ export function AgentsSkillsTab() {
           <ItemDetail
             item={selectedItem}
             onSave={(data) => handleSave(selectedItem, data)}
-            onDelete={selectedItem.source !== "plugin" ? () => setDeletingItem(selectedItem) : undefined}
+            onDelete={selectedItem.canDelete !== false ? () => setDeletingItem(selectedItem) : undefined}
+            onToggleEnabled={
+              selectedItem.canToggle
+                ? (enabled) => handleToggleEnabled(selectedItem, enabled)
+                : undefined
+            }
             isSaving={isSaving}
+            isToggling={isToggling}
           />
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
