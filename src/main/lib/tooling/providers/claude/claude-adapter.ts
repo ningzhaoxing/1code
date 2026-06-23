@@ -126,6 +126,7 @@ export class ClaudeAdapter implements ProviderAdapter {
 
     await prepareClaudeConfigAssets({
       isolatedConfigDir,
+      projectSkillsDir: path.join(input.cwd, ".claude", "skills"),
       cacheKey: sessionKey,
       symlinkCache,
       sources: this.runtimeOptions.assetSources,

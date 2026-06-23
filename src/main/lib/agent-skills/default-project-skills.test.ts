@@ -111,7 +111,7 @@ describe("default project skill install helpers", () => {
     }
   })
 
-  test("default manifest installs security-mining-record only at project level", async () => {
+  test("default manifest keeps security-mining-record on the Codex project path", async () => {
     const manifest = JSON.parse(
       await readFile(
         join(process.cwd(), "skills/default-project-skills.json"),
@@ -122,7 +122,7 @@ describe("default project skill install helpers", () => {
       (entry: { name?: string }) => entry.name === "security-mining-record",
     )
 
-    assert.deepEqual(skill.targets, ["claude-project", "codex-project"])
+    assert.deepEqual(skill.targets, ["codex-project"])
   })
 
   test("syncs project-installed skills into a chat worktree", async () => {

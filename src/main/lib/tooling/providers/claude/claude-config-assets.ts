@@ -10,7 +10,10 @@ import {
 } from "../../claude-home"
 import type { OfficialRegistry } from "../../official-registry"
 import type { OfficialPreferencesStore } from "../../preferences"
-import { projectClaudeUserSkillsForRuntime } from "./claude-runtime-context"
+import {
+  projectClaudeUserSkillsForRuntime,
+  projectOfficialClaudeSkillsIntoProject,
+} from "./claude-runtime-context"
 
 export type ClaudeConfigAssetSources = {
   skillsDir: string
@@ -23,6 +26,7 @@ export type ClaudeConfigAssetSources = {
 
 export type PrepareClaudeConfigAssetsInput = {
   isolatedConfigDir: string
+  projectSkillsDir?: string
   cacheKey: string
   symlinkCache: Set<string>
   sources?: ClaudeConfigAssetSources
@@ -110,6 +114,25 @@ export async function prepareClaudeConfigAssets(
       "[claude] Failed to project skills directory:",
       error instanceof Error ? error.message : error,
     )
+  }
+
+  if (input.projectSkillsDir) {
+    try {
+      const projectSkillsProjected = await projectOfficialClaudeSkillsIntoProject({
+        sourceDir: sources.skillsDir,
+        targetDir: input.projectSkillsDir,
+        registry: input.registry,
+        preferences: input.preferences,
+      })
+      if (!projectSkillsProjected) complete = false
+    } catch (error) {
+      complete = false
+      hadErrors = true
+      console.warn(
+        "[claude] Failed to project official skills into project directory:",
+        error instanceof Error ? error.message : error,
+      )
+    }
   }
 
   if (!input.symlinkCache.has(input.cacheKey)) {

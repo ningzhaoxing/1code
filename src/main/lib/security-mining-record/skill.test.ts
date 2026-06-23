@@ -15,15 +15,16 @@ describe("security-mining-record skill template", () => {
     assert.doesNotMatch(skill, /不要在任务中途生成最终报告/)
   })
 
-  test("does not depend on injected prompt paths", () => {
+  test("uses Findings.md as the only live record filename", () => {
     const skill = readFileSync(
       join(process.cwd(), "skills/security-mining-record/SKILL.md"),
       "utf8",
     )
 
-    assert.match(skill, /漏洞挖掘记录\.md/)
+    assert.match(skill, /Findings\.md/)
     assert.match(skill, /漏洞挖掘报告\.md/)
     assert.match(skill, /不要因为没有收到隐藏提示词或显式路径就跳过记录/)
+    assert.doesNotMatch(skill, /漏洞挖掘记录\.md/)
     assert.doesNotMatch(skill, /prompt 提供/)
     assert.doesNotMatch(skill, /prompt 指定/)
   })
@@ -72,7 +73,7 @@ describe("security-mining-record skill template", () => {
       "utf8",
     )
 
-    assert.match(skill, /\[漏洞挖掘记录\.md\]\(/)
+    assert.match(skill, /\[Findings\.md\]\(/)
     assert.match(skill, /\[漏洞挖掘报告\.md\]\(/)
     assert.match(skill, /不要用反引号包裹文件名/)
   })

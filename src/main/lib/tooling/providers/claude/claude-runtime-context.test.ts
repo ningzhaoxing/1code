@@ -7,7 +7,10 @@ import { createToolingItemId } from "../../ids"
 import { OfficialPreferencesStore } from "../../preferences"
 import { OfficialRegistry } from "../../official-registry"
 import { ClaudeAdapter } from "./claude-adapter"
-import { projectClaudeUserSkillsForRuntime } from "./claude-runtime-context"
+import {
+  projectClaudeUserSkillsForRuntime,
+  projectOfficialClaudeSkillsIntoProject,
+} from "./claude-runtime-context"
 
 async function pathExists(filePath: string): Promise<boolean> {
   try {
@@ -110,6 +113,10 @@ describe("claude runtime context", () => {
       await pathExists(join(isolatedConfigDir, "skills", "official-review")),
       true,
     )
+    assert.equal(
+      await pathExists(join(root, ".claude", "skills", "official-review")),
+      true,
+    )
     assert.deepEqual(runtimeContext.sdkOptions.mcpServers?.["official-context"], {
       command: "node",
       args: ["server.js"],
@@ -179,5 +186,60 @@ describe("claude runtime context", () => {
     })
 
     assert.equal(await pathExists(join(targetDir, "official-review")), true)
+  })
+
+  test("projects enabled official skills into the project skills directory without deleting project skills", async () => {
+    const root = await mkdtemp(join(tmpdir(), "onecode-claude-project-skills-"))
+    const sourceDir = join(root, "onecode-user-skills")
+    const targetDir = join(root, "project", ".claude", "skills")
+    await createSkill(sourceDir, "official-review")
+    await createSkill(sourceDir, "official-disabled")
+    await createSkill(targetDir, "project-only")
+    await createSkill(targetDir, "official-disabled")
+
+    const registry = new OfficialRegistry({
+      version: 1,
+      skills: [
+        {
+          id: "official-review",
+          name: "official-review",
+          providers: ["claude"],
+          sourceDir: "official-review",
+          defaultEnabled: true,
+          scope: "global",
+        },
+        {
+          id: "official-disabled",
+          name: "official-disabled",
+          providers: ["claude"],
+          sourceDir: "official-disabled",
+          defaultEnabled: true,
+          scope: "global",
+        },
+      ],
+      mcpServers: [],
+    })
+    const preferences = new OfficialPreferencesStore(
+      join(root, "official-preferences.json"),
+    )
+    const disabledSkillId = createToolingItemId({
+      kind: "skill",
+      provider: "claude",
+      source: "official",
+      scope: "global",
+      identity: "official-disabled",
+    })
+
+    await preferences.setEnabled(disabledSkillId, false)
+    await projectOfficialClaudeSkillsIntoProject({
+      sourceDir,
+      targetDir,
+      registry,
+      preferences,
+    })
+
+    assert.equal(await pathExists(join(targetDir, "project-only")), true)
+    assert.equal(await pathExists(join(targetDir, "official-review")), true)
+    assert.equal(await pathExists(join(targetDir, "official-disabled")), false)
   })
 })
