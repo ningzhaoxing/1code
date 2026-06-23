@@ -1262,9 +1262,9 @@ export const ChatInputArea = memo(function ChatInputArea({
         })
         observer.observe(el)
       }}
-      className="px-2 pb-2 relative z-10"
+      className="px-3 pb-4 relative z-10"
     >
-      <div className="w-full max-w-2xl mx-auto">
+      <div className="w-full max-w-[650px] mx-auto">
         <div
           className="relative w-full"
           onDragOver={handleDragOver}
@@ -1277,7 +1277,7 @@ export const ChatInputArea = memo(function ChatInputArea({
           >
             <PromptInput
               className={cn(
-                "border border-border bg-input-background relative z-10 p-2 rounded-[3px] transition-[border-color,box-shadow] duration-150",
+                "border border-border bg-input-background relative z-10 p-2 rounded-lg shadow-sm transition-[border-color,box-shadow] duration-150",
                 isDragOver && "ring-1 ring-primary border-primary",
                 isFocused && !isDragOver && "ring-1 ring-primary border-primary",
               )}

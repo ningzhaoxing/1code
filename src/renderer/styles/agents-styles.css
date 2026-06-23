@@ -9,9 +9,8 @@
 
 [data-agents-page] {
   /* Override muted to be lighter for better code block visibility */
-  --muted: 0 0% 94%;
-  /* neutral-100 */
-  --muted-foreground: 0 0% 45%;
+  --muted: 220 12% 95.5%;
+  --muted-foreground: 220 6% 45%;
 
   /* Custom text selection colors - uses theme's editor.selectionBackground */
   --selection-bg: var(--selection, var(--primary));

@@ -204,6 +204,12 @@ export const selectedProjectAtom = atomWithWindowStorage<SelectedProject>(
   { getOnInit: true },
 )
 
+export type NewChatProjectSelectionMode = "picker" | "fixed"
+
+// Controls whether NewChatForm allows choosing a project or uses the sidebar-selected project.
+export const newChatProjectSelectionModeAtom =
+  atom<NewChatProjectSelectionMode>("picker")
+
 export const lastSelectedAgentIdAtom = atomWithStorage<string>(
   "agents:lastSelectedAgentId",
   "claude-code",

@@ -117,18 +117,9 @@ export const AgentUserMessageBubble = memo(function AgentUserMessageBubble({
   textContent,
   imageParts = [],
   skipTextMentionBlocks = false,
-  createdAt,
 }: AgentUserMessageBubbleProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
-
-  // Lightweight HH:MM:SS from the message's existing createdAt. Omitted when absent.
-  const timeLabel = useMemo(() => {
-    if (!createdAt) return null
-    const d = createdAt instanceof Date ? createdAt : new Date(createdAt)
-    if (Number.isNaN(d.getTime())) return null
-    return d.toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })
-  }, [createdAt])
 
   // Extract quote/diff mentions to display above the bubble
   const { textMentions, cleanedText } = useMemo(
@@ -199,13 +190,6 @@ export const AgentUserMessageBubble = memo(function AgentUserMessageBubble({
     <>
       <div className="flex justify-start" data-user-bubble>
         <div className="space-y-2 w-full">
-          {/* Operator author micro-label (re-visualizes the existing user role) */}
-          <span className="block font-mono text-[10px] leading-none tracking-wide text-muted-foreground/50 select-none">
-            YOU
-            {timeLabel && (
-              <span className="text-muted-foreground/50"> · {timeLabel}</span>
-            )}
-          </span>
           {/* Show attached images from stored message */}
           {imageParts.length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5">

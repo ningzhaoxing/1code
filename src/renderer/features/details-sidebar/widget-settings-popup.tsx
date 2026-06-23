@@ -168,6 +168,7 @@ export function WidgetSettingsPopup({ workspaceId, isRemoteChat = false }: Widge
       </PopoverTrigger>
       <PopoverContent
         align="end"
+        forceDark={false}
         className="w-56 p-2"
         sideOffset={8}
       >
@@ -192,9 +193,9 @@ export function WidgetSettingsPopup({ workspaceId, isRemoteChat = false }: Widge
                 onDragEnd={() => { handleDragEnd(); setDraggableWidget(null) }}
                 onClick={() => toggleWidget(widget.id)}
                 className={cn(
-                  "flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted transition-colors cursor-pointer",
+                  "flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer",
                   isDragging && "opacity-50",
-                  isDragOver && "bg-muted/80 ring-1 ring-primary/50",
+                  isDragOver && "bg-accent text-accent-foreground ring-1 ring-primary/50",
                 )}
               >
                 <GripVertical

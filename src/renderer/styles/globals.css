@@ -8,36 +8,34 @@
 
 @layer base {
   :root {
-    /* Operator Console — Daylight (light counterpart) */
-    --background: 60 23.1% 97.5%;
-    --foreground: 105 8.7% 9%;
+    /* 1Code workbench — neutral daylight */
+    --background: 0 0% 100%;
+    --foreground: 222 16% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 105 8.7% 9%;
+    --card-foreground: 222 16% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 105 8.7% 9%;
-    /* Primary = amber (working / chrome / active) */
-    --primary: 36 90.2% 40%;
+    --popover-foreground: 222 16% 12%;
+    /* Primary = action blue */
+    --primary: 235 88% 56%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 51 18.9% 92.7%;
-    --secondary-foreground: 108 5.7% 17.1%;
-    --muted: 51 18.9% 92.7%;
-    --muted-foreground: 112 4.1% 38%;
-    --accent: 53 19% 91.8%;
-    --accent-foreground: 108 5.7% 17.1%;
+    --secondary: 220 11% 96%;
+    --secondary-foreground: 222 12% 22%;
+    --muted: 220 11% 96%;
+    --muted-foreground: 220 6% 45%;
+    --accent: 220 12% 94%;
+    --accent-foreground: 222 12% 20%;
     --destructive: 2 62.7% 46.3%;
     --destructive-foreground: 0 0% 100%;
-    --border: 54 11.9% 83.5%;
-    --input: 54 11.9% 83.5%;
-    --input-background: 51 22.6% 93.9%;
-    --ring: 36 90.2% 40%;
-    /* Text selection — amber wash */
-    --selection: 36 79.1% 56.9% / 0.3;
-    /* Sharper, machined corners */
-    --radius: 0.25rem;
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
+    --input-background: 220 12% 96.5%;
+    --ring: 235 88% 56%;
+    --selection: 235 88% 56% / 0.18;
+    --radius: 0.5rem;
     /* Plan Mode (read-only) — teal, kept distinct from amber primary */
     --plan-mode: 174 51.3% 37.1%;
     --plan-mode-foreground: 0 0% 100%;
-    --tl-background: 50 23.1% 94.9%;
+    --tl-background: 220 12% 96.5%;
     /* ===== Security semantic layer ===== */
     /* Finding state machine: lead -> candidate -> validated -> dismissed -> needs-human */
     --state-lead: 112 4.1% 38%;

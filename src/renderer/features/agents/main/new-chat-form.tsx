@@ -42,6 +42,7 @@ import {
   selectedChatIsRemoteAtom,
   selectedDraftIdAtom,
   selectedProjectAtom,
+  newChatProjectSelectionModeAtom,
   getNextMode,
   type AgentMode,
 } from "../atoms"
@@ -199,6 +200,10 @@ export function NewChatForm({
   const hasAnyUnseenChanges = unseenChanges.size > 0
   const [lastSelectedRepo, setLastSelectedRepo] = useAtom(lastSelectedRepoAtom)
   const [selectedProject, setSelectedProject] = useAtom(selectedProjectAtom)
+  const newChatProjectSelectionMode = useAtomValue(
+    newChatProjectSelectionModeAtom,
+  )
+  const canChooseProject = newChatProjectSelectionMode === "picker"
 
   // Fetch projects to validate selectedProject exists
   const { data: projectsList, isLoading: isLoadingProjects } =
@@ -1058,47 +1063,6 @@ export function NewChatForm({
     },
   })
 
-  // Open folder mutation for selecting a project
-  const openFolder = trpc.projects.openFolder.useMutation({
-    onSuccess: (project) => {
-      if (project) {
-        // Optimistically update the projects list cache to prevent "Select repo" flash
-        // This ensures validatedProject can find the new project immediately
-        utils.projects.list.setData(undefined, (oldData) => {
-          if (!oldData) return [project]
-          // Check if project already exists (reopened existing project)
-          const exists = oldData.some((p) => p.id === project.id)
-          if (exists) {
-            // Update existing project's timestamp
-            return oldData.map((p) =>
-              p.id === project.id ? { ...p, updatedAt: project.updatedAt } : p,
-            )
-          }
-          // Add new project at the beginning
-          return [project, ...oldData]
-        })
-
-        setSelectedProject({
-          id: project.id,
-          name: project.name,
-          path: project.path,
-          gitRemoteUrl: project.gitRemoteUrl,
-          gitProvider: project.gitProvider as
-            | "github"
-            | "gitlab"
-            | "bitbucket"
-            | null,
-          gitOwner: project.gitOwner,
-          gitRepo: project.gitRepo,
-        })
-      }
-    },
-  })
-
-  const handleOpenFolder = async () => {
-    await openFolder.mutateAsync()
-  }
-
   const trpcUtils = trpc.useUtils()
 
   const handleSend = useCallback(async () => {
@@ -1111,7 +1075,10 @@ export function NewChatForm({
     const hasFiles = files.filter((f) => !f.isLoading).length > 0
     const hasPastedTexts = pastedTexts.length > 0
 
-    if ((!hasText && !hasImages && !hasFiles && !hasPastedTexts) || !selectedProject) {
+    if (
+      (!hasText && !hasImages && !hasFiles && !hasPastedTexts) ||
+      !validatedProject
+    ) {
       return
     }
 
@@ -1212,7 +1179,7 @@ export function NewChatForm({
 
     // Create chat with selected project, branch, and initial message
     createChatMutation.mutate({
-      projectId: selectedProject.id,
+      projectId: validatedProject.id,
       name: message.trim().slice(0, 50), // Use first 50 chars as chat name
       model: selectedChatModel,
       initialMessageParts: parts.length > 0 ? parts : undefined,
@@ -1225,7 +1192,7 @@ export function NewChatForm({
     })
     // Editor, images, files, and pasted texts are cleared in onSuccess callback
   }, [
-    selectedProject,
+    validatedProject,
     validatedProject?.path,
     createChatMutation,
     hasContent,
@@ -1637,7 +1604,7 @@ export function NewChatForm({
       </div>
 
       <div className="flex flex-1 items-center justify-center overflow-y-auto relative">
-        <div className="w-full max-w-2xl space-y-4 md:space-y-6 relative z-10 px-4">
+        <div className="w-full max-w-[650px] space-y-4 md:space-y-6 relative z-10 px-4">
           {/* Title - only show when project is selected */}
           {validatedProject && (
             <div className="text-center">
@@ -1647,18 +1614,17 @@ export function NewChatForm({
             </div>
           )}
 
-          {/* Input Area or Select Repo State */}
+          {/* Input Area or Project Required State */}
           {!validatedProject ? (
-            // No project selected - show select repo button (like Sign in button)
-            <div className="flex justify-center">
-              <button
-                onClick={handleOpenFolder}
-                disabled={openFolder.isPending}
-                className="h-8 px-3 bg-primary text-primary-foreground rounded-[3px] text-sm font-medium transition-[background-color,transform] duration-150 hover:bg-primary/90 active:scale-[0.97] shadow-[0_0_0_0.5px_rgb(23,23,23),inset_0_0_0_1px_rgba(255,255,255,0.14)] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {openFolder.isPending ? t("workspace.opening") : t("workspace.selectRepo")}
-              </button>
-            </div>
+            canChooseProject ? (
+              <div className="flex justify-center">
+                <ProjectSelector />
+              </div>
+            ) : (
+              <div className="text-center text-sm text-muted-foreground">
+                {t("workspace.selectProjectFromSidebar")}
+              </div>
+            )
           ) : (
             // Project selected - show input form
             <div
@@ -1673,7 +1639,7 @@ export function NewChatForm({
               >
                 <PromptInput
                   className={cn(
-                    "border border-border bg-input-background relative z-10 p-2 rounded-[3px] transition-[border-color,box-shadow] duration-150",
+                    "border border-border bg-input-background relative z-10 p-2 rounded-lg shadow-sm transition-[border-color,box-shadow] duration-150",
                     isDragOver && "ring-2 ring-primary/50 border-primary/50",
                     isFocused && !isDragOver && "ring-2 ring-primary/50 border-primary/50",
                   )}
@@ -1982,7 +1948,7 @@ export function NewChatForm({
                             createChatMutation.isPending || isUploading
                           }
                           disabled={Boolean(
-                            !hasContent || !selectedProject || isUploading,
+                            !hasContent || !validatedProject || isUploading,
                           )}
                           onClick={handleSend}
                           mode={agentMode}
@@ -1999,11 +1965,10 @@ export function NewChatForm({
                   </PromptInputActions>
                 </PromptInput>
 
-                {/* Project, Work Mode, and Branch selectors - directly under input */}
+                {/* Project selector is only shown for global new chat. */}
                 <div className="mt-1.5 md:mt-2 ml-[5px] flex items-center gap-2">
-                  <ProjectSelector />
+                  {canChooseProject && <ProjectSelector />}
 
-                  {/* Work mode selector - between project and branch */}
                   {validatedProject && (
                     <WorkModeSelector
                       value={workMode}

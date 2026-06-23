@@ -741,26 +741,6 @@ export const AssistantMessageItem = memo(function AssistantMessageItem({
 
   const msgMetadata = message?.metadata as AgentMessageMetadata
 
-  // Operator author micro-label. Uses the model id already present in metadata
-  // when available (Claude); falls back to a bare "AGENT" (e.g. Codex, where the
-  // field may be absent). Pure re-visualization of existing data — no new fetch.
-  const agentLabel = useMemo(() => {
-    const rawModel = typeof msgMetadata?.model === "string" ? msgMetadata.model.trim() : ""
-    if (!rawModel) return "AGENT"
-    // Compact the id: drop any provider prefix segment (e.g. "anthropic/").
-    const shortModel = rawModel.includes("/") ? rawModel.split("/").pop()! : rawModel
-    return `AGENT · ${shortModel}`
-  }, [msgMetadata?.model])
-
-  // Lightweight HH:MM:SS from the message's existing createdAt. Omitted when absent.
-  const agentTimeLabel = useMemo(() => {
-    const raw = (message as any)?.createdAt
-    if (!raw) return null
-    const d = raw instanceof Date ? raw : new Date(raw)
-    if (Number.isNaN(d.getTime())) return null
-    return d.toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })
-  }, [(message as any)?.createdAt])
-
   const renderPart = useCallback((part: any, idx: number, isFinal = false) => {
     if (part.type === "step-start") return null
     if (part.type === "tool-TaskOutput") return null
@@ -968,15 +948,6 @@ export const AssistantMessageItem = memo(function AssistantMessageItem({
       className="group/message w-full mb-4"
     >
       <div className="flex flex-col gap-1.5">
-        {/* Operator author micro-label (re-visualizes role + existing model id) */}
-        {contentParts.length > 0 && (
-          <span className="block font-mono text-[10px] leading-none tracking-wide text-muted-foreground/50 select-none">
-            {agentLabel}
-            {agentTimeLabel && (
-              <span className="text-muted-foreground/50"> · {agentTimeLabel}</span>
-            )}
-          </span>
-        )}
         {shouldCollapse && visibleStepsCount > 0 && (
           <CollapsibleSteps stepsCount={visibleStepsCount}>
             {(() => {
@@ -1108,7 +1079,11 @@ export const AssistantMessageItem = memo(function AssistantMessageItem({
                     <MoreHorizontal className="w-3.5 h-3.5 text-muted-foreground" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-[160px]">
+                <DropdownMenuContent
+                  align="end"
+                  forceDark={false}
+                  className="min-w-[160px]"
+                >
                   <DropdownMenuItem onClick={() => onFork(message.id)}>
                     Fork from here
                   </DropdownMenuItem>

@@ -39,8 +39,6 @@ import { atom, useAtom, useAtomValue, useSetAtom } from "jotai"
 import {
   ArrowDown,
   ChevronDown,
-  FileDown,
-  FileText,
   GitFork,
   ListTree,
   TerminalSquare
@@ -367,8 +365,8 @@ const CHAT_LAYOUT = {
   stickyTopSidebarClosed: "top-0", // When sidebar closed (desktop, flex header)
   stickyTopMobile: "top-0", // Mobile (flex header, so top-0)
   // Header padding when absolute
-  headerPaddingSidebarOpen: "pt-1.5 pb-12 px-3 pl-2",
-  headerPaddingSidebarClosed: "p-2 pt-1.5",
+  headerPaddingSidebarOpen: "px-3",
+  headerPaddingSidebarClosed: "px-3",
 } as const
 
 // Codex icon (OpenAI style)
@@ -2261,18 +2259,50 @@ const ChatViewInner = memo(function ChatViewInner({
       }
     },
   })
+  const renameParentChatMutation = api.agents.renameChat.useMutation()
+
+  const updateParentChatNameCache = useCallback(
+    (name: string | null) => {
+      type ParentChatNameCacheItem = { id: string; name: string | null }
+
+      utils.agents.getAgentChats.setData({ teamId }, (old: ParentChatNameCacheItem[] | undefined) => {
+        if (!old) return old
+        return old.map((chat: ParentChatNameCacheItem) =>
+          chat.id === parentChatId ? { ...chat, name } : chat,
+        )
+      })
+      utils.agents.getAgentChat.setData({ chatId: parentChatId }, (old: (ParentChatNameCacheItem & Record<string, unknown>) | null | undefined) => {
+        if (!old) return old
+        return { ...old, name }
+      })
+    },
+    [
+      parentChatId,
+      teamId,
+      utils.agents.getAgentChat,
+      utils.agents.getAgentChats,
+    ],
+  )
 
   // Handler for renaming sub-chat
   // Using ref for mutation to avoid callback recreation
   const renameSubChatMutationRef = useRef(renameSubChatMutation)
   renameSubChatMutationRef.current = renameSubChatMutation
+  const renameParentChatMutationRef = useRef(renameParentChatMutation)
+  renameParentChatMutationRef.current = renameParentChatMutation
   const subChatNameRef = useRef(subChatName)
   subChatNameRef.current = subChatName
+  const workspaceNameRef = useRef(workspaceName)
+  workspaceNameRef.current = workspaceName
 
   const handleRenameSubChat = useCallback(
     async (newName: string) => {
+      const oldWorkspaceName = workspaceNameRef.current ?? null
       // Optimistic update in store
       useAgentSubChatStore.getState().updateSubChatName(subChatId, newName)
+      if (isFirstSubChat) {
+        updateParentChatNameCache(newName)
+      }
 
       // Save to database
       try {
@@ -2280,14 +2310,23 @@ const ChatViewInner = memo(function ChatViewInner({
           subChatId,
           name: newName,
         })
+        if (isFirstSubChat) {
+          await renameParentChatMutationRef.current.mutateAsync({
+            chatId: parentChatId,
+            name: newName,
+          })
+        }
       } catch {
         // Revert on error (toast shown by mutation onError)
         useAgentSubChatStore
           .getState()
           .updateSubChatName(subChatId, subChatNameRef.current || "New Chat")
+        if (isFirstSubChat) {
+          updateParentChatNameCache(oldWorkspaceName)
+        }
       }
     },
-    [subChatId],
+    [isFirstSubChat, parentChatId, subChatId, updateParentChatNameCache],
   )
 
   // Plan mode state (per-subChat using atomFamily)
@@ -4883,7 +4922,7 @@ const ChatViewInner = memo(function ChatViewInner({
           />
           {/* Workspace subtitle: repo • branch */}
           {(workspaceRepoName || workspaceBranch) && (
-            <div className="max-w-2xl mx-auto px-4">
+            <div className="max-w-[650px] mx-auto px-4">
               <span className="text-xs text-muted-foreground/50 truncate block">
                 {[workspaceRepoName, workspaceBranch].filter(Boolean).join(" • ")}
               </span>
@@ -4928,9 +4967,9 @@ const ChatViewInner = memo(function ChatViewInner({
       >
         <div
           ref={contentWrapperRef}
-          className="px-2 max-w-2xl mx-auto -mb-4 space-y-4"
+          className="px-3 max-w-[650px] mx-auto -mb-4 space-y-3"
           style={{
-            paddingBottom: "32px",
+            paddingBottom: "88px",
           }}
         >
           <div>
@@ -4960,7 +4999,7 @@ const ChatViewInner = memo(function ChatViewInner({
       {/* User questions panel - shows for both live (pending) and expired (timed out) questions */}
       {displayQuestions && (
         <div className="px-4 relative z-20">
-          <div className="w-full px-2 max-w-2xl mx-auto">
+          <div className="w-full px-2 max-w-[650px] mx-auto">
             <AgentUserQuestion
               ref={questionRef}
               pendingQuestions={displayQuestions}
@@ -4979,7 +5018,7 @@ const ChatViewInner = memo(function ChatViewInner({
       {/* Stacked cards container - queue + status */}
       {shouldShowStackedCards && (
           <div className="px-2 -mb-6 relative z-10">
-            <div className="w-full max-w-2xl mx-auto px-2">
+            <div className="w-full max-w-[650px] mx-auto px-2">
               {/* Queue indicator card - top card */}
               {queue.length > 0 && (
                 <AgentQueueIndicator
@@ -7986,6 +8025,10 @@ Make sure to preserve all functionality from both branches when resolving confli
     securityArtifactLocation,
     worktreePath,
   ])
+  const isSecurityRecordViewerActive =
+    !!securityFileViewerPath && isSecurityMiningRecordPath(securityFileViewerPath)
+  const isSecurityReportViewerActive =
+    !!securityFileViewerPath && isSecurityMiningReportPath(securityFileViewerPath)
   // No early return - let the UI render with loading state handled by activeChat check below
 
   return (
@@ -8019,52 +8062,9 @@ Make sure to preserve all functionality from both branches when resolving confli
                   : `flex-shrink-0 ${CHAT_LAYOUT.headerPaddingSidebarClosed}`,
               )}
             >
-              {/* Solid workbench header bar (Operator Console): squared, hairline bottom border, card fill */}
-              {(isMobileFullscreen || subChatsSidebarMode !== "sidebar") && (
-                <div className="absolute inset-0 bg-card border-b border-border" />
-              )}
+              <div className="absolute inset-0 bg-card/95 border-b border-border/80" />
               <div className="pointer-events-auto flex items-center justify-between relative min-h-[44px] window-drag-region">
                 <div className="flex-1 min-w-0 flex items-center gap-2">
-                  {/* Workbench target breadcrumb: REPO / branch (+ AGENT/PLAN status chip).
-                      Desktop only. Graceful: local "Desktop" workspaces with no repo/branch
-                      collapse to just the workspace name; renders nothing when no name at all. */}
-                  {!isMobileFullscreen && (() => {
-                    const repo =
-                      (agentChat as any)?.project?.gitRepo ||
-                      (agentChat as any)?.project?.name ||
-                      null
-                    const branch = agentChat?.branch || null
-                    const wsName = agentChat?.name || null
-                    // Prefer repo/branch; fall back to bare workspace name for local "Desktop".
-                    const crumbHead = repo || wsName
-                    if (!crumbHead) return null
-                    return (
-                      <div className="flex items-center gap-1.5 min-w-0 flex-shrink pl-1 pr-1.5 mr-0.5 font-mono text-[11px] leading-none select-none">
-                        <span className="truncate max-w-[160px] uppercase tracking-wide text-muted-foreground/70">
-                          {crumbHead}
-                        </span>
-                        {repo && branch && (
-                          <>
-                            <span aria-hidden className="text-muted-foreground/30">/</span>
-                            <span className="truncate max-w-[120px] tracking-wide text-foreground/80">
-                              {branch}
-                            </span>
-                          </>
-                        )}
-                        <span
-                          className={cn(
-                            "ml-0.5 px-1 py-px rounded-[3px] border uppercase tracking-wide text-[10px]",
-                            currentMode === "plan"
-                              ? "border-plan-mode/40 text-plan-mode"
-                              : "border-primary/40 text-primary",
-                          )}
-                        >
-                          {currentMode === "plan" ? "PLAN" : "AGENT"}
-                        </span>
-                        <span aria-hidden className="w-px h-[18px] bg-border ml-1" />
-                      </div>
-                    )
-                  })()}
                   {/* Mobile header - simplified with chat name as trigger */}
                   {isMobileFullscreen ? (
                     <MobileChatHeader
@@ -8111,60 +8111,69 @@ Make sure to preserve all functionality from both branches when resolving confli
                       />
                       {chatSourceMode === "local" && activeSubChatId && (
                         <>
-                          {/* Hairline divider before the security-workbench actions */}
-                          <span aria-hidden className="w-px h-[18px] bg-border ml-2 mr-0.5 flex-shrink-0" />
-                          <Tooltip delayDuration={500}>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleOpenSecurityMiningRecord}
-                                disabled={ensureSecurityRecordMutation.isPending}
-                                className="h-6 px-2 gap-1.5 font-mono text-[11px] uppercase tracking-wide rounded-[3px] border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                                aria-label={t("chat.toolbar.openVulnerabilityRecord")}
-                              >
-                                {ensureSecurityRecordMutation.isPending ? (
-                                  <IconSpinner className="h-3 w-3 animate-spin" />
-                                ) : (
-                                  <FileText className="h-3.5 w-3.5" />
-                                )}
-                                <span>{t("chat.toolbar.realtimeRecord")}</span>
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom">
-                              {t("chat.toolbar.openVulnerabilityRecord")}
-                            </TooltipContent>
-                          </Tooltip>
-                          <Tooltip delayDuration={500}>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleGenerateSecurityMiningReport}
-                                disabled={
-                                  activeSubChatIsStreaming ||
-                                  ensureSecurityRecordMutation.isPending
-                                }
-                                className="h-6 px-2 gap-1.5 font-mono text-[11px] uppercase tracking-wide rounded-[3px] border border-primary/40 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
-                                aria-label={t("chat.toolbar.generateMarkdownReport")}
-                              >
-                                {ensureSecurityRecordMutation.isPending ? (
-                                  <IconSpinner className="h-3 w-3 animate-spin" />
-                                ) : (
-                                  <FileDown className="h-3.5 w-3.5" />
-                                )}
-                                <span>{t("chat.toolbar.exportReport")}</span>
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom">
-                              {activeSubChatIsStreaming
-                                ? t("chat.toolbar.exportReportBusy")
-                                : t("chat.toolbar.generateMarkdownReport")}
-                            </TooltipContent>
-                          </Tooltip>
+                          <nav
+                            className="ml-auto flex items-center gap-4 px-2 text-sm text-muted-foreground"
+                            aria-label={t("chat.stage.navigation")}
+                          >
+                            <Tooltip delayDuration={500}>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={handleOpenSecurityMiningRecord}
+                                  disabled={ensureSecurityRecordMutation.isPending}
+                                  className={cn(
+                                    "whitespace-nowrap rounded-md px-1 py-0.5 font-medium transition-colors outline-offset-2 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70 disabled:pointer-events-none disabled:opacity-50",
+                                    isSecurityRecordViewerActive &&
+                                      "font-semibold text-primary hover:text-primary",
+                                  )}
+                                  aria-label={t("chat.toolbar.openVulnerabilityRecord")}
+                                  aria-current={isSecurityRecordViewerActive ? "page" : undefined}
+                                >
+                                  {t("chat.stage.discover")}
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom">
+                                {t("chat.toolbar.openVulnerabilityRecord")}
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip delayDuration={500}>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={handleGenerateSecurityMiningReport}
+                                  disabled={
+                                    activeSubChatIsStreaming ||
+                                    ensureSecurityRecordMutation.isPending
+                                  }
+                                  className={cn(
+                                    "whitespace-nowrap rounded-md px-1 py-0.5 font-medium transition-colors outline-offset-2 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70 disabled:pointer-events-none disabled:opacity-50",
+                                    isSecurityReportViewerActive &&
+                                      "font-semibold text-primary hover:text-primary",
+                                  )}
+                                  aria-label={t("chat.toolbar.generateMarkdownReport")}
+                                  aria-current={isSecurityReportViewerActive ? "page" : undefined}
+                                >
+                                  {t("chat.stage.report")}
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom">
+                                {activeSubChatIsStreaming
+                                  ? t("chat.toolbar.exportReportBusy")
+                                  : t("chat.toolbar.generateMarkdownReport")}
+                              </TooltipContent>
+                            </Tooltip>
+                          </nav>
+                          <span
+                            aria-hidden
+                            className="w-px h-[18px] bg-border ml-1 mr-0.5 flex-shrink-0"
+                          />
                         </>
                       )}
                       {/* Open Locally button - desktop only, sandbox mode */}
+                      {showOpenLocally &&
+                        !(chatSourceMode === "local" && activeSubChatId) && (
+                          <span aria-hidden className="ml-auto" />
+                        )}
                       {showOpenLocally && (
                         <Tooltip delayDuration={500}>
                           <TooltipTrigger asChild>
@@ -8482,10 +8491,10 @@ Make sure to preserve all functionality from both branches when resolving confli
 
               {/* Disabled input while loading */}
               <div className="px-2 pb-2">
-                <div className="w-full max-w-2xl mx-auto">
+                <div className="w-full max-w-[650px] mx-auto">
                   <div className="relative w-full">
                     <PromptInput
-                      className="border bg-input-background relative z-10 p-2 rounded-xl opacity-50 pointer-events-none"
+                      className="border bg-input-background relative z-10 p-2 rounded-lg opacity-50 pointer-events-none"
                       maxHeight={200}
                     >
                       <div className="p-1 text-muted-foreground text-sm">

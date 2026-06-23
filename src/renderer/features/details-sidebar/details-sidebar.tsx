@@ -336,7 +336,7 @@ export function DetailsSidebar({
                   variant="ghost"
                   size="icon"
                   onClick={closeSidebar}
-                  className="h-6 w-6 p-0 hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] text-foreground flex-shrink-0 rounded-md"
+                  className="h-6 w-6 p-0 flex-shrink-0 rounded-md border border-border/70 bg-background text-muted-foreground shadow-sm transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out hover:bg-accent hover:text-foreground active:scale-[0.97]"
                   aria-label={t("details.closeDetails")}
                 >
                   <IconDoubleChevronRight className="h-4 w-4" />

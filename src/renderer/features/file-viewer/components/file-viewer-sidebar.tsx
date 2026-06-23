@@ -76,6 +76,9 @@ const FILE_VIEWER_MODES = [
   { value: "full-page" as const, label: "Fullscreen", Icon: IconFullPage },
 ]
 
+const fileViewerHeaderButtonClass =
+  "h-6 w-6 p-0 flex-shrink-0 rounded-md border border-border/70 bg-background text-muted-foreground shadow-sm transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out hover:bg-accent hover:text-foreground active:scale-[0.97]"
+
 function FileViewerModeSwitcher({
   mode,
   onModeChange,
@@ -92,7 +95,7 @@ function FileViewerModeSwitcher({
         <Button
           variant="ghost"
           size="sm"
-          className="h-6 w-6 p-0 flex-shrink-0 hover:bg-foreground/10"
+          className={fileViewerHeaderButtonClass}
         >
           <CurrentIcon className="size-4 text-muted-foreground" />
         </Button>
@@ -161,7 +164,7 @@ function UnsupportedViewer({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 w-6 p-0 flex-shrink-0 hover:bg-foreground/10"
+            className={fileViewerHeaderButtonClass}
             onClick={onClose}
           >
             {displayMode === "side-peek" ? (
@@ -227,7 +230,7 @@ function CodeViewerHeader({
         <Button
           variant="ghost"
           size="sm"
-          className="h-6 w-6 p-0 flex-shrink-0 hover:bg-foreground/10"
+          className={fileViewerHeaderButtonClass}
           onClick={onClose}
         >
           {displayMode === "side-peek" ? (

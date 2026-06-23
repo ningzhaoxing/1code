@@ -4,7 +4,11 @@
  */
 
 import type { SettingsTab } from "../../../lib/atoms"
-import type { DesktopView } from "../atoms"
+import type {
+  DesktopView,
+  NewChatProjectSelectionMode,
+  SelectedProject,
+} from "../atoms"
 
 // ============================================================================
 // TYPES
@@ -18,6 +22,10 @@ export interface AgentActionContext {
   // Navigation
   setSelectedChatId?: (id: string | null) => void
   setSelectedDraftId?: (id: string | null) => void
+  setSelectedProject?: (project: SelectedProject) => void
+  setNewChatProjectSelectionMode?: (
+    mode: NewChatProjectSelectionMode,
+  ) => void
   setShowNewChatForm?: (show: boolean) => void
   setDesktopView?: (view: DesktopView) => void
 
@@ -78,6 +86,9 @@ const createNewAgentAction: AgentActionDefinition = {
   hotkey: "cmd+n",
   handler: async (context) => {
     console.log("[Action] create-new-agent handler called")
+    // Global new chat should choose its project explicitly instead of reusing the last project.
+    context.setNewChatProjectSelectionMode?.("picker")
+    context.setSelectedProject?.(null)
     // Clear selected chat
     context.setSelectedChatId?.(null)
     // Clear selected draft so form starts empty

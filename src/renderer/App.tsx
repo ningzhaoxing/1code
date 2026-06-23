@@ -17,7 +17,6 @@ import {
   ApiKeyOnboardingPage,
   BillingMethodPage,
   CodexOnboardingPage,
-  SelectRepoPage,
 } from "./features/onboarding"
 import { identify, initAnalytics, shutdown } from "./lib/analytics"
 import {
@@ -246,7 +245,14 @@ function AppContent() {
   useEffect(() => {
     const defaultProjectPath =
       import.meta.env.DEV ? import.meta.env.VITE_DEFAULT_PROJECT_PATH : undefined
-    if (!defaultProjectPath || validatedProject || isLoadingProjects) return
+    if (
+      !defaultProjectPath ||
+      validatedProject ||
+      isLoadingProjects ||
+      hasTriedDefaultProject.current
+    ) {
+      return
+    }
 
     const applyProject = (project: NonNullable<typeof projects>[number]) => {
       setSelectedProject({
@@ -266,11 +272,12 @@ function AppContent() {
 
     const existingProject = projects?.find((project) => project.path === defaultProjectPath)
     if (existingProject) {
+      hasTriedDefaultProject.current = true
       applyProject(existingProject)
       return
     }
 
-    if (hasTriedDefaultProject.current || createDefaultProject.isPending) return
+    if (createDefaultProject.isPending) return
     hasTriedDefaultProject.current = true
     createDefaultProject.mutate(
       { path: defaultProjectPath },
@@ -306,8 +313,7 @@ function AppContent() {
   // 2. Claude subscription selected but not completed -> AnthropicOnboardingPage
   // 3. Codex selected but not completed -> CodexOnboardingPage
   // 4. API key or custom model selected but not completed -> ApiKeyOnboardingPage
-  // 5. No valid project selected -> SelectRepoPage
-  // 6. Otherwise -> AgentsLayout
+  // 5. Otherwise -> AgentsLayout. Project selection now lives in the sidebar.
   if (!billingMethod) {
     return <BillingMethodPage />
   }
@@ -329,10 +335,6 @@ function AppContent() {
     !apiKeyOnboardingCompleted
   ) {
     return <ApiKeyOnboardingPage />
-  }
-
-  if (!validatedProject && !isLoadingProjects) {
-    return <SelectRepoPage />
   }
 
   return <AgentsLayout />

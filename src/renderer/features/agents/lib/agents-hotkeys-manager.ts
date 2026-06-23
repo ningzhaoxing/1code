@@ -107,6 +107,10 @@ function matchesHotkey(e: KeyboardEvent, hotkey: string): boolean {
 export interface AgentsHotkeysManagerConfig {
   setSelectedChatId?: (id: string | null) => void
   setSelectedDraftId?: (id: string | null) => void
+  setSelectedProject?: (project: import("../atoms").SelectedProject) => void
+  setNewChatProjectSelectionMode?: (
+    mode: import("../atoms").NewChatProjectSelectionMode,
+  ) => void
   setShowNewChatForm?: (show: boolean) => void
   setDesktopView?: (view: import("../atoms").DesktopView) => void
   setSidebarOpen?: (open: boolean | ((prev: boolean) => boolean)) => void
@@ -141,6 +145,8 @@ export function useAgentsHotkeys(
     (): AgentActionContext => ({
       setSelectedChatId: config.setSelectedChatId,
       setSelectedDraftId: config.setSelectedDraftId,
+      setSelectedProject: config.setSelectedProject,
+      setNewChatProjectSelectionMode: config.setNewChatProjectSelectionMode,
       setShowNewChatForm: config.setShowNewChatForm,
       setDesktopView: config.setDesktopView,
       setSidebarOpen: config.setSidebarOpen,
@@ -152,6 +158,8 @@ export function useAgentsHotkeys(
     [
       config.setSelectedChatId,
       config.setSelectedDraftId,
+      config.setSelectedProject,
+      config.setNewChatProjectSelectionMode,
       config.setShowNewChatForm,
       config.setDesktopView,
       config.setSidebarOpen,

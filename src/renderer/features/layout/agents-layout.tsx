@@ -19,7 +19,15 @@ import {
   customHotkeysAtom,
   betaKanbanEnabledAtom,
 } from "../../lib/atoms"
-import { selectedAgentChatIdAtom, selectedProjectAtom, selectedDraftIdAtom, showNewChatFormAtom, desktopViewAtom, fileSearchDialogOpenAtom } from "../agents/atoms"
+import {
+  selectedAgentChatIdAtom,
+  selectedProjectAtom,
+  selectedDraftIdAtom,
+  showNewChatFormAtom,
+  desktopViewAtom,
+  fileSearchDialogOpenAtom,
+  newChatProjectSelectionModeAtom,
+} from "../agents/atoms"
 import { trpc } from "../../lib/trpc"
 import { useAgentsHotkeys } from "../agents/lib/agents-hotkeys-manager"
 import { toggleSearchAtom } from "../agents/search"
@@ -41,8 +49,8 @@ import { useI18n } from "../../lib/i18n"
 // Constants
 // ============================================================================
 
-const SIDEBAR_MIN_WIDTH = 160
-const SIDEBAR_MAX_WIDTH = 300
+const SIDEBAR_MIN_WIDTH = 220
+const SIDEBAR_MAX_WIDTH = 260
 const SIDEBAR_ANIMATION_DURATION = 0
 const SIDEBAR_CLOSE_HOTKEY = "⌘\\"
 
@@ -103,6 +111,9 @@ export function AgentsLayout() {
   const [selectedProject, setSelectedProject] = useAtom(selectedProjectAtom)
   const setSelectedDraftId = useSetAtom(selectedDraftIdAtom)
   const setShowNewChatForm = useSetAtom(showNewChatFormAtom)
+  const setNewChatProjectSelectionMode = useSetAtom(
+    newChatProjectSelectionModeAtom,
+  )
   const betaKanbanEnabled = useAtomValue(betaKanbanEnabledAtom)
   const setDesktopView = useSetAtom(desktopViewAtom)
   const setAnthropicOnboardingCompleted = useSetAtom(
@@ -112,6 +123,15 @@ export function AgentsLayout() {
   const setCodexOnboardingCompleted = useSetAtom(codexOnboardingCompletedAtom)
   const setBillingMethod = useSetAtom(billingMethodAtom)
   const claudeLoginModalConfig = useAtomValue(claudeLoginModalConfigAtom)
+
+  useEffect(() => {
+    if (isMobile) return
+    if (sidebarWidth < SIDEBAR_MIN_WIDTH) {
+      setSidebarWidth(SIDEBAR_MIN_WIDTH)
+    } else if (sidebarWidth > SIDEBAR_MAX_WIDTH) {
+      setSidebarWidth(SIDEBAR_MAX_WIDTH)
+    }
+  }, [isMobile, sidebarWidth, setSidebarWidth])
 
   // Fetch projects to validate selectedProject exists
   const { data: projects, isLoading: isLoadingProjects } =
@@ -186,25 +206,25 @@ export function AgentsLayout() {
     fetchUser()
   }, [])
 
-  // Track if this is the initial load - skip auto-open on first load to respect saved state
+  // Track if this is the initial load - preserve saved sidebar preference when a project exists
   const isInitialLoadRef = useRef(true)
 
-  // Auto-open sidebar when project is selected, close when no project
-  // Skip on initial load to preserve user's saved sidebar preference
+  // Auto-open sidebar when project is selected.
+  // If there is no project yet, the sidebar is the project import entry.
   useEffect(() => {
     if (!projects) return // Don't change sidebar state while loading
 
-    // On initial load, just mark as loaded and don't change sidebar state
     if (isInitialLoadRef.current) {
       isInitialLoadRef.current = false
+      if (!validatedProject) {
+        setSidebarOpen(true)
+      }
       return
     }
 
     // After initial load, react to project changes
     if (validatedProject) {
       setSidebarOpen(true)
-    } else {
-      setSidebarOpen(false)
     }
   }, [validatedProject, projects, setSidebarOpen])
 
@@ -279,6 +299,8 @@ export function AgentsLayout() {
   useAgentsHotkeys({
     setSelectedChatId,
     setSelectedDraftId,
+    setSelectedProject,
+    setNewChatProjectSelectionMode,
     setShowNewChatForm,
     setDesktopView,
     setSidebarOpen,
@@ -322,7 +344,7 @@ export function AgentsLayout() {
           initialWidth={0}
           exitWidth={0}
           showResizeTooltip={!isSettingsView}
-          className="overflow-hidden bg-background border-r"
+          className="overflow-hidden bg-tl-background border-r"
           style={{ borderRightWidth: "0.5px" }}
         >
           {isSettingsView ? (

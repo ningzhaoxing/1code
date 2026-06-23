@@ -42,6 +42,10 @@ const FILE_VIEWER_MODES = [
   { value: "center-peek" as const, label: "Dialog", Icon: IconCenterPeek },
   { value: "full-page" as const, label: "Fullscreen", Icon: IconFullPage },
 ]
+
+const fileViewerHeaderButtonClass =
+  "h-6 w-6 p-0 flex-shrink-0 rounded-md border border-border/70 bg-background text-muted-foreground shadow-sm transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out hover:bg-accent hover:text-foreground active:scale-[0.97]"
+
 import { defaultEditorOptions, getMonacoTheme } from "./monaco-config"
 import { getFileName } from "../utils/file-utils"
 
@@ -282,7 +286,7 @@ function Header({
         <Button
           variant="ghost"
           size="sm"
-          className="h-6 w-6 p-0 flex-shrink-0 hover:bg-foreground/10"
+          className={fileViewerHeaderButtonClass}
           onClick={onClose}
         >
           {displayMode === "side-peek" ? (
@@ -297,7 +301,7 @@ function Header({
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 w-6 p-0 flex-shrink-0 hover:bg-foreground/10"
+              className={fileViewerHeaderButtonClass}
             >
               {(() => {
                 const CurrentIcon = FILE_VIEWER_MODES.find((m) => m.value === displayMode)?.Icon ?? IconSidePeek

@@ -276,11 +276,9 @@ export function SubChatSelector({
 
   const tabsContainerRef = useRef<HTMLDivElement>(null)
   const tabRefs = useRef<Map<string, HTMLButtonElement>>(new Map())
-  const textRefs = useRef<Map<string, HTMLSpanElement>>(new Map())
   // Using refs instead of state for gradients and truncation to avoid re-renders
   const leftGradientRef = useRef<HTMLDivElement>(null)
   const rightGradientRef = useRef<HTMLDivElement>(null)
-  const truncatedTabsRef = useRef<Set<string>>(new Set())
   const searchHistoryPopoverRef = useRef<SearchHistoryPopoverRef>(null)
   const getDisplayName = useCallback(
     (name?: string | null) => (name && name !== "New Chat" ? name : t("chat.new")),
@@ -546,34 +544,6 @@ export function SubChatSelector({
     }
   }, [activeSubChatId, openSubChats])
 
-  // Check if text is truncated for each tab - updates ref and DOM directly
-  useEffect(() => {
-    const checkTruncation = () => {
-      const newTruncated = new Set<string>()
-      textRefs.current.forEach((el, subChatId) => {
-        if (el && el.scrollWidth > el.clientWidth) {
-          newTruncated.add(subChatId)
-        }
-      })
-      truncatedTabsRef.current = newTruncated
-
-      // Update gradient visibility for each tab via DOM
-      tabRefs.current.forEach((tabEl, subChatId) => {
-        const gradientEl = tabEl.querySelector('[data-truncate-gradient]') as HTMLElement
-        if (gradientEl) {
-          gradientEl.style.display = newTruncated.has(subChatId) ? 'block' : 'none'
-        }
-      })
-    }
-
-    checkTruncation()
-
-    const resizeObserver = new ResizeObserver(() => checkTruncation())
-    textRefs.current.forEach((el) => el && resizeObserver.observe(el))
-
-    return () => resizeObserver.disconnect()
-  }, [openSubChats, activeSubChatId])
-
   // Sort sub-chats by most recent first for history
   const sortedSubChats = useMemo(
     () =>
@@ -638,7 +608,6 @@ export function SubChatSelector({
     tabRefs.current.forEach((_, id) => {
       if (!openIds.has(id)) {
         tabRefs.current.delete(id)
-        textRefs.current.delete(id)
       }
     })
   }, [openSubChatIds])
@@ -746,15 +715,16 @@ export function SubChatSelector({
                             handleRenameClick(subChat)
                           }
                         }}
+                        aria-label={getDisplayName(subChat.name)}
                         className={cn(
-                          "group relative flex items-center text-sm rounded-[3px] transition-colors duration-75 cursor-pointer h-6 flex-shrink-0",
+                          "group relative flex items-center justify-center text-sm rounded-[3px] transition-colors duration-75 cursor-pointer h-6 flex-shrink-0",
                           "outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70",
                           editingSubChatId === subChat.id
                             ? "overflow-visible px-0"
-                            : "overflow-hidden px-1.5 py-0.5 whitespace-nowrap min-w-[50px] gap-1.5",
+                            : "overflow-hidden w-6 p-0 whitespace-nowrap",
                           isActive
-                            ? "bg-muted text-foreground max-w-[180px] border-b-2 border-primary rounded-b-none"
-                            : "hover:bg-muted/80 max-w-[150px]",
+                            ? "bg-muted text-foreground border-b-2 border-primary rounded-b-none"
+                            : "hover:bg-muted/80",
                           isInSplitPair && "border border-border/60",
                           isInSplitPair && !isActive && "bg-muted/40 hover:bg-muted/60",
                           isInSplitPair && hasSplitPrev && "-ml-1 rounded-l-none",
@@ -810,45 +780,20 @@ export function SubChatSelector({
                             disabled={editLoading}
                             className="text-sm !px-1 !py-0 !h-6 min-w-[100px] border border-input rounded-md !ring-0 !shadow-none focus-visible:!ring-0 focus-visible:!ring-offset-0 focus-visible:!border-input"
                           />
-                        ) : (
-                          <span
-                            ref={(el) => {
-                              if (el) {
-                                textRefs.current.set(subChat.id, el)
-                              } else {
-                                textRefs.current.delete(subChat.id)
-                              }
-                            }}
-                            className="relative z-0 text-left flex-1 min-w-0 pr-1 overflow-hidden block whitespace-nowrap"
-                          >
-                            {getDisplayName(subChat.name)}
-                          </span>
-                        )}
+                        ) : null}
 
-                        {/* Gradient fade on the right when text is truncated and not editing - visibility controlled via DOM */}
                         {editingSubChatId !== subChat.id && (
-                          <div
-                            data-truncate-gradient
-                            className={cn(
-                              "absolute right-0 top-0 bottom-0 w-6 pointer-events-none z-[1] rounded-r-[3px] opacity-100 group-hover:opacity-0 transition-opacity duration-200",
-                              isActive
-                                ? "bg-gradient-to-l from-muted to-transparent"
-                                : "bg-gradient-to-l from-background to-transparent",
-                            )}
-                            style={{ display: truncatedTabsRef.current.has(subChat.id) ? "block" : "none" }}
-                          />
+                          <span className="sr-only">{getDisplayName(subChat.name)}</span>
                         )}
 
                         {/* Close button - only show when hovered and multiple tabs and not editing */}
                         {openSubChats.length > 1 &&
                           editingSubChatId !== subChat.id && (
-                            <div className="absolute right-0 top-0 bottom-0 flex items-center justify-end pr-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
                               <div
                                 className={cn(
-                                  "absolute right-0 top-0 bottom-0 w-9 flex items-center justify-center rounded-r-[3px]",
-                                  isActive
-                                    ? "bg-[linear-gradient(to_left,hsl(var(--muted))_0%,hsl(var(--muted))_60%,transparent_100%)]"
-                                    : "bg-[linear-gradient(to_left,color-mix(in_srgb,hsl(var(--muted))_80%,hsl(var(--background)))_0%,color-mix(in_srgb,hsl(var(--muted))_80%,hsl(var(--background)))_60%,transparent_100%)]",
+                                  "absolute inset-0 rounded-[3px]",
+                                  isActive ? "bg-muted" : "bg-muted/90",
                                 )}
                               />
                               <span
@@ -899,31 +844,27 @@ export function SubChatSelector({
               })}
         </div>
 
-        {/* Plus button - absolute positioned on right with gradient cover.
+        {/* Plus button - absolute positioned on right.
             Always rendered (sub-chats always live as tabs now) so "new chat"
             is never gated on sidebar/mode state. */}
         {(
-          <div className="absolute right-0 top-0 bottom-0 flex items-center z-20">
-            {/* Gradient to cover content peeking from the left */}
-            <div className="w-6 h-full bg-gradient-to-r from-transparent to-background" />
-            <div className="h-full flex items-center bg-background pr-1">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={onCreateNew}
-                    className="h-6 w-6 p-0 hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] rounded-md"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  New chat
-                  {newAgentHotkey && <Kbd>{newAgentHotkey}</Kbd>}
-                </TooltipContent>
-              </Tooltip>
-            </div>
+          <div className="pointer-events-none absolute right-0 top-0 bottom-0 z-20 flex items-center pr-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onCreateNew}
+                  className="pointer-events-auto h-6 w-6 p-0 hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] rounded-md"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                New chat
+                {newAgentHotkey && <Kbd>{newAgentHotkey}</Kbd>}
+              </TooltipContent>
+            </Tooltip>
           </div>
         )}
       </div>
