@@ -26,6 +26,7 @@ fi
 
 echo "Starting 1Code desktop app..."
 echo
+export MAIN_VITE_DISABLE_DEVTOOLS=1
 bun run dev
 exit_status=$?
 

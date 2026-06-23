@@ -25,6 +25,7 @@ if not exist "node_modules\" (
 
 echo Starting 1Code desktop app...
 echo.
+set MAIN_VITE_DISABLE_DEVTOOLS=1
 bun run dev
 set EXIT_CODE=%errorlevel%
 
